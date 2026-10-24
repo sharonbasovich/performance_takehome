@@ -30,6 +30,11 @@ the statement nor private ZIP is changed in response to that later test.
 Astra run, and local timestamps are separate from organizer receipts. The bundle has not
 been sent to the organizer. No official outcome is claimed.
 
+After freeze, a fresh-context solver given only `puzzle.md` produced a different valid
+strategy in **3 minutes 52 seconds** (19:04:22–19:08:14 UTC). The frozen verifier accepted
+it. This candidate therefore has no demonstrated proxy resistance. The test did not
+expose the private proof or verifier to that solver, and the frozen ZIP is unchanged.
+
 ## Preserved prior attempt
 
 Devin's previous public statement, **The orthogonal mate** (order 50), remains in history
