@@ -135,10 +135,14 @@ def render_report(results: dict[str, Any]) -> str:
             + ", ".join(
                 f"{k} {_p(v)}" for k, v in val["scenario_fair_fixed_price_usd_per_gpu_hour"].items()
             )
-            + ". The deal is favourable to the buyer only "
-            "in the scarcity scenario or if the buyer's "
-            "realistic alternative is the single-GPU on-demand "
-            "ask rather than the forward/node market."
+            + ". "
+            + (
+                "Scenarios in which the contract is favourable to the buyer: "
+                + ", ".join(k for k, v in val["scenario_marks_usd"].items() if v > 0)
+                + "."
+                if any(v > 0 for v in val["scenario_marks_usd"].values())
+                else "No scenario makes the contract favourable to the buyer."
+            )
         )
     else:
         add(f"- **Decision:** `{val['decision']}` — {val['decision_basis']}")
@@ -432,8 +436,9 @@ def render_report(results: dict[str, Any]) -> str:
             else ""
         )
         + (
-            f"The firm {first_node['delivery_month']} ask {_p(first_node['ask'])} is used as the "
-            f"1-month node; the on-demand asks above are the context it is checked against.\n"
+            f"The firm {first_node['delivery_month']} ask {_p(first_node['ask'])} anchors the "
+            "first node as its upper edge; the on-demand asks above are the context it is "
+            "checked against.\n"
             if first_node and first_node.get("ask") is not None
             else "No firm ask exists for the 1-month tenor in this pack.\n"
         )
