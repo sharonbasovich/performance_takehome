@@ -1,0 +1,35 @@
+{
+  "engine": "standin",
+  "experiment": "007-native-march",
+  "finished_ts": "2026-10-24T08:32:29Z",
+  "hypothesis": "GGML_NATIVE=ON lets the compiler target the exact build host ISA; may improve matmul kernels slightly on this CPU (expected small improvement or no_change).",
+  "interrupted": "interrupted by SIGTERM during stage building",
+  "kept": false,
+  "kind": "attempt",
+  "last_good_after": {
+    "digest": "sha256:18274644668df642ff3e85ae0be31dd689baf752fd6d5c2249e7d667e1d9b7f2",
+    "experiment": "001-threads-8",
+    "image_id": "sha256:18274644668df642ff3e85ae0be31dd689baf752fd6d5c2249e7d667e1d9b7f2",
+    "patch": "tasks/harness-design/harness/patches/001-threads-8.patch",
+    "report": "tasks/harness-design/harness/reports/001-threads-8.json",
+    "tag": "abstract-harness-standin:001-threads-8"
+  },
+  "last_good_before": {
+    "digest": "sha256:18274644668df642ff3e85ae0be31dd689baf752fd6d5c2249e7d667e1d9b7f2",
+    "experiment": "001-threads-8",
+    "image_id": "sha256:18274644668df642ff3e85ae0be31dd689baf752fd6d5c2249e7d667e1d9b7f2",
+    "patch": "tasks/harness-design/harness/patches/001-threads-8.patch",
+    "report": "tasks/harness-design/harness/reports/001-threads-8.json",
+    "tag": "abstract-harness-standin:001-threads-8"
+  },
+  "outcome": "interrupted",
+  "patch_apply": {
+    "ok": true,
+    "output": "patching file Dockerfile"
+  },
+  "patch_path": "tasks/harness-design/harness/patches/007-native-march.patch",
+  "proposal_notes": "",
+  "proposer": "scripted",
+  "started_ts": "2026-10-24T08:32:13Z",
+  "transcript": ""
+}
