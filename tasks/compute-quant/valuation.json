@@ -64,7 +64,8 @@
       "payment",
       "cancellation"
     ],
-    "excluded_quote_ids_by_flag": []
+    "excluded_quote_ids_by_flag": [],
+    "unknown_case_keys": []
   },
   "quotes": [
     {
@@ -1121,18 +1122,33 @@
       "flexible_over_reserved": 1.11138498,
       "note": "price of cancel-anytime hourly access relative to a non-cancellable reserved month at the same quantity; the embedded cancellation option is why flexible asks bound reserved prices from above rather than equal them"
     },
-    "historical_variability": [
-      {
-        "expired_quote_id": "q10",
-        "current_quote_id": "q01",
-        "months_apart": 1.97125257,
-        "expired_usd_per_gpu_hour": 4.6,
-        "current_usd_per_gpu_hour": 5.2,
-        "log_move": 0.12260232,
-        "implied_vol_per_sqrt_month": 0.08732278,
-        "treatment": "expired price is never a current level; the pair only informs the declared horizon-widening parameter, and one pair cannot estimate volatility reliably"
-      }
-    ]
+    "historical_variability": {
+      "pairs": 1,
+      "unmatched_expired_quotes": 0,
+      "implied_vol_per_sqrt_month": {
+        "median": 0.08732278,
+        "min": 0.08732278,
+        "max": 0.08732278
+      },
+      "log_move": {
+        "median": 0.12260232,
+        "min": 0.12260232,
+        "max": 0.12260232
+      },
+      "examples": [
+        {
+          "expired_quote_id": "q10",
+          "current_quote_id": "q01",
+          "months_apart": 1.97125257,
+          "expired_usd_per_gpu_hour": 4.6,
+          "current_usd_per_gpu_hour": 5.2,
+          "log_move": 0.12260232,
+          "implied_vol_per_sqrt_month": 0.08732278
+        }
+      ],
+      "example_limit": 5,
+      "treatment": "expired prices are never current levels; each expired quote is paired with the nearest current quote of the same provider/kind/side/size only to inform the declared horizon-widening parameter; a handful of pairs cannot estimate volatility reliably"
+    }
   },
   "reservation": {
     "id": "synthetic-reservation-1",
@@ -1303,6 +1319,56 @@
         "mark_adjusted_usd": -967.31991492
       }
     ],
+    "quantity_factor_multiplier": [
+      {
+        "multiplier": 0.9,
+        "factor": 0.7788465,
+        "curve_mid_by_tenor": {
+          "1": 4.5325,
+          "3": 4.25,
+          "6": 3.92009486,
+          "12": 3.49642605
+        },
+        "anchor_mid_by_tenor": {
+          "0": 4.8088123,
+          "1": 4.5325,
+          "3": 4.25
+        },
+        "mark_adjusted_usd": -762.32407895
+      },
+      {
+        "multiplier": 1.0,
+        "factor": 0.865385,
+        "curve_mid_by_tenor": {
+          "1": 4.5325,
+          "3": 4.25,
+          "6": 3.92009486,
+          "12": 3.49642605
+        },
+        "anchor_mid_by_tenor": {
+          "0": 4.32793162,
+          "1": 4.5325,
+          "3": 4.25
+        },
+        "mark_adjusted_usd": -762.32407895
+      },
+      {
+        "multiplier": 1.1,
+        "factor": 0.9519235,
+        "curve_mid_by_tenor": {
+          "1": 4.5325,
+          "3": 4.25,
+          "6": 3.92009486,
+          "12": 3.49642605
+        },
+        "anchor_mid_by_tenor": {
+          "0": 3.93448288,
+          "1": 4.5325,
+          "3": 4.25
+        },
+        "mark_adjusted_usd": -762.32407895
+      }
+    ],
     "discount_rate_bump": [
       {
         "bump": -0.02,
@@ -1443,6 +1509,11 @@
         0.5,
         1.0,
         2.0
+      ],
+      "quantity_factor_multipliers": [
+        0.9,
+        1.0,
+        1.1
       ]
     }
   },

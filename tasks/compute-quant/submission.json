@@ -4,7 +4,11 @@
   "status": "draft-submission-synthetic-inputs",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "commit": "UNAVAILABLE_IN_DRAFT: the submission commit is the PR head; it cannot be recorded inside itself and the organizer freezes it at the deadline"
+    "commit": "94a76e34bf60556469da9e15c9e66139c66946d3",
+    "commit_note": "last content commit; the commit that adds this manifest and run-manifest.json necessarily follows it, so research_tree_sha (git rev-parse <commit>:tasks/compute-quant/research) is the stable identity of the model code",
+    "research_tree_sha": "52fd1ffb81c0892762ef297c8968b886aac73d3b",
+    "branch": "submission/compute-quant",
+    "pull_request": "https://github.com/sharonbasovich/performance_takehome/pull/1"
   },
   "inputs": {
     "case": "tasks/compute-quant/data/demo-case.json",
