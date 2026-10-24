@@ -155,6 +155,42 @@ at the timeout) and a run that edits nothing are all `ProposerError`s. Not verif
 real provider's error text and exit code match the fixture's; the fixture's values are
 illustrative, its *shapes* are the ones in the type definitions above.
 
+## Round-3 review fixes (independent cold review of 62ab024)
+
+Every finding below was reproduced, fixed and covered by a test in `harness/tests/`
+(`test_hardening.py`, `test_docs.py`, `test_provenance.py`, `CrashBetweenWritesTest`):
+
+| Finding | Fix | Test |
+| --- | --- | --- |
+| Scripted edit with an absolute `file` path wrote to a host file | `proposers.contained_path()` (relative, no `..`, resolves inside the context, no symlink components); contexts with escaping symlinks are refused before copying; `apply_patch` rejects symlinks it created that leave the context; copies preserve symlinks instead of following them | `PathContainmentTest` (absolute, `..` variants, symlink file, symlinked dir, case variant, patch-created symlink) |
+| Startup regression guard was dead code (1 sample vs `min_samples=3`) | `decision.startup_hard_gate()`: single-sample hard gate at 1.5x (`--startup-regression-limit`), evaluated before the primary metrics; docs now say exactly this | `StartupHardGateTest` (100x slower startup + TTFT win -> `regressed`) |
+| `kill -9` between row append and state save duplicated the row and overwrote the report | `InProgress` carries `attempt_index`/`report_path`/`row_written`; `_append_row` is idempotent on experiment id; recovery clears the marker without a row when the row exists, never overwrites an existing report (`.recovered.json`), and `_reconcile_attempt_index()` never reuses a number already in `results.tsv` (also covers a `.bak` rewind); `validate-results` rejects duplicate ids | `CrashBetweenWritesTest` (report-only, row-without-save, `.bak` rewind, duplicate id) |
+| Documented `fetch-standin-model --model-dir` did not run | README fixed (`--dest`); organizer example rewritten to the real CLI | `test_docs.py` parses every documented `run.py` line with the real parser |
+| `source_commit` named a commit without the code | `_git_describe()` records HEAD and refuses to run on a dirty `tasks/harness-design` (code paths only; evidence outputs are ignored) unless `--allow-dirty` (then `-dirty` suffix); `harness_tree_sha256` of the code + inputs stored in state and manifest; **all evidence rows were regenerated from the committed tree** | `ProvenanceTest` |
+| Budget guard could not bound an attempt | estimate = max(configured, p90 of observed attempt durations); proposer USD estimate passed; every stage timeout is clamped to a per-attempt deadline = min(worst case from timeouts, usable lease window) | `BudgetBoundTest` |
+| `results.validate()` gaps | rejects `improved` rows without a speedup > 1 (none below 0.95), NaN/inf/non-numeric numbers (named error), non-hex digests, malformed timestamps; file-level: duplicate ids, duplicate rows, non-monotonic timestamps | `ResultsValidationTest` |
+| `load_benchmark()` gaps | `BenchmarkError` for non-positive/non-int repetitions and token counts, non-positive timeouts, prompts without `id`/`prompt`, bad `startup_probe` | `BenchmarkValidationTest` |
+| Complete last row without newline was dropped to `.torn` | fragment is parsed first; a valid row is kept (newline added, logged) | `test_complete_last_row_without_newline_is_kept` |
+| Lock taken after header write/state read; results path unlocked | both `harness.lock` and `<results>.lock` are taken in `Harness.__init__` before any read/write | `EarlyLockTest` |
+| `KeyError`/`TypeError` escaped `run()` without `finalize()` | queue entries are schema-checked up front (`ScriptedProposer.validate_queue`); `run()` catches `Exception`, logs the traceback, finalizes, exits 2 | `test_queue_schema_errors_are_named` |
+| Signal handler raised inside the handler and `SIG_IGN`ed a second signal | first signal sets a flag (child processes are aborted via `should_abort`, the loop stops at the next checkpoint and finalizes); a second signal aborts even `finalize()`; a third is the default action | `SigtermSubprocessTest` |
+| Hard-coded manifest literals; empty `agent_transcripts` | repository URL from `git remote`, Pi pins from `agent-harness/profiles.json`, llama.cpp commit from the stand-in Dockerfile; transcripts collected from reports | reconciled by `validate-results` + manifest tests |
+| FTGR silently dropped <= 1-token samples; `gpu_hours_cumulative=0.0000` with no GPU | dropped count reported in measurement notes; GPU hours blank when `--gpus 0` | `test_measure.py`, evidence rows |
+| Tautological commit check in `standin/Dockerfile` | `ARG LLAMA_CPP_COMMIT` is now part of the `ADD --checksum` URL, so commit and checksum must change together | build of the evidence images |
+
+**What the "digest" is.** With `docker buildx build --load` the only locally resolvable identity
+is the image *config ID* (`docker image inspect --format {{.Id}}`); that is what `image_digest`
+holds and why it equals `image_id` in every report. A registry manifest digest exists only after
+a push (`manifest.json` says which kind it recorded).
+
+**Pi sandboxing (known limitation).** The organizer contract requires plain Pi 1.0.0 with the
+stock `bash` tool, so `PiProposer` runs it as a host process. Mitigations in place: cwd is the
+scratch copy of the build context, the environment is scrubbed to PATH/HOME/LANG plus the named
+key, `PI_CODING_AGENT_DIR` points at a task-scoped directory, the resulting tree is diffed and the
+patch is containment-checked before use. Not in place: a container or `bwrap` jail; on a shared
+host that is a real risk and is called out in the PR. `--no-approve` in 1.0.0 means "ignore
+project-local files" (`dist/cli/args.js` L219, `projectTrustOverride`), not approval skipping.
+
 ## Limitations (honest)
 
 * Stand-in results say nothing about LLMD on MI355X; they prove the loop, not the hypotheses.

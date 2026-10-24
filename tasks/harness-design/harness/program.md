@@ -40,8 +40,10 @@ if it is correct and significantly better. You never run docker or servers.
 * `local_ftgr_speedup` = candidate / baseline Etalon fluid token generation
   rate (`benchmarks.metrics.fluid_token_generation_rate`, >1 is better).
 * `local_startup_s` = seconds from `docker run` until the first complete greedy
-  generation; secondary metric (a startup win alone is `no_change`, a startup
-  regression blocks a keep).
+  generation; one cold start per side. It is a **hard gate**, not a bootstrap
+  metric: a candidate whose startup is more than 1.5x the last-good startup
+  (`--startup-regression-limit`) is `regressed` whatever TTFT/FTGR say. A startup
+  win alone is `no_change`.
 * Decision: 90% bootstrap CI of the ratio of medians must exclude 1.0 AND the
   effect must exceed `min_effect` (3%) to count. Otherwise `no_change`. A kept
   image becomes the new baseline, so later speedups are relative to it.

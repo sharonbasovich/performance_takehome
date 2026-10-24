@@ -9,11 +9,13 @@ not a solved optimizer in this starter repository. All paths below are repositor
 Example candidate-defined invocation:
 
 ```text
-python tasks/harness-design/harness/run.py \
+python tasks/harness-design/harness/run.py run \
+  --engine llmd --model-dir /path/to/model-repo \
   --baseline baseline/lock.json \
   --development-benchmark tasks/harness-design/harness/development-benchmark.json \
   --budget-minutes 360 \
   --api-spend-limit-usd 200 \
+  --state-dir /var/tmp/harness-state \
   --out tasks/harness-design/submission.json \
   --results tasks/harness-design/harness/results.tsv
 ```
@@ -105,7 +107,7 @@ Stand-in engine on CPU (what produced the committed `results.tsv`; needs Docker 
 network only for the one-time model download and the first image build):
 
 ```sh
-uv run --frozen python tasks/harness-design/harness/run.py fetch-standin-model --model-dir /tmp/standin-model
+uv run --frozen python tasks/harness-design/harness/run.py fetch-standin-model --dest /tmp/standin-model
 uv run --frozen python tasks/harness-design/harness/run.py run \
   --engine standin --model-dir /tmp/standin-model \
   --experiments tasks/harness-design/harness/experiments/standin-queue.json \
