@@ -59,6 +59,7 @@ class Evaluator:
         self.reasons: list[str] = []
         self.inconclusive: list[str] = []
         self.verdicts: dict[str, Verdict] = {}
+        self.by_id = {str(r.raw.get("request_id")): r for r in evidence.requests}
         self.records = {r.request_id: r.raw for r in evidence.requests}
 
     def _ci(self, values: list[float], stat: Any, salt: int) -> dict[str, Any]:
@@ -108,6 +109,19 @@ class Evaluator:
                 f"evaluated with {self.plan['plan_id']!r}"
             )
 
+    REQUIRED_KEYS = (
+        "request_id",
+        "phase",
+        "unit_id",
+        "cell_id",
+        "client_tokens",
+        "timestamps_mono_s",
+        "events",
+    )
+
+    def _malformed(self, raw: dict[str, Any]) -> bool:
+        return any(key not in raw for key in self.REQUIRED_KEYS)
+
     def judge_all(self) -> None:
         errors_by_request: dict[str, list[str]] = defaultdict(list)
         for err in self.ev.schema_errors:
@@ -115,6 +129,12 @@ class Evaluator:
                 rid = err.split(" ", 1)[1].split(":", 1)[0]
                 errors_by_request[rid].append(err)
         for rec in self.ev.requests:
+            if self._malformed(rec.raw):
+                self.reasons.append(
+                    f"record {rec.raw.get('request_id', '?')!r} is malformed "
+                    "(required key missing); not scored"
+                )
+                continue
             self.verdicts[rec.request_id] = judge(
                 rec.raw, self.plan, errors_by_request.get(rec.request_id, [])
             )
@@ -142,6 +162,8 @@ class Evaluator:
             }
         for rec in self.ev.requests:
             raw = rec.raw
+            if self._malformed(raw):
+                continue
             if raw["phase"] == "startup_probe":
                 continue
             row = table.setdefault(
@@ -176,7 +198,9 @@ class Evaluator:
     def _measure_groups(self) -> dict[str, list[tuple[dict[str, Any], Verdict]]]:
         groups: dict[str, list[tuple[dict[str, Any], Verdict]]] = defaultdict(list)
         for rec in self.ev.requests:
-            if rec.raw["phase"] == "measure":
+            if self._malformed(rec.raw):
+                continue
+            if not self._malformed(rec.raw) and rec.raw["phase"] == "measure":
                 groups[_group_key(rec.raw)].append((rec.raw, self.verdicts[rec.request_id]))
         return groups
 
@@ -338,21 +362,54 @@ class Evaluator:
         for launch in self.ev.run.startup:
             t0 = launch["launch_mono_s"]
             probes = launch.get("readiness_probes") or []
-            valid_at = launch.get("first_valid_generation_at")
+            claimed_at = launch.get("first_valid_generation_at")
             probe_ids = launch.get("generation_probe_request_ids") or []
             probe_verdicts = [self.verdicts[p].category for p in probe_ids if p in self.verdicts]
             first_valid_request = launch.get("first_valid_request_id")
-            consistent = (
-                first_valid_request in self.verdicts
-                and self.verdicts[first_valid_request].category == "completed"
-                if first_valid_request
-                else True
-            )
-            if first_valid_request and not consistent:
+            # Startup is derived from the probes' own raw events: the earliest probe passing
+            # every gate. run.json's summary is only cross-checked, never trusted.
+            derived: tuple[float, str] | None = None
+            for pid in probe_ids:
+                v = self.verdicts.get(pid)
+                rec = self.by_id.get(pid)
+                if v is None or rec is None or v.category != "completed":
+                    continue
+                # "First valid completed generation": validity is only known when the stream
+                # ends, so the clock stops at the probe's own client-side ``end`` timestamp.
+                at = float(rec.raw["timestamps_mono_s"]["end"])
+                if derived is None or at < derived[0]:
+                    derived = (at, pid)
+            valid_at = derived[0] if derived else None
+            label = f"startup launch {launch['launch_index']}"
+            if (claimed_at is None) != (derived is None):
                 self.reasons.append(
-                    f"startup launch {launch['launch_index']}: "
-                    "claimed first valid probe fails the gates"
+                    f"{label}: startup_self_report_mismatch (run.json claims "
+                    f"{claimed_at!r}, probe evidence derives {valid_at!r})"
                 )
+            elif derived is not None and abs(float(claimed_at) - derived[0]) > 1e-3:
+                self.reasons.append(
+                    f"{label}: startup_self_report_mismatch (claimed {claimed_at:.4f}s, "
+                    f"derived {derived[0]:.4f}s from probe {derived[1]!r})"
+                )
+            if derived is not None and first_valid_request not in (None, derived[1]):
+                self.reasons.append(
+                    f"{label}: startup_self_report_mismatch (claimed probe "
+                    f"{first_valid_request!r}, derived {derived[1]!r})"
+                )
+            if (
+                first_valid_request
+                and first_valid_request in self.verdicts
+                and self.verdicts[first_valid_request].category != "completed"
+            ):
+                self.reasons.append(f"{label}: claimed first valid probe fails the gates")
+            if launch.get("status") == "valid" and derived is None:
+                self.reasons.append(f"{label}: claimed valid but no probe passes the gates")
+            if (
+                valid_at is not None
+                and launch.get("readiness_at")
+                and launch["readiness_at"] > valid_at
+            ):
+                self.reasons.append(f"{label}: readiness recorded after the first valid generation")
             launches.append(
                 {
                     "launch_index": launch["launch_index"],
@@ -373,8 +430,7 @@ class Evaluator:
         valid = [
             launch["startup_to_first_valid_generation_s"]
             for launch in launches
-            if launch["status"] == "valid"
-            and launch["startup_to_first_valid_generation_s"] is not None
+            if launch["startup_to_first_valid_generation_s"] is not None
         ]
         planned = self.ev.run.raw.get("planned_startup_launches")
         cold = [launch for launch in launches if launch["cold"]]
@@ -648,8 +704,7 @@ def _fmt(value: Any) -> str:
     return "-" if value is None else f"{value:.4g}"
 
 
-def main(argv: list[str] | None = None) -> int:
-    """CLI entry point."""
+def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -661,7 +716,33 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--adapter", default="native")
     parser.add_argument("--summary", type=Path, help="also write a Markdown summary here")
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point: always writes a report; an evaluator crash is an invalid verdict (rc 4)."""
+    try:
+        return _main(argv)
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001 - a crash must surface as a verdict, not a traceback
+        args, _ = _parser().parse_known_args(argv)
+        report = {
+            "report_schema_version": REPORT_SCHEMA_VERSION,
+            "status": "invalid",
+            "reasons": [f"evaluator error: {type(exc).__name__}: {exc}"],
+            "inconclusive_reasons": [],
+        }
+        if getattr(args, "out", None) is not None:
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+        print(f"# Evaluation: status **INVALID** - {report['reasons'][0]}")
+        return 4
+
+
+def _main(argv: list[str] | None) -> int:
+    """Parse arguments, evaluate, write report and summary."""
+    args = _parser().parse_args(argv)
     plan = load_plan(args.workload)
     digest = plan_digest(args.workload)
     base = evaluate(plan, args.events, args.adapter, digest)

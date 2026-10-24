@@ -178,6 +178,22 @@ def make_run(
     if planned:
         for uid, n in planned.items():
             units[uid]["planned_requests"] = n
+    if launch is None and not any(r["phase"] == "startup_probe" for r in records):
+        # A real probe record backs the claimed first valid generation (its own end timestamp).
+        records.append(
+            make_record(
+                plan(),
+                request_id="startup/0/probe/0",
+                index=0,
+                send=94.0,
+                ttft=1.0,
+                phase="startup_probe",
+                role="startup",
+            )
+        )
+    probe_ids = [r["request_id"] for r in records if r["phase"] == "startup_probe"]
+    probe_ends = [r["timestamps_mono_s"]["end"] for r in records if r["phase"] == "startup_probe"]
+    valid_at = min(probe_ends) if probe_ends else None
     sends = [r["timestamps_mono_s"]["send"] for r in records if r["phase"] == "measure"] or [100.0]
     ends = [r["timestamps_mono_s"]["end"] for r in records if r["phase"] == "measure"] or [101.0]
     startup = (
@@ -193,10 +209,10 @@ def make_run(
                     {"t": 91.0, "http_status": 503, "ok": False},
                     {"t": 92.0, "http_status": 200, "ok": True},
                 ],
-                "generation_probe_request_ids": [],
+                "generation_probe_request_ids": probe_ids,
                 "readiness_at": 92.0,
-                "first_valid_generation_at": 95.0,
-                "first_valid_request_id": None,
+                "first_valid_generation_at": valid_at,
+                "first_valid_request_id": probe_ids[0] if probe_ids else None,
                 "status": "valid",
             }
         ]

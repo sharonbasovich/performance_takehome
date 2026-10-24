@@ -136,7 +136,7 @@ class RequestRecord:
 
     @property
     def request_id(self) -> str:
-        return str(self.raw["request_id"])
+        return str(self.raw.get("request_id", "<missing-request_id>"))
 
     @property
     def unit_id(self) -> str:
@@ -178,27 +178,65 @@ class Evidence:
     adapter: str
 
 
-def _open_text(path: Path) -> Any:
+def _open_binary(path: Path) -> Any:
     if path.suffix == ".gz":
-        return gzip.open(path, "rt", encoding="utf-8")
-    return path.open(encoding="utf-8")
+        return gzip.open(path, "rb")
+    return path.open("rb")
+
+
+def _iter_bounded_lines(path: Path, chunk_bytes: int = 1 << 20) -> Iterator[tuple[int, bytes]]:
+    """Yield (line_number, line) reading fixed-size chunks; never buffers more than one record.
+
+    The bounds are enforced on the *decompressed* byte stream before a line is materialised, so
+    a single-line gzip bomb aborts after ``MAX_RECORD_BYTES`` + one chunk, not after inflating.
+    """
+    total = 0
+    number = 0
+    buffer = bytearray()
+    try:
+        with _open_binary(path) as handle:
+            while True:
+                chunk = handle.read(chunk_bytes)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_EVIDENCE_BYTES:
+                    raise EvidenceError(
+                        f"{path}: evidence exceeds {MAX_EVIDENCE_BYTES} decompressed bytes"
+                    )
+                buffer += chunk
+                while True:
+                    cut = buffer.find(b"\n")
+                    if cut < 0:
+                        break
+                    number += 1
+                    line = bytes(buffer[:cut])
+                    del buffer[: cut + 1]
+                    if len(line) > MAX_RECORD_BYTES:
+                        raise EvidenceError(
+                            f"{path}:{number}: record exceeds {MAX_RECORD_BYTES} bytes"
+                        )
+                    yield number, line
+                if len(buffer) > MAX_RECORD_BYTES:
+                    raise EvidenceError(
+                        f"{path}:{number + 1}: record exceeds {MAX_RECORD_BYTES} bytes"
+                    )
+    except (EOFError, gzip.BadGzipFile, OSError) as exc:
+        raise EvidenceError(f"{path}: unreadable or corrupt evidence file ({exc})") from exc
+    if buffer:
+        yield number + 1, bytes(buffer)
 
 
 def _iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
     """Stream records with hard byte bounds so a corrupt or hostile file fails fast, not OOM."""
-    total = 0
-    with _open_text(path) as handle:
-        for number, line in enumerate(handle, start=1):
-            total += len(line)
-            if len(line) > MAX_RECORD_BYTES:
-                raise EvidenceError(f"{path}:{number}: record exceeds {MAX_RECORD_BYTES} bytes")
-            if total > MAX_EVIDENCE_BYTES:
-                raise EvidenceError(
-                    f"{path}: evidence exceeds {MAX_EVIDENCE_BYTES} decompressed bytes"
-                )
-            line = line.strip()
-            if not line:
-                continue
+    for number, raw_line in _iter_bounded_lines(path):
+        try:
+            line = raw_line.decode("utf-8").strip()
+        except UnicodeDecodeError as exc:
+            raise EvidenceError(f"{path}:{number}: not valid UTF-8 ({exc})") from exc
+        if not line:
+            continue
+        if True:
             try:
                 record = json.loads(line)
             except json.JSONDecodeError as exc:

@@ -34,7 +34,8 @@ class StatusTests(unittest.TestCase):
         self.assertLessEqual(cell["ttft_s"]["p50"]["low"], cell["ttft_s"]["p50"]["point"])
         self.assertEqual(cell["fluidity"]["strict"]["index_mean"]["point"], 1.0)
         self.assertIsNotNone(cell["decode"]["ftgr_tokens_per_s"])
-        self.assertEqual(report["startup"]["startup_to_first_valid_generation_s"]["median"], 5.0)
+        median = report["startup"]["startup_to_first_valid_generation_s"]["median"]
+        self.assertTrue(5.0 < median < 6.0, median)  # synthetic probe ends ~5.2 s after launch
         self.assertEqual(report["population"]["totals"]["completed"], self.n)
 
     def test_client_lag_invalidates_run(self) -> None:
@@ -95,11 +96,29 @@ class StatusTests(unittest.TestCase):
 
 
 class StartupTests(unittest.TestCase):
+    """Startup is derived from probe evidence; run.json's summary is only cross-checked."""
+
     def setUp(self) -> None:
         self.plan = plan()
         self.records = clean_cell(
             self.plan, "chat_short_open", self.plan["statistics"]["min_requests_per_cell"]
         )
+
+    def probe(self, request_id: str = "startup0/probe/1", send: float = 39.0, **kw):
+        rec = make_record(
+            self.plan, request_id=request_id, phase="startup_probe", role="startup", send=send, **kw
+        )
+        rec["unit_id"], rec["cell_id"], rec["arrival_type"], rec["load_label"] = (
+            "startup",
+            "startup",
+            "probe",
+            "probe",
+        )
+        return rec
+
+    @property
+    def valid_at(self) -> float:
+        return self.probe(ttft=1.0)["timestamps_mono_s"]["end"]  # the probe's own end timestamp
 
     def launch(self, **overrides):
         base = {
@@ -108,57 +127,96 @@ class StartupTests(unittest.TestCase):
             "cold": True,
             "launch_command_sha256": "0" * 64,
             "readiness_probes": [{"t": 2.0, "http_status": 200, "ok": True}],
-            "generation_probe_request_ids": [],
+            "generation_probe_request_ids": ["startup0/probe/1"],
             "readiness_at": 2.0,
-            "first_valid_generation_at": 40.0,
-            "first_valid_request_id": None,
+            "first_valid_generation_at": self.valid_at,
+            "first_valid_request_id": "startup0/probe/1",
             "status": "valid",
         }
         base.update(overrides)
         return base
 
+    def run_with(self, launch, *probes):
+        probes = probes or (self.probe(ttft=1.0),)
+        return run_eval(self.plan, [*self.records, *probes], launch=launch)[0]
+
     def test_readiness_does_not_stop_the_clock(self) -> None:
-        report, _, _ = run_eval(self.plan, self.records, launch=self.launch())
+        report = self.run_with(self.launch())
         startup = report["startup"]["launches"][0]
+        self.assertEqual(report["status"], "valid", report["reasons"])
         self.assertEqual(startup["first_ready_probe_s"], 2.0)
-        self.assertEqual(startup["startup_to_first_valid_generation_s"], 40.0)
-        self.assertEqual(startup["readiness_lead_s"], 38.0)
-        self.assertEqual(report["startup"]["startup_to_first_valid_generation_s"]["median"], 40.0)
+        self.assertAlmostEqual(
+            startup["startup_to_first_valid_generation_s"], self.valid_at, places=6
+        )
+        self.assertAlmostEqual(startup["readiness_lead_s"], self.valid_at - 2.0, places=6)
+        self.assertAlmostEqual(
+            report["startup"]["startup_to_first_valid_generation_s"]["median"],
+            self.valid_at,
+            places=6,
+        )
+
+    def test_forged_early_startup_is_rejected(self) -> None:
+        report = self.run_with(self.launch(first_valid_generation_at=0.001))
+        self.assertEqual(report["status"], "invalid")
+        self.assertTrue(any("startup_self_report_mismatch" in r for r in report["reasons"]))
+        # The reported metric is the derived one, never the forged claim.
+        self.assertAlmostEqual(
+            report["startup"]["launches"][0]["startup_to_first_valid_generation_s"],
+            self.valid_at,
+            places=6,
+        )
+
+    def test_forged_late_startup_is_rejected(self) -> None:
+        report = self.run_with(self.launch(first_valid_generation_at=self.valid_at + 15.0))
+        self.assertEqual(report["status"], "invalid")
+        self.assertTrue(any("startup_self_report_mismatch" in r for r in report["reasons"]))
+
+    def test_missing_claim_with_probe_evidence_is_rejected(self) -> None:
+        report = self.run_with(
+            self.launch(first_valid_generation_at=None, first_valid_request_id=None)
+        )
+        self.assertEqual(report["status"], "invalid")
+        self.assertTrue(any("startup_self_report_mismatch" in r for r in report["reasons"]))
+
+    def test_mismatched_probe_id_is_rejected(self) -> None:
+        other = self.probe(request_id="startup0/probe/2", send=45.0, ttft=1.0)
+        launch = self.launch(
+            generation_probe_request_ids=["startup0/probe/1", "startup0/probe/2"],
+            first_valid_request_id="startup0/probe/2",
+        )
+        report = self.run_with(launch, self.probe(ttft=1.0), other)
+        self.assertEqual(report["status"], "invalid")
+        self.assertTrue(any("startup_self_report_mismatch" in r for r in report["reasons"]))
+
+    def test_claim_without_any_probe_record_is_rejected(self) -> None:
+        report = run_eval(self.plan, self.records, launch=self.launch())[0]
+        self.assertEqual(report["status"], "invalid")
+        self.assertTrue(any("startup_self_report_mismatch" in r for r in report["reasons"]))
 
     def test_no_valid_generation_is_inconclusive(self) -> None:
-        report, _, _ = run_eval(
-            self.plan,
-            self.records,
-            launch=self.launch(first_valid_generation_at=None, status="timeout"),
+        failed = self.probe(done=False)
+        report = self.run_with(
+            self.launch(
+                first_valid_generation_at=None, first_valid_request_id=None, status="timeout"
+            ),
+            failed,
         )
-        self.assertEqual(report["status"], "inconclusive")
+        self.assertEqual(report["status"], "inconclusive", report["reasons"])
         self.assertTrue(any("startup" in r for r in report["inconclusive_reasons"]))
 
     def test_claimed_valid_probe_must_pass_gates(self) -> None:
-        probe = make_record(
-            self.plan,
-            request_id="startup0/probe/1",
-            phase="startup_probe",
-            role="startup",
-            done=False,
-        )
-        probe["unit_id"], probe["cell_id"], probe["arrival_type"], probe["load_label"] = (
-            "startup",
-            "startup",
-            "probe",
-            "probe",
-        )
-        launch = self.launch(
-            generation_probe_request_ids=["startup0/probe/1"],
-            first_valid_request_id="startup0/probe/1",
-        )
-        report, _, _ = run_eval(self.plan, [*self.records, probe], launch=launch)
+        report = self.run_with(self.launch(), self.probe(done=False))
         self.assertEqual(report["status"], "invalid")
         self.assertTrue(any("fails the gates" in r for r in report["reasons"]))
 
+    def test_readiness_after_first_valid_generation_is_rejected(self) -> None:
+        report = self.run_with(self.launch(readiness_at=self.valid_at + 1.0))
+        self.assertEqual(report["status"], "invalid")
+        self.assertTrue(any("readiness recorded after" in r for r in report["reasons"]))
+
     def test_attached_without_cold_launch_is_inconclusive(self) -> None:
-        report, _, _ = run_eval(self.plan, self.records, launch=self.launch(cold=False))
-        self.assertEqual(report["status"], "inconclusive")
+        report = self.run_with(self.launch(cold=False))
+        self.assertEqual(report["status"], "inconclusive", report["reasons"])
 
 
 class ControlAndComparisonTests(unittest.TestCase):
