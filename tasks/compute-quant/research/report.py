@@ -65,6 +65,16 @@ def _quote_treatment(q: dict[str, Any]) -> tuple[str, str]:
     return "<br>".join(done), why
 
 
+def _summary_text(summary: dict[str, Any]) -> str:
+    """count/min/median/max summary of a price distribution as prose."""
+    if not summary or not summary.get("count"):
+        return "none"
+    return (
+        f"{summary['count']} quote(s), min {_p(summary['min'])}, median "
+        f"{_p(summary['median'])}, max {_p(summary['max'])}"
+    )
+
+
 def render_report(results: dict[str, Any]) -> str:
     """Return the full Markdown report for a results mapping."""
     r = results
@@ -590,6 +600,9 @@ def render_report(results: dict[str, Any]) -> str:
     )
     add("### Cross-checks (never curve inputs)\n")
     for item in xc["performance_translation"]["examples"]:
+        summary = xc["performance_translation"]["comparable_same_class_summary"].get(
+            item.get("comparable_same_class_summary_key", ""), {}
+        )
         if item.get("equivalent_usd_per_reference_gpu_hour") is None:
             add(f"- `{item['quote_id']}` ({item['gpu']}): {item['note']}.")
             continue
@@ -602,8 +615,8 @@ def render_report(results: dict[str, Any]) -> str:
             f"per {ref['gpu']}-equivalent hour, "
             f"±{_pct(item['ratio_relative_uncertainty'])} → "
             f"{_p(item['equivalent_low'])}–{_p(item['equivalent_high'])}. "
-            f"Comparable same-class {ref['gpu']} asks: "
-            f"{', '.join(_p(p) for p in item['comparable_same_class_prices'])}. "
+            f"Comparable same-class {ref['gpu']} prices "
+            f"({item['comparable_same_class_summary_key']}): {_summary_text(summary)}. "
             f"{item['note']}. Weak cross-check only."
         )
     for item in xc["usage_commitments"]["examples"]:
@@ -627,8 +640,8 @@ def render_report(results: dict[str, Any]) -> str:
     if hist["pairs"]:
         vol = hist["implied_vol_per_sqrt_month"]
         add(
-            f"- **Historical pairs** ({hist['pairs']} expired quote(s) matched to the nearest "
-            "current quote of the same provider/kind/side/size; "
+            f"- **Historical pairs** ({hist['pairs']} expired quote(s) matched to the nearest-dated "
+            "valid quote of the same provider/kind/side/size; "
             f"{hist['unmatched_expired_quotes']} unmatched): "
             f"implied vol per √month median {_p(vol['median'], 3)}, range {_p(vol['min'], 3)}–"
             f"{_p(vol['max'], 3)}. Examples: "
