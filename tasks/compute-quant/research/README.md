@@ -20,7 +20,9 @@ python tasks/compute-quant/research/run.py \
 | `--exclude-quote ID` | drop a quote before modelling (evidence-removal experiments; repeatable) |
 | `--as-of ISO` | override the cutoff (experiments only; recorded in the outputs) |
 
-Exit codes: `0` success, `2` malformed/unsupported input (message names the row and field).
+Exit codes: `0` success (warnings may be printed); `2` malformed/unsupported input or
+configuration (message names the row/field), unsupported Python (< 3.11), or any unexpected
+internal failure (reported as a one-line message, never a traceback). No other codes are used.
 Non-fatal findings (exclusions, crossed markets, wide spreads) are printed as `warning:` lines
 on stderr and recorded in `valuation.json`.
 

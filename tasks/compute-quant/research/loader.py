@@ -56,7 +56,7 @@ def sha256_file(path: Path) -> str:
 
 
 def _read_csv(path: Path) -> tuple[list[dict[str, str]], tuple[str, ...]]:
-    with path.open("r", encoding="utf-8", newline="") as handle:
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         if reader.fieldnames is None:
             raise InputError(f"{path}: empty CSV")
@@ -85,10 +85,12 @@ def load_inputs(case_path: Path) -> LoadedInputs:
         raise InputError(f"quotes file {quotes_path} referenced by the case does not exist")
     rows, columns = _read_csv(quotes_path)
     quotes = tuple(quote_from_row(row) for row in rows)
-    ids = [quote.id for quote in quotes]
-    if len(set(ids)) != len(ids):
-        duplicates = sorted({qid for qid in ids if ids.count(qid) > 1})
-        raise InputError(f"duplicate quote ids {duplicates}")
+    seen: set[str] = set()
+    duplicates: set[str] = set()
+    for quote in quotes:
+        (duplicates if quote.id in seen else seen).add(quote.id)
+    if duplicates:
+        raise InputError(f"duplicate quote ids {sorted(duplicates)}")
     files.append(
         InputFile(
             "quotes", quotes_path.as_posix(), sha256_file(quotes_path), quotes_path.stat().st_size

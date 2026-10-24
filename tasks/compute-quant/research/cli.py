@@ -50,6 +50,22 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the CLI; any unexpected failure becomes a one-line exit-2 message."""
+    try:
+        return _main(argv)
+    except (InputError, ValueError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except Exception as exc:  # noqa: BLE001 - last resort: keep the 0/2 exit contract
+        print(
+            f"error: unexpected failure while running the pipeline ({type(exc).__name__}: {exc}); "
+            "please report this with the input pack",
+            file=sys.stderr,
+        )
+        return 2
+
+
+def _main(argv: list[str] | None) -> int:
     args = build_parser().parse_args(argv)
     try:
         config = load_config(args.config)
@@ -62,8 +78,17 @@ def main(argv: list[str] | None = None) -> int:
     except (InputError, ValueError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+    except Exception as exc:  # noqa: BLE001 - last resort: keep the 0/2 exit contract
+        print(
+            f"error: unexpected failure while running the pipeline ({type(exc).__name__}: {exc}); "
+            "please report this with the input pack",
+            file=sys.stderr,
+        )
+        return 2
     for message in results["curve"]["warnings"]:
         warn(message)
+    for key in results["inputs"]["unknown_case_keys"]:
+        warn(f"case key {key!r} is not part of schema_version 1 and was ignored")
     for item in results["exclusions"]:
         warn(f"quote {item['id']} not a curve input: {item['reason']}")
     manifest = build_manifest(

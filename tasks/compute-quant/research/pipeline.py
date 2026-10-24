@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import csv
 import hashlib
 import io
@@ -11,6 +12,7 @@ import platform
 import subprocess
 import sys
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 from . import __version__
@@ -62,10 +64,96 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 def load_config(path: Path | None) -> dict:
     """Load the model configuration JSON (default: ``research/config/default.json``)."""
     target = Path(path) if path else PACKAGE_DIR / "config" / "default.json"
-    config = json.loads(target.read_text(encoding="utf-8"))
-    if config.get("config_version") != 1:
-        raise InputError(f"{target}: unsupported config_version {config.get('config_version')!r}")
+    try:
+        config = json.loads(target.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise InputError(f"{target}: invalid JSON ({exc})") from exc
+    validate_config(config, str(target))
     return config
+
+
+CONFIG_CURVE_KEYS = {
+    "one_sided_spread_fraction": (float, 0.0, 5.0),
+    "fit_min_tenor_months": (int, 0, 120),
+    "default_reversion_per_month": (float, 0.0, 10.0),
+    "max_reversion_per_month": (float, 0.0, 10.0),
+    "horizon_vol_per_sqrt_month": (float, 0.0, 5.0),
+    "model_horizon_months_before_forecast": (float, 0.0, 240.0),
+}
+CONFIG_SENSITIVITY_KEYS = (
+    "utilizations",
+    "financing_rates",
+    "reversion_multipliers",
+    "discount_rate_bumps",
+    "default_probabilities",
+    "horizon_vol_multipliers",
+    "quantity_factor_multipliers",
+)
+ANCHOR_KINDS = {"supply_cost_breakeven", "max_valid_same_hardware_ask", "fixed"}
+
+
+def validate_config(config: object, where: str = "config") -> None:
+    """Check the model configuration shape, types and ranges; raise InputError naming the key."""
+    if not isinstance(config, dict):
+        raise InputError(f"{where}: configuration must be a JSON object")
+    if config.get("config_version") != 1:
+        raise InputError(f"{where}: unsupported config_version {config.get('config_version')!r}")
+    for section in ("curve", "anchors", "scenarios", "valuation", "sensitivities"):
+        if not isinstance(config.get(section), dict):
+            raise InputError(f"{where}: missing or non-object section {section!r}")
+    curve = config["curve"]
+    for key, (kind, low, high) in CONFIG_CURVE_KEYS.items():
+        if key not in curve:
+            raise InputError(f"{where}: curve.{key} is required")
+        value = curve[key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise InputError(f"{where}: curve.{key} must be a number")
+        if kind is int and int(value) != value:
+            raise InputError(f"{where}: curve.{key} must be an integer")
+        if not low <= value <= high:
+            raise InputError(f"{where}: curve.{key}={value} outside [{low}, {high}]")
+    band = curve.get("reversion_band_per_month")
+    if (
+        not isinstance(band, list)
+        or len(band) != 2
+        or not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in band)
+        or not 0 <= band[0] <= band[1] <= 10
+    ):
+        raise InputError(
+            f"{where}: curve.reversion_band_per_month must be [low, high] with 0<=low<=high"
+        )
+    for name, spec in config["anchors"].items():
+        if not isinstance(spec, dict) or spec.get("kind") not in ANCHOR_KINDS:
+            raise InputError(f"{where}: anchors.{name}.kind must be one of {sorted(ANCHOR_KINDS)}")
+        if spec["kind"] == "supply_cost_breakeven":
+            for field in ("utilization", "financing"):
+                value = spec.get(field, "case")
+                if value != "case" and not (isinstance(value, (int, float)) and value >= 0):
+                    raise InputError(
+                        f"{where}: anchors.{name}.{field} must be 'case' or a number >= 0"
+                    )
+            util = spec.get("utilization", "case")
+            if util != "case" and not 0 < util <= 1:
+                raise InputError(f"{where}: anchors.{name}.utilization must be in (0, 1]")
+        if spec["kind"] == "fixed" and not isinstance(spec.get("usd_per_gpu_hour"), (int, float)):
+            raise InputError(f"{where}: anchors.{name}.usd_per_gpu_hour must be a number")
+    scenarios = config["scenarios"]
+    if "base" not in scenarios:
+        raise InputError(f"{where}: scenarios.base is required")
+    for name, spec in scenarios.items():
+        if not isinstance(spec, dict) or spec.get("anchor") not in config["anchors"]:
+            raise InputError(f"{where}: scenarios.{name}.anchor must name an entry in anchors")
+        if spec.get("observed_side") not in {"mid", "low", "high"}:
+            raise InputError(f"{where}: scenarios.{name}.observed_side must be mid, low or high")
+    sens = config["sensitivities"]
+    for key in CONFIG_SENSITIVITY_KEYS:
+        values = sens.get(key)
+        if (
+            not isinstance(values, list)
+            or not values
+            or not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in values)
+        ):
+            raise InputError(f"{where}: sensitivities.{key} must be a non-empty list of numbers")
 
 
 def code_digest() -> str:
@@ -78,6 +166,21 @@ def code_digest() -> str:
             digest.update(path.read_bytes())
             digest.update(b"\0")
     return digest.hexdigest()
+
+
+def git_tree(repo: Path, path: str) -> str | None:
+    """Git tree hash of ``path`` at HEAD (stable across commits that do not touch it)."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", f"HEAD:{path}"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.stdout.strip() if out.returncode == 0 and out.stdout.strip() else None
 
 
 def git_commit(repo: Path) -> str | None:
@@ -124,6 +227,8 @@ def run_pipeline(
     factor, factor_note = estimate_quantity_factor(normalized, case)
     apply_quantity_adjustment(normalized, factor, case)
     model: CurveModel = build_curve_model(normalized, case, config)
+    model.items = normalized
+    model.quantity_factor = factor
     nodes = [model.node(t) for t in case.tenor_months]
     base_cost = breakeven(case.economics)
     valuation = value_reservation(model, case)
@@ -211,6 +316,7 @@ def run_pipeline(
             "'<role>:<sha256>\\n' lines (candidate-defined)",
             "quote_columns": list(loaded.quote_columns),
             "excluded_quote_ids_by_flag": list(exclude_quote_ids),
+            "unknown_case_keys": list(case.unknown_keys),
         },
         "quotes": quote_table,
         "exclusions": exclusions,
@@ -312,6 +418,7 @@ def _sensitivities(
             }
             for m in sens["reversion_multipliers"]
         ],
+        "quantity_factor_multiplier": _quantity_factor_sensitivity(model, case, sens),
         "discount_rate_bump": [],
         "default_probability": [],
         "horizon_vol_multiplier": [],
@@ -349,6 +456,30 @@ def _sensitivities(
         for m in sens["horizon_vol_multipliers"]
     ]
     return out
+
+
+def _quantity_factor_sensitivity(model: CurveModel, case: Case, sens: dict) -> list[dict]:
+    """Re-run the curve with the quantity factor scaled; reports node mids (and mark if marked)."""
+    rows: list[dict] = []
+    for m in sens["quantity_factor_multipliers"]:
+        items = [copy.deepcopy(item) for item in model.items]
+        factor = model.quantity_factor
+        for item in items:
+            item.quantity_adjusted_usd_per_gpu_hour = None
+            item.steps = [step for step in item.steps if step.name != "quantity"]
+        scaled = None if factor is None else factor * Decimal(str(m))
+        apply_quantity_adjustment(items, scaled, case)
+        alt = build_curve_model(items, case, model.config)
+        row: dict = {
+            "multiplier": m,
+            "factor": None if scaled is None else float(scaled),
+            "curve_mid_by_tenor": {str(t): alt.price(t)[0] for t in case.tenor_months},
+            "anchor_mid_by_tenor": {str(a.tenor): a.mid for a in alt.anchors},
+        }
+        val = value_reservation(alt, case)
+        row["mark_adjusted_usd"] = val.mark_adjusted if val.identified else None
+        rows.append(row)
+    return rows
 
 
 def _display_path(path: str) -> str:
@@ -425,6 +556,9 @@ def build_manifest(
             "version": __version__,
             "source_sha256": code_digest(),
             "git_commit": git_commit(repo_root),
+            "git_commit_note": "HEAD when the manifest was generated; the commit that adds the "
+            "manifest necessarily comes after it, so compare git_tree_research instead",
+            "git_tree_research": git_tree(repo_root, "tasks/compute-quant/research"),
         },
         "python": {
             "version": platform.python_version(),

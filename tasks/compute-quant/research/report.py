@@ -406,6 +406,47 @@ def render_report(results: dict[str, Any]) -> str:
         add(f"- ⚠ {w}")
     if curve["warnings"]:
         add("")
+    qs = r["sensitivities"].get("quantity_factor_multiplier", [])
+    if qs:
+        add("### Quantity-factor identification and sensitivity\n")
+        add(
+            f"The quantity factor {_p(qa['factor'])} is identified from a **single pair** of "
+            "flexible on-demand asks (one single-GPU, one node) and is applied to every node-sized "
+            "reserved quote — in this pack only the current-month anchor (tenor 0), which the "
+            "required tenors do not interpolate through. Scaling the factor shows how much of the "
+            "curve depends on it:\n"
+        )
+        add(
+            _table(
+                ["factor ×", "factor", "tenor-0 anchor mid"]
+                + [f"{t}m mid" for t in by_tenor]
+                + ["mark"],
+                [
+                    [
+                        row["multiplier"],
+                        _p(row["factor"]),
+                        _p(row["anchor_mid_by_tenor"].get("0")),
+                    ]
+                    + [_p(row["curve_mid_by_tenor"][str(t)]) for t in by_tenor]
+                    + [_usd(row["mark_adjusted_usd"])]
+                    for row in qs
+                ],
+            )
+        )
+        add("")
+    add("### Scarcity anchor: choice and bias\n")
+    add(
+        "The scarcity scenario reverts toward "
+        f"{_p(curve['scenario_anchor_levels'].get('scarcity'))}, the highest valid "
+        "same-hardware ask at as-of across *all* contract classes — in this pack the "
+        "cancel-anytime single-GPU on-demand ask. That price embeds a cancellation option "
+        "and single-GPU granularity, so as an anchor for non-cancellable reserved capacity it "
+        "is biased **upward**: the scenario is deliberately a stress ('forwards re-price to "
+        "today's dearest flexible access'), not a central estimate. Reserved-class evidence "
+        "alone would give a lower anchor (the highest reserved ask) and a milder stress; the "
+        "choice is a declared config "
+        "parameter (`anchors.scarcity.kind`) and can be switched without code changes.\n"
+    )
     add("### Why the current on-demand asks are context, not the 1-month node\n")
     fp = xc["flexibility_premium"]
     flex_asks = [

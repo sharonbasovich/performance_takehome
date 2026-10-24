@@ -23,8 +23,9 @@ class AsOfTests(unittest.TestCase):
         self.assertFalse(row["curve_eligible"])
         self.assertTrue(any("expired" in r for r in row["reasons"]))
         hist = self.results["cross_checks"]["historical_variability"]
-        self.assertEqual(hist[0]["expired_quote_id"], "q10")
-        self.assertEqual(hist[0]["current_quote_id"], "q01")
+        self.assertEqual(hist["pairs"], 1)
+        self.assertEqual(hist["examples"][0]["expired_quote_id"], "q10")
+        self.assertEqual(hist["examples"][0]["current_quote_id"], "q01")
 
     def test_valid_count(self):
         self.assertEqual(self.results["valid_quote_count"], 9)

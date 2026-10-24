@@ -122,6 +122,8 @@ class CurveModel:
     kappa_detail: dict[str, object]
     reference_spread: float | None
     warnings: list[str] = field(default_factory=list)
+    items: list[NormalizedQuote] = field(default_factory=list)
+    quantity_factor: object = None
 
     @property
     def observed_forward_anchors(self) -> list[Anchor]:
@@ -383,10 +385,11 @@ def _build_anchors(
                 )
                 low, high = best_ask, best_bid
                 notes.append("crossed bid/ask; treated as uncertain two-sided evidence")
+                unc = "crossed-market"
             else:
                 low, high = best_bid, best_ask
+                unc = "bid-ask"
             mid = (best_bid + best_ask) / 2
-            unc = "bid-ask"
             if frac * mid < (high - low):
                 warnings.append(
                     f"tenor {tenor}: observed relative spread "

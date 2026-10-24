@@ -14,6 +14,9 @@ import sys
 from pathlib import Path
 
 if __name__ == "__main__":
+    if sys.version_info < (3, 11):  # noqa: UP036 - clear message on older interpreters
+        sys.stderr.write(f"error: Python 3.11+ is required, found {sys.version.split()[0]}\n")
+        raise SystemExit(2)
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from research.cli import main
 

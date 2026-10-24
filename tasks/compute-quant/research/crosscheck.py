@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import math
 from decimal import Decimal
+from statistics import median
 
 from .comparability import (
     AS_OF_EXPIRED,
@@ -68,6 +69,11 @@ def performance_cross_check(
         ref, other = ref_rows[0], other_rows[0]
         if ref.workload != other.workload:
             entry["note"] = "performance rows measure different workloads; not translatable"
+            entry["equivalent_usd_per_reference_gpu_hour"] = None
+            out.append(entry)
+            continue
+        if float(other.output_tokens_per_s) <= 0 or float(ref.output_tokens_per_s) <= 0:
+            entry["note"] = "non-positive throughput measurement; ratio undefined"
             entry["equivalent_usd_per_reference_gpu_hour"] = None
             out.append(entry)
             continue
@@ -150,7 +156,9 @@ def spot_context(items: list[NormalizedQuote], case: Case) -> list[dict[str, obj
                 "normalized_usd_per_gpu_hour": price,
                 "sla_pct": _f(item.quote.sla_pct),
                 "discount_vs_cheapest_flexible_on_demand_ask_per_gpu_hour": (
-                    None if not flexible_asks else 1 - price / min(flexible_asks)
+                    None
+                    if not flexible_asks or min(flexible_asks) <= 0
+                    else 1 - price / min(flexible_asks)
                 ),
                 "treatment": "context only: preemptible with "
                 "no SLA is not comparable to reserved capacity",
@@ -165,6 +173,8 @@ def flexibility_premium(items: list[NormalizedQuote], case: Case) -> dict[str, o
     if base is None:
         return None
     reserved, flexible = base
+    if float(reserved.usd_per_gpu_hour) <= 0:
+        return None
     return {
         "reserved_quote_id": reserved.quote.id,
         "flexible_quote_id": flexible.quote.id,
@@ -200,43 +210,81 @@ def month_start_tenor_zero(
     return None
 
 
-def historical_variability(items: list[NormalizedQuote], case: Case) -> list[dict[str, object]]:
-    """Expired quotes paired with the current quote of the same provider/kind/gpu_count."""
-    out = []
+HISTORY_EXAMPLE_LIMIT = 5
+
+
+def historical_variability(items: list[NormalizedQuote], case: Case) -> dict[str, object]:
+    """Expired quotes paired with the nearest current quote of the same provider/kind/side/size.
+
+    Each expired quote is matched to at most one valid quote (same provider, kind, side,
+    gpu_count and unit; the nearest observation after it), so the work is linear in the
+    number of quotes and the output is a bounded summary plus a few example pairs rather
+    than the full expired x valid cross product.
+    """
+
+    def key(q: NormalizedQuote) -> tuple:
+        return (q.quote.provider, q.quote.kind, q.quote.side, q.quote.gpu_count, q.quote.unit)
+
+    current: dict[tuple, list[NormalizedQuote]] = {}
+    for item in _valid_comparable(items):
+        current.setdefault(key(item), []).append(item)
+    for group in current.values():
+        group.sort(key=lambda q: q.quote.observed_at)
+    vols: list[float] = []
+    log_moves: list[float] = []
+    examples: list[dict[str, object]] = []
+    pairs = 0
+    unmatched = 0
     for old in items:
         c = old.classification
         if not old.usable or c.as_of_status != AS_OF_EXPIRED or c.tier != TIER_COMPARABLE:
             continue
-        for new in _valid_comparable(items):
-            if (
-                new.quote.provider == old.quote.provider
-                and new.quote.kind == old.quote.kind
-                and new.quote.side == old.quote.side
-                and new.quote.gpu_count == old.quote.gpu_count
-                and new.quote.unit == old.quote.unit
-            ):
-                months = (new.quote.observed_at - old.quote.observed_at).total_seconds() / (
-                    30.4375 * 86400
-                )
-                old_p, new_p = float(old.usd_per_gpu_hour), float(new.usd_per_gpu_hour)
-                log_move = math.log(new_p / old_p)
-                out.append(
-                    {
-                        "expired_quote_id": old.quote.id,
-                        "current_quote_id": new.quote.id,
-                        "months_apart": months,
-                        "expired_usd_per_gpu_hour": old_p,
-                        "current_usd_per_gpu_hour": new_p,
-                        "log_move": log_move,
-                        "implied_vol_per_sqrt_month": abs(log_move) / math.sqrt(months)
-                        if months > 0
-                        else None,
-                        "treatment": (
-                            "expired price is never a current level; "
-                            "the pair only informs the declared "
-                            "horizon-widening parameter, and one pair "
-                            "cannot estimate volatility reliably"
-                        ),
-                    }
-                )
-    return out
+        group = current.get(key(old))
+        if not group:
+            unmatched += 1
+            continue
+        new = group[-1]
+        months = (new.quote.observed_at - old.quote.observed_at).total_seconds() / (30.4375 * 86400)
+        old_p, new_p = float(old.usd_per_gpu_hour), float(new.usd_per_gpu_hour)
+        if months <= 0 or old_p <= 0 or new_p <= 0:
+            unmatched += 1
+            continue
+        log_move = math.log(new_p / old_p)
+        vol = abs(log_move) / math.sqrt(months)
+        pairs += 1
+        vols.append(vol)
+        log_moves.append(log_move)
+        if len(examples) < HISTORY_EXAMPLE_LIMIT:
+            examples.append(
+                {
+                    "expired_quote_id": old.quote.id,
+                    "current_quote_id": new.quote.id,
+                    "months_apart": months,
+                    "expired_usd_per_gpu_hour": old_p,
+                    "current_usd_per_gpu_hour": new_p,
+                    "log_move": log_move,
+                    "implied_vol_per_sqrt_month": vol,
+                }
+            )
+    return {
+        "pairs": pairs,
+        "unmatched_expired_quotes": unmatched,
+        "implied_vol_per_sqrt_month": {
+            "median": median(vols) if vols else None,
+            "min": min(vols) if vols else None,
+            "max": max(vols) if vols else None,
+        },
+        "log_move": {
+            "median": median(log_moves) if log_moves else None,
+            "min": min(log_moves) if log_moves else None,
+            "max": max(log_moves) if log_moves else None,
+        },
+        "examples": examples,
+        "example_limit": HISTORY_EXAMPLE_LIMIT,
+        "treatment": (
+            "expired prices are never current levels; each expired quote is paired with the "
+            "nearest current quote of the same provider/kind/side/size only to inform the "
+            "declared horizon-widening parameter; a handful of pairs cannot estimate "
+            "volatility reliably"
+        ),
+    }

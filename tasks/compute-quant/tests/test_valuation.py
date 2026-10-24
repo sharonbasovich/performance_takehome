@@ -174,9 +174,13 @@ class ReservationEdgeCaseTests(unittest.TestCase):
         self.assertEqual((n["bid"], n["ask"]), (4.1, 4.3))
         self.assertEqual(n["usd_per_gpu_hour_mid"], 4.2)
 
-    def test_zero_price_quote_warns_and_never_yields_negative_prices(self):
-        r = CaseBuilder(self).set("q04", price="0").run()
-        self.assertTrue(any("zero-price" in w for w in r["curve"]["warnings"]))
+    def test_zero_price_quote_is_rejected_with_named_field(self):
+        with self.assertRaises(InputError) as ctx:
+            CaseBuilder(self).set("q04", price="0").run()
+        self.assertIn("q04.price", str(ctx.exception))
+
+    def test_tiny_price_never_yields_negative_prices(self):
+        r = CaseBuilder(self).set("q04", price="0.01").run()
         for n in r["curve"]["nodes"]:
             self.assertGreaterEqual(n["usd_per_gpu_hour_low"], 0.0)
             self.assertGreaterEqual(n["usd_per_gpu_hour_mid"], 0.0)

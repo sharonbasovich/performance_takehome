@@ -102,9 +102,28 @@ class Reservation:
     service_credit_policy: str | None
 
 
+KNOWN_CASE_KEYS = frozenset(
+    {
+        "schema_version",
+        "task",
+        "kind",
+        "synthetic",
+        "as_of",
+        "files",
+        "reference_product",
+        "curve",
+        "quote_common_terms",
+        "economics",
+        "reservation",
+        "fx_rates_to_usd",
+    }
+)
+
+
 @dataclass(frozen=True)
 class Case:
     schema_version: int
+    unknown_keys: tuple[str, ...]
     task: str
     synthetic: bool
     as_of: datetime
@@ -176,7 +195,14 @@ def parse_bool(value: object, *, where: str) -> bool:
     raise InputError(f"{where}: expected a boolean, got {value!r}")
 
 
-def parse_decimal(value: object, *, where: str, minimum: Decimal | None = None) -> Decimal:
+def parse_decimal(
+    value: object,
+    *,
+    where: str,
+    minimum: Decimal | None = None,
+    maximum: Decimal | None = None,
+    exclusive_minimum: bool = False,
+) -> Decimal:
     try:
         number = Decimal(str(value).strip())
     except (InvalidOperation, ValueError) as exc:
@@ -185,6 +211,10 @@ def parse_decimal(value: object, *, where: str, minimum: Decimal | None = None) 
         raise InputError(f"{where}: expected a finite number, got {value!r}")
     if minimum is not None and number < minimum:
         raise InputError(f"{where}: {number} is below the minimum {minimum}")
+    if minimum is not None and exclusive_minimum and number == minimum:
+        raise InputError(f"{where}: {number} must be strictly greater than {minimum}")
+    if maximum is not None and number > maximum:
+        raise InputError(f"{where}: {number} is above the maximum {maximum}")
     return number
 
 
@@ -258,9 +288,13 @@ def quote_from_row(row: dict[str, str]) -> Quote:
         region=row["region"].strip(),
         isolation=row["isolation"].strip(),
         preemptible=parse_bool(row["preemptible"], where=f"{where}.preemptible"),
-        sla_pct=parse_decimal(row["sla_pct"], where=f"{where}.sla_pct", minimum=Decimal(0)),
+        sla_pct=parse_decimal(
+            row["sla_pct"], where=f"{where}.sla_pct", minimum=Decimal(0), maximum=Decimal(100)
+        ),
         currency=row["currency"].strip().upper(),
-        price=parse_decimal(row["price"], where=f"{where}.price", minimum=Decimal(0)),
+        price=parse_decimal(
+            row["price"], where=f"{where}.price", minimum=Decimal(0), exclusive_minimum=True
+        ),
         unit=_choice(row["unit"], QUOTE_UNITS, where=f"{where}.unit"),
         delivery_start=delivery_start,
         delivery_end=delivery_end,
@@ -304,7 +338,10 @@ def performance_from_row(row: dict[str, str]) -> PerformanceRow:
         gpu_count=parse_int(row.get("gpu_count") or "1", where=f"{where}.gpu_count", minimum=1),
         workload=(row.get("workload") or "unspecified").strip(),
         output_tokens_per_s=parse_decimal(
-            row["output_tokens_per_s"], where=f"{where}.output_tokens_per_s", minimum=Decimal(0)
+            row["output_tokens_per_s"],
+            where=f"{where}.output_tokens_per_s",
+            minimum=Decimal(0),
+            exclusive_minimum=True,
         ),
         relative_uncertainty=parse_decimal(
             row["relative_uncertainty"], where=f"{where}.relative_uncertainty", minimum=Decimal(0)
@@ -363,6 +400,8 @@ def case_from_mapping(raw: dict[str, object]) -> Case:
         sla_pct=parse_decimal(
             _require(product_raw, "sla_pct", where="reference_product"),
             where="reference_product.sla_pct",
+            minimum=Decimal(0),
+            maximum=Decimal(100),
         ),
         payment=str(_require(product_raw, "payment", where="reference_product")).strip(),
         cancellation=str(_require(product_raw, "cancellation", where="reference_product")).strip(),
@@ -457,7 +496,12 @@ def case_from_mapping(raw: dict[str, object]) -> Case:
             where="reservation.expected_buyer_used_fraction",
             minimum=Decimal(0),
         ),
-        sla_pct=parse_decimal(res_raw.get("sla_pct", product.sla_pct), where="reservation.sla_pct"),
+        sla_pct=parse_decimal(
+            res_raw.get("sla_pct", product.sla_pct),
+            where="reservation.sla_pct",
+            minimum=Decimal(0),
+            maximum=Decimal(100),
+        ),
         service_credit_policy=None
         if _blank(res_raw.get("service_credit_policy"))
         else str(res_raw["service_credit_policy"]),
@@ -477,6 +521,7 @@ def case_from_mapping(raw: dict[str, object]) -> Case:
     common = raw.get("quote_common_terms") or {}
     return Case(
         schema_version=schema_version,
+        unknown_keys=tuple(sorted(k for k in raw if k not in KNOWN_CASE_KEYS)),
         task=str(raw.get("task") or ""),
         synthetic=parse_bool(raw.get("synthetic", False), where="case.synthetic"),
         as_of=parse_timestamp(_require(raw, "as_of", where="case"), where="case.as_of"),

@@ -33,6 +33,7 @@
     "reversion_multipliers": [0.5, 1.0, 2.0],
     "discount_rate_bumps": [-0.02, 0.0, 0.02],
     "default_probabilities": [0.0, 0.02, 0.10],
-    "horizon_vol_multipliers": [0.5, 1.0, 2.0]
+    "horizon_vol_multipliers": [0.5, 1.0, 2.0],
+    "quantity_factor_multipliers": [0.9, 1.0, 1.1]
   }
 }
