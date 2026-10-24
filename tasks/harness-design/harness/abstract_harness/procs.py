@@ -154,3 +154,56 @@ def acquire_lock(path: Path) -> Any:
     fh.write(f"{os.getpid()}\n")
     fh.flush()
     return fh
+
+
+def cpu_idle_fraction(sample_s: float = 1.0) -> float | None:
+    """Fraction of CPU time idle over ``sample_s`` from ``/proc/stat``; ``None`` if unavailable."""
+
+    def _read() -> tuple[int, int] | None:
+        try:
+            with open("/proc/stat", encoding="utf-8") as fh:
+                parts = fh.readline().split()
+        except OSError:
+            return None
+        if not parts or parts[0] != "cpu":
+            return None
+        values = [int(v) for v in parts[1:]]
+        idle = values[3] + (values[4] if len(values) > 4 else 0)
+        return idle, sum(values)
+
+    first = _read()
+    time.sleep(sample_s)
+    second = _read()
+    if first is None or second is None or second[1] == first[1]:
+        return None
+    return (second[0] - first[0]) / (second[1] - first[1])
+
+
+def wait_for_quiet_host(
+    *,
+    min_idle: float = 0.85,
+    stable_samples: int = 3,
+    max_wait_s: float = 120.0,
+    sample_s: float = 1.0,
+    sampler: Callable[[float], float | None] = cpu_idle_fraction,
+    should_abort: Callable[[], bool] | None = None,
+) -> dict[str, float | int | bool | None]:
+    """Block until the host CPU has been >= ``min_idle`` idle for ``stable_samples`` samples.
+
+    Background work (BuildKit export/GC after a build, a previous container
+    shutting down) would otherwise land on whichever measurement arm runs
+    first and bias the A/B comparison. Bounded by ``max_wait_s``; the report
+    records whether quiet was reached and the last idle reading.
+    """
+    start = time.monotonic()
+    streak = 0
+    last: float | None = None
+    while True:
+        last = sampler(sample_s)
+        if last is None:
+            return {"waited_s": round(time.monotonic() - start, 1), "idle": None, "quiet": True}
+        streak = streak + 1 if last >= min_idle else 0
+        if streak >= stable_samples:
+            return {"waited_s": round(time.monotonic() - start, 1), "idle": last, "quiet": True}
+        if time.monotonic() - start >= max_wait_s or (should_abort and should_abort()):
+            return {"waited_s": round(time.monotonic() - start, 1), "idle": last, "quiet": False}

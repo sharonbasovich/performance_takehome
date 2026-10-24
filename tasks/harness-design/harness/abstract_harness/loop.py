@@ -273,6 +273,9 @@ class Harness:
     ) -> tuple[measure_mod.Measurement, dict[str, Any]]:
         """Start a container from ``image``, measure startup + benchmark, always stop it."""
         container = f"{self.config.container_prefix}-{label}-{int(self.clock()) % 100000}"
+        quiet = procs.wait_for_quiet_host(should_abort=self._should_abort)
+        if not quiet["quiet"]:
+            self.log(f"[harness] host did not go quiet before {label} (idle={quiet['idle']})")
         docker.ensure_internal_network(self.config.network_name)
         runtime_args = self.engine.full_runtime_args(docker.image_cmd(image))
         command = self.engine.run_command(
@@ -309,6 +312,7 @@ class Harness:
                 )
             base_url = f"http://{ip}:{CONTAINER_PORT}"
             info["base_url"] = base_url
+            info["host_quiet_before_start"] = quiet
             startup_s, model_id = measure_mod.wait_for_first_valid_generation(
                 base_url,
                 started,

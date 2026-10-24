@@ -68,3 +68,34 @@ class StateDirLockTest(unittest.TestCase):
                 first.close()
             second = procs.acquire_lock(lock)
             second.close()
+
+
+class QuietHostTest(unittest.TestCase):
+    def test_waits_for_stable_idle_then_returns(self) -> None:
+        readings = iter([0.2, 0.9, 0.5, 0.9, 0.95, 0.99, 0.99])
+        out = procs.wait_for_quiet_host(
+            min_idle=0.85,
+            stable_samples=3,
+            max_wait_s=60,
+            sample_s=0,
+            sampler=lambda _s: next(readings),
+        )
+        self.assertTrue(out["quiet"])
+        self.assertEqual(out["idle"], 0.99)
+
+    def test_gives_up_at_max_wait_and_says_so(self) -> None:
+        out = procs.wait_for_quiet_host(
+            min_idle=0.85, stable_samples=3, max_wait_s=0.0, sample_s=0, sampler=lambda _s: 0.1
+        )
+        self.assertFalse(out["quiet"])
+
+    def test_unavailable_sampler_does_not_block(self) -> None:
+        out = procs.wait_for_quiet_host(sample_s=0, sampler=lambda _s: None)
+        self.assertTrue(out["quiet"])
+        self.assertIsNone(out["idle"])
+
+    def test_real_sampler_reads_proc_stat(self) -> None:
+        idle = procs.cpu_idle_fraction(0.2)
+        if idle is not None:
+            self.assertGreaterEqual(idle, 0.0)
+            self.assertLessEqual(idle, 1.0)
