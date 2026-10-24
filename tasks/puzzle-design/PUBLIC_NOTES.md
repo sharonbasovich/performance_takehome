@@ -3,24 +3,26 @@
 Only `puzzle.md` (the statement, "The orthogonal mate", order 50) and this file are public. The
 solution, proof, verifier, verifier tests, REPORT.md, submission.json, authoring log, candidate
 files and all attack / blind-solver evidence are delivered privately to the organizer as
-`puzzle-design-private-bundle-v3.tar.gz` and are **not** in this repository or its history
+`puzzle-design-private-bundle-v4.tar.gz` and are **not** in this repository or its history
 (audited from a clean clone: `git log --all --name-only -- tasks/puzzle-design` lists only the
 organizer files, `puzzle.md` and `PUBLIC_NOTES.md`).
 
-## Private bundle v3
-- File: `puzzle-design-private-bundle-v3.tar.gz`
-- SHA-256: `35ef90dc44380aecbc41bd9b7e42a9d1d5673363f3c5c51dd510301766327a21`
-- Compressed size: 204,313 bytes. The archive root is `.private/`, so unpack with
-  `tar -xzf puzzle-design-private-bundle-v3.tar.gz -C tasks/puzzle-design`
+## Private bundle v4
+- File: `puzzle-design-private-bundle-v4.tar.gz`. Its SHA-256 and compressed size are recorded in the
+  PR #2 body and in the coordinator hand-off (they cannot be written here because the bundle contains
+  the clean-clone records of the commit that contains this file).
+- The archive root is `.private/`, so unpack with
+  `tar -xzf puzzle-design-private-bundle-v4.tar.gz -C tasks/puzzle-design`
   (not `-C tasks/puzzle-design/.private`).
-- Size accounting (bundle `sizes.txt`): statement 9,822 B (limit 16 KiB); known answer 9,612 B
-  (limit 32 KiB); core submission set (statement + answer + SOLUTION.md + verify.py + tests +
-  submission.json + REPORT.md + AUTHORING_LOG.md) 67,605 B and the compressed archive 204,313 B are
-  both under 256 KiB; the full uncompressed `.private/` tree including all prior-candidate and
-  attack evidence is 669,045 B and exceeds 256 KiB — the 256 KiB claim is made only for the core set
-  and the compressed archive.
-- Supersedes bundle v2 (SHA-256 `e9df24c1…d89d`), which was found by an independent review to be
-  missing four blind-solver artifacts and to contain count/wording errors (fixed in v3, REPORT §15).
+- Size accounting (bundle `sizes.txt`, regenerated after every other file was final): statement
+  9,822 B (limit 16 KiB); known answer 9,612 B (limit 32 KiB); core submission set (statement +
+  answer + SOLUTION.md + verify.py + tests + submission.json + REPORT.md + AUTHORING_LOG.md)
+  72,504 B — under 256 KiB. The compressed archive is also under 256 KiB (exact size in the PR
+  body); the full uncompressed `.private/` tree including all prior-candidate and attack evidence
+  exceeds 256 KiB (exact size in `sizes.txt`) — the 256 KiB claim is made only for the core set and
+  the compressed archive.
+- Supersedes bundles v2 (`e9df24c1…d89d`; missing four blind-solver artifacts, count/wording errors)
+  and v3 (`35ef90dc…7a21`; stale core-set size, head records for the wrong commit). Fixes: REPORT §15.
 
 ## Honesty statements
 - **Resistance claim: not demonstrated.** Every candidate that was blind-tested (five, including
