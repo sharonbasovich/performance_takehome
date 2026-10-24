@@ -89,12 +89,14 @@ each an array of 50 integers (`"square"[r][c]` is the entry in row `r`, column `
 
 (Illustration of the shape only; not a valid answer.)
 
-Checks, in order: the answer is at most 32 KiB; it is valid UTF-8 JSON; the top-level value is
-an object with exactly the one key `"square"`; it is a 50 × 50 array of JSON integers in
-`0 … 49`; every row and every column of `M` is a permutation of `0 … 49`; the 2500 pairs
-`(L[r][c], M[r][c])` are pairwise distinct. The checker is deterministic, uses only the Python
-standard library, and tests these conditions directly — it does not compare against a stored
-answer.
+Checks, in order: the answer is at most 32 KiB; it is valid UTF-8 JSON (a leading byte-order mark
+is tolerated; an object with a duplicate key is rejected); the top-level value is an object with
+exactly the one key `"square"`; the value is an array of exactly 50 rows; then row by row, each row
+is checked to be an array of exactly 50 JSON integers in `0 … 49` forming a permutation of
+`0 … 49`; then every column of `M` is checked to be a permutation of `0 … 49`; finally the 2500
+pairs `(L[r][c], M[r][c])` are checked to be pairwise distinct. The checker is deterministic, uses
+only the Python standard library, and tests these conditions directly — it does not compare
+against a stored answer.
 
 ## Limits
 
