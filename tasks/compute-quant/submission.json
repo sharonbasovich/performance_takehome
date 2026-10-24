@@ -4,9 +4,9 @@
   "status": "draft-submission-synthetic-inputs",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "commit": "52a372c6317fe775fa9fee1058cb729b30abd31f",
+    "commit": "e69dd4a726dd5e2c76e3022696d5d919e4c7ae09",
     "commit_note": "last content commit; the commit that adds this manifest and run-manifest.json necessarily follows it, so research_tree_sha (git rev-parse <commit>:tasks/compute-quant/research) is the stable identity of the model code",
-    "research_tree_sha": "79e16bae32103e2ad992403889d1f45f419368e6",
+    "research_tree_sha": "42a69ec41646ad7e169916f5d3d57b800eec8777",
     "branch": "submission/compute-quant",
     "pull_request": "https://github.com/sharonbasovich/performance_takehome/pull/1"
   },
