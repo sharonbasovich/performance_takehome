@@ -18,6 +18,7 @@ def percentile_ci(
     """Seeded percentile-bootstrap CI of ``statistic(values)``."""
     if not values:
         return {"point": None, "low": None, "high": None, "n": 0}
+    values = sorted(values)  # record order must not influence the resampling
     rng = random.Random(seed)
     n = len(values)
     boots = sorted(
@@ -46,6 +47,7 @@ def difference_ci(
     """Bootstrap CI of ``statistic(b) - statistic(a)`` with independent resampling."""
     if not a or not b:
         return {"point": None, "low": None, "high": None, "n_a": len(a), "n_b": len(b)}
+    a, b = sorted(a), sorted(b)
     rng = random.Random(seed)
     boots = sorted(
         statistic([b[rng.randrange(len(b))] for _ in range(len(b))])

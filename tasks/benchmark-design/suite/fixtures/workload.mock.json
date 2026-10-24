@@ -85,7 +85,7 @@
     "note": "planning_cold_start_s is a pilot placeholder (27B weights into HBM plus LLMD compile); it is replaced by measured launches."
   },
   "warmup": {
-    "requests_per_cell": 2,
+    "requests_per_cell": 1,
     "phase": "warmup",
     "scored": false,
     "note": "Excluded from every statistic; recorded with phase=warmup so the population table still accounts for them."
@@ -177,7 +177,7 @@
           8.0
         ],
         "requests_per_rate": [
-          24,
+          16,
           24
         ]
       },
@@ -194,7 +194,7 @@
           8.0
         ],
         "requests_per_rate": [
-          24,
+          16,
           24
         ]
       },
@@ -211,7 +211,7 @@
           8.0
         ],
         "requests_per_rate": [
-          24,
+          16,
           24
         ]
       },
@@ -228,7 +228,7 @@
           8.0
         ],
         "requests_per_rate": [
-          24,
+          16,
           24
         ]
       },
@@ -246,7 +246,7 @@
         ],
         "requests_per_level": [
           12,
-          24
+          16
         ]
       },
       "deadline_profile": "chat"
@@ -287,7 +287,7 @@
           8.0
         ],
         "requests_per_rate": [
-          24,
+          16,
           24
         ],
         "arrival_seed_offset": 1
@@ -306,7 +306,7 @@
           8.0
         ],
         "requests_per_rate": [
-          24,
+          16,
           24
         ],
         "arrival_seed_offset": 2
@@ -368,6 +368,40 @@
         "aa_control_b"
       ],
       "planned_wall_minutes_max": 30
+    },
+    "fixture": {
+      "description": "Fixture-generation mode for the CPU mock: a compact subset (chat, long generation, closed loop, A/A) so each fixture stays small.",
+      "startup_launches": 1,
+      "repetitions": 1,
+      "interleave": false,
+      "rate_subset": {
+        "chat_short_open": [
+          4.0
+        ],
+        "generation_long_open": [
+          4.0
+        ],
+        "aa_control_a": [
+          4.0
+        ],
+        "aa_control_b": [
+          4.0
+        ]
+      },
+      "concurrency_subset": {
+        "closed_loop_sweep": [
+          8
+        ]
+      },
+      "requests_scale": 1.0,
+      "cells": [
+        "chat_short_open",
+        "generation_long_open",
+        "closed_loop_sweep",
+        "aa_control_a",
+        "aa_control_b"
+      ],
+      "planned_wall_minutes_max": 5
     }
   },
   "planning_assumptions": {

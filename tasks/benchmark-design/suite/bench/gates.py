@@ -61,33 +61,40 @@ class Verdict:
 
 def _reparse(
     events: list[dict[str, Any]],
-) -> tuple[list[tuple[str, str, float]], bool, str | None, dict[str, Any] | None, str | None]:
-    """Re-derive (channel, text, t) deltas, [DONE], finish_reason, usage, protocol error."""
+) -> tuple[list[tuple[str, str, float]], bool, str | None, dict[str, Any] | None, list[str]]:
+    """Re-derive (channel, text, t) deltas, [DONE], finish_reason, usage and protocol errors.
+
+    Parsing continues past a bad event (like the runner does) so the reconstructed text can
+    be cross-checked against the record; every violation is still reported.
+    """
     deltas: list[tuple[str, str, float]] = []
     done = False
     finish: str | None = None
     usage: dict[str, Any] | None = None
+    errors: list[str] = []
     for event in events:
         try:
             decoded = decode_payload(str(event["raw"]))
         except StreamProtocolError as exc:
-            return deltas, done, finish, usage, f"protocol_error:{exc}"
+            errors.append(f"protocol_error:{exc}")
+            continue
         if decoded is None:
             done = True
             continue
         if done:
-            return deltas, done, finish, usage, "protocol_error:data after [DONE]"
+            errors.append("protocol_error:data after [DONE]")
         if isinstance(decoded.get("usage"), dict):
             usage = decoded["usage"]
         try:
             for channel, text in generated_deltas(decoded):
                 deltas.append((channel, text, float(event["t"])))
         except StreamProtocolError as exc:
-            return deltas, done, finish, usage, f"protocol_error:{exc}"
+            errors.append(f"protocol_error:{exc}")
+            continue
         choices = decoded.get("choices") or []
         if choices and isinstance(choices[0], dict) and choices[0].get("finish_reason"):
             finish = str(choices[0]["finish_reason"])
-    return deltas, done, finish, usage, None
+    return deltas, done, finish, usage, errors
 
 
 def token_times(deltas: list[tuple[str, float]], send_s: float) -> tuple[list[float], int]:
@@ -181,8 +188,7 @@ def judge(record: dict[str, Any], plan: dict[str, Any], schema_errors: list[str]
         elif kind != "http_error":
             reasons.append(f"transport_error:{kind}")
     deltas, done, finish, usage, proto = _reparse(events)
-    if proto:
-        reasons.append(proto)
+    reasons.extend(proto)
     verdict.done_received = done
     verdict.finish_reason = finish
     content = [(t, at) for ch, t, at in deltas if ch == "content"]

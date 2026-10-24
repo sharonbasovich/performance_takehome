@@ -15,6 +15,7 @@ import asyncio
 import hashlib
 import json
 import random
+import signal
 import sys
 import time
 from pathlib import Path
@@ -79,6 +80,10 @@ class MockServer:
         self._server = await asyncio.start_server(self._handle, self.host, self.port)
         self.port = self._server.sockets[0].getsockname()[1]
         self.started_mono = time.monotonic()
+
+    def request_stop(self) -> None:
+        """Ask ``serve_until_shutdown`` to return (used by SIGTERM and /_mock/shutdown)."""
+        self._stop.set()
 
     async def serve_until_shutdown(self) -> None:
         await self._stop.wait()
@@ -233,14 +238,20 @@ async def serve(
     model_id: str = DEFAULT_MODEL_ID,
     time_scale: float = 1.0,
     host: str = "127.0.0.1",
+    oracle_dump: Path | None = None,
 ) -> None:
-    """Run one mock server until ``/_mock/shutdown`` is called."""
+    """Run one mock server until ``/_mock/shutdown`` or SIGTERM; optionally dump the oracle."""
     server = MockServer(profile_by_name(profile_name), seed, model_id, host, port, time_scale)
     await server.start()
+    asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, server.request_stop)
     print(
         json.dumps({"base_url": server.base_url, "profile": profile_name, "seed": seed}), flush=True
     )
     await server.serve_until_shutdown()
+    if oracle_dump is not None:
+        oracle_dump.parent.mkdir(parents=True, exist_ok=True)
+        payload = {"profile": server.profile.to_dict(), "seed": seed, "requests": server.oracle}
+        oracle_dump.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -259,9 +270,18 @@ def main(argv: list[str] | None = None) -> int:
         default=1.0,
         help="multiply every injected delay (use <1 to run fixtures faster)",
     )
+    parser.add_argument("--oracle-dump", type=Path, help="write the oracle JSON here on shutdown")
     args = parser.parse_args(argv)
     asyncio.run(
-        serve(args.profile, args.seed, args.port, args.model_id, args.time_scale, args.host)
+        serve(
+            args.profile,
+            args.seed,
+            args.port,
+            args.model_id,
+            args.time_scale,
+            args.host,
+            args.oracle_dump,
+        )
     )
     return 0
 

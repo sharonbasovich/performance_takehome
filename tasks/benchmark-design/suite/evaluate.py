@@ -197,8 +197,8 @@ class Evaluator:
                 cell_cfg.get("deadline_profile", ""), None
             )
             completed = [(r, v) for r, v in items if v.category == "completed"]
-            ttfts = [v.ttft_s for _, v in completed if v.ttft_s is not None]
-            first_bytes = [v.first_byte_s for _, v in completed if v.first_byte_s is not None]
+            ttfts = sorted(v.ttft_s for _, v in completed if v.ttft_s is not None)
+            first_bytes = sorted(v.first_byte_s for _, v in completed if v.first_byte_s is not None)
             prefill_hits = [
                 v.ttft_s <= prefill_deadline_s(self.plan, v.prompt_tokens)
                 for _, v in completed
@@ -237,9 +237,9 @@ class Evaluator:
                 if (ttfts and ttft_slo)
                 else None,
             }
-            tokens_per_event = [
+            tokens_per_event = sorted(
                 v.content_tokens / v.content_events for _, v in completed if v.content_events
-            ]
+            )
             row["token_evidence"] = {
                 "resolution": sorted({r["client_tokens"]["resolution"] for r, _ in items}),
                 "tokens_per_delta_mean": statistics.fmean(tokens_per_event)
@@ -254,7 +254,7 @@ class Evaluator:
             row["fluidity"] = {}
             for tier_name, tier in tiers.items():
                 indices = [self._fluidity_for(r, v, tier["deadline_s"]) for r, v in items]
-                measurable = [i for i in indices if i is not None]
+                measurable = sorted(i for i in indices if i is not None)
                 meets = [i >= slo["min_index"] for i in measurable]
                 row["fluidity"][tier_name] = {
                     "deadline_s": tier["deadline_s"],
@@ -282,6 +282,7 @@ class Evaluator:
                     unresolved += 1
                 else:
                     mdds.append(mdd)
+            mdds.sort()
             ftgr = None
             if traces and unresolved == 0:
                 ftgr = fluid_token_generation_rate(
@@ -308,13 +309,13 @@ class Evaluator:
             out[key] = row
             samples[key] = {
                 "ttft": ttfts,
-                "fi_strict": [
+                "fi_strict": sorted(
                     i
                     for i in (
                         self._fluidity_for(r, v, tiers["strict"]["deadline_s"]) for r, v in items
                     )
                     if i is not None
-                ],
+                ),
                 "mdd": mdds,
             }
         return out, samples

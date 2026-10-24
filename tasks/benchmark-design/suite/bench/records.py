@@ -7,6 +7,7 @@ seam: ``evaluate.py`` only ever sees ``RunRecord``/``RequestRecord``; a future o
 schema is supported by adding an adapter that maps its files onto these two types.
 """
 
+import gzip
 import json
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -175,8 +176,14 @@ class Evidence:
     adapter: str
 
 
+def _open_text(path: Path) -> Any:
+    if path.suffix == ".gz":
+        return gzip.open(path, "rt", encoding="utf-8")
+    return path.open(encoding="utf-8")
+
+
 def _iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
-    with path.open(encoding="utf-8") as handle:
+    with _open_text(path) as handle:
         for number, line in enumerate(handle, start=1):
             line = line.strip()
             if not line:
@@ -193,7 +200,7 @@ def _iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
 def load_events(directory: Path, adapter: str = "native") -> Evidence:
     """Load an events directory through the named adapter.
 
-    Only ``run.json`` and ``requests.jsonl`` are read. Any other file in the directory
+    Only ``run.json`` and ``requests.jsonl`` (plain or gzip) are read. Any other file in the dir
     (labels, oracles, notes) is ignored by construction, which is what makes the
     fixture-identity independence test meaningful.
     """
@@ -201,6 +208,8 @@ def load_events(directory: Path, adapter: str = "native") -> Evidence:
     if adapter not in ADAPTERS:
         raise EvidenceError(f"unknown adapter {adapter!r}; available: {ADAPTERS}")
     run_path, req_path = directory / RUN_FILE, directory / REQUESTS_FILE
+    if not req_path.is_file() and (directory / (REQUESTS_FILE + ".gz")).is_file():
+        req_path = directory / (REQUESTS_FILE + ".gz")
     if not run_path.is_file():
         raise EvidenceError(f"missing {RUN_FILE} in {directory}")
     if not req_path.is_file():
