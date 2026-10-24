@@ -1,0 +1,239 @@
+{
+  "schema_version": "1.0.0",
+  "record_type": "run",
+  "run_id": "fixture-drop-507",
+  "created_utc": "2026-10-24T08:45:51.086813+00:00",
+  "suite_version": "1.0.0",
+  "runner_version": "1.0.0",
+  "mode": "fixture",
+  "status": "completed",
+  "plan": {
+    "plan_id": "abstract-t1-mock-cpu-v1",
+    "digest": "sha256:104cce74fc14dee54434d5780bd1a5df7c57399c3406bd7b0825a63d4350c622",
+    "schema_version": "1.0.0",
+    "path": "tasks/benchmark-design/suite/fixtures/workload.mock.json"
+  },
+  "engine": {
+    "base_url": "http://127.0.0.1:41653",
+    "model_id": "mock/llm-d-stand-in",
+    "lock_digest": "e6119c70cd265bc2bfd34131d6fae846859614d0074ac107848f3088a673bce2",
+    "lock_image": "docker.io/zmlai/llmd@sha256:0a2cd01a2e53c78934a8cfef66f8668da7666be4954a5d18b72df089c54ea34f",
+    "lock_model": "Qwen/Qwen3.6-27B@6a9e13bd6fc8f0983b9b99948120bc37f49c13e9",
+    "server_header": null,
+    "kind": "mock"
+  },
+  "host": {
+    "platform": "Linux-6.8.0-1061-aws-x86_64-with-glibc2.35",
+    "python": "3.11.17",
+    "cpu_count": 8,
+    "hostname_sha256": "7a9acb691b87e9c726b1f69304a2aa67fd72104fd90d5d7663679b667b1c17fa"
+  },
+  "clock": {
+    "source": "time.monotonic",
+    "wall_utc_at_mono_zero_reference": {
+      "mono_s": 3401.679040293,
+      "utc": "2026-10-24T08:45:51.088160+00:00"
+    }
+  },
+  "gpu": {
+    "count_allocated": 0,
+    "hours_allocated": 0.0,
+    "kind": "none (CPU)"
+  },
+  "phases": [
+    {
+      "name": "warmup",
+      "unit_id": "chat_short_open|rate=4rps|rep0",
+      "start": 3373.479048889,
+      "end": 3374.011595849,
+      "cache_state": "nonce_isolation_fallback"
+    },
+    {
+      "name": "measure",
+      "unit_id": "chat_short_open|rate=4rps|rep0",
+      "start": 3374.021725717,
+      "end": 3376.869575248
+    },
+    {
+      "name": "warmup",
+      "unit_id": "generation_long_open|rate=4rps|rep0",
+      "start": 3376.876134231,
+      "end": 3378.38807355,
+      "cache_state": "nonce_isolation_fallback"
+    },
+    {
+      "name": "measure",
+      "unit_id": "generation_long_open|rate=4rps|rep0",
+      "start": 3378.39554053,
+      "end": 3386.561479695
+    },
+    {
+      "name": "warmup",
+      "unit_id": "closed_loop_sweep|conc=8|rep0",
+      "start": 3386.568227933,
+      "end": 3387.567878011,
+      "cache_state": "nonce_isolation_fallback"
+    },
+    {
+      "name": "measure",
+      "unit_id": "closed_loop_sweep|conc=8|rep0",
+      "start": 3387.577417656,
+      "end": 3389.548665276
+    },
+    {
+      "name": "warmup",
+      "unit_id": "aa_control_a|rate=4rps|rep0",
+      "start": 3389.559509488,
+      "end": 3390.573916576,
+      "cache_state": "nonce_isolation_fallback"
+    },
+    {
+      "name": "measure",
+      "unit_id": "aa_control_a|rate=4rps|rep0",
+      "start": 3390.595369541,
+      "end": 3395.490967329
+    },
+    {
+      "name": "warmup",
+      "unit_id": "aa_control_b|rate=4rps|rep0",
+      "start": 3395.501057475,
+      "end": 3396.032464656,
+      "cache_state": "nonce_isolation_fallback"
+    },
+    {
+      "name": "measure",
+      "unit_id": "aa_control_b|rate=4rps|rep0",
+      "start": 3396.052221625,
+      "end": 3401.601187759
+    }
+  ],
+  "startup": [
+    {
+      "launch_index": 0,
+      "launch_mono_s": 3372.033619616,
+      "cold": true,
+      "launch_command_sha256": "05a5f97b5cc56df6f3f7684e2b647d915a2308674f4a3b8751462e75d87de13d",
+      "readiness_probes": [
+        {
+          "t": 3372.034129658,
+          "http_status": null,
+          "ok": false,
+          "error": "ConnectError('All connection attempts failed')"
+        },
+        {
+          "t": 3372.250149317,
+          "http_status": 200,
+          "ok": true
+        },
+        {
+          "t": 3372.750767397,
+          "http_status": 200,
+          "ok": true
+        },
+        {
+          "t": 3372.953640474,
+          "http_status": 200,
+          "ok": true
+        }
+      ],
+      "generation_probe_request_ids": [
+        "startup0/probe/1",
+        "startup0/probe/2"
+      ],
+      "readiness_at": 3372.250149317,
+      "first_valid_generation_at": 3373.478498225,
+      "first_valid_request_id": "startup0/probe/2",
+      "status": "valid"
+    }
+  ],
+  "client_integrity": {
+    "event_loop_lag_max_s": 0.010432381999853533,
+    "event_loop_lag_p99_s": 0.0021553889998722296,
+    "samples": 2219,
+    "measured_phases": [
+      "chat_short_open|rate=4rps|rep0",
+      "generation_long_open|rate=4rps|rep0",
+      "closed_loop_sweep|conc=8|rep0",
+      "aa_control_a|rate=4rps|rep0",
+      "aa_control_b|rate=4rps|rep0"
+    ],
+    "sample_interval_s": 0.01,
+    "gc_disabled_in_measure_windows": true,
+    "event_loop_lag_spikes": [],
+    "event_loop_lag_max_at_mono_s": 3375.050745767,
+    "event_loop_lag_mean_s": 0.0005396509972910256
+  },
+  "units": [
+    {
+      "unit_id": "chat_short_open|rate=4rps|rep0",
+      "cell_id": "chat_short_open",
+      "repetition": 0,
+      "load_label": "rate=4rps",
+      "arrival_type": "poisson",
+      "load": 4.0,
+      "planned_requests": 16,
+      "planned_warmup": 1,
+      "role": "measure",
+      "deadline_profile": "chat",
+      "prompt_source": "chat_short"
+    },
+    {
+      "unit_id": "generation_long_open|rate=4rps|rep0",
+      "cell_id": "generation_long_open",
+      "repetition": 0,
+      "load_label": "rate=4rps",
+      "arrival_type": "poisson",
+      "load": 4.0,
+      "planned_requests": 16,
+      "planned_warmup": 1,
+      "role": "measure",
+      "deadline_profile": "generation",
+      "prompt_source": "generation_long"
+    },
+    {
+      "unit_id": "closed_loop_sweep|conc=8|rep0",
+      "cell_id": "closed_loop_sweep",
+      "repetition": 0,
+      "load_label": "conc=8",
+      "arrival_type": "closed_loop",
+      "load": 8.0,
+      "planned_requests": 16,
+      "planned_warmup": 1,
+      "role": "measure",
+      "deadline_profile": "chat",
+      "prompt_source": "chat_short"
+    },
+    {
+      "unit_id": "aa_control_a|rate=4rps|rep0",
+      "cell_id": "aa_control_a",
+      "repetition": 0,
+      "load_label": "rate=4rps",
+      "arrival_type": "poisson",
+      "load": 4.0,
+      "planned_requests": 16,
+      "planned_warmup": 1,
+      "role": "aa_control",
+      "deadline_profile": "chat",
+      "prompt_source": "chat_short"
+    },
+    {
+      "unit_id": "aa_control_b|rate=4rps|rep0",
+      "cell_id": "aa_control_b",
+      "repetition": 0,
+      "load_label": "rate=4rps",
+      "arrival_type": "poisson",
+      "load": 4.0,
+      "planned_requests": 16,
+      "planned_warmup": 1,
+      "role": "aa_control",
+      "deadline_profile": "chat",
+      "prompt_source": "chat_short"
+    }
+  ],
+  "adapter": {
+    "name": "native",
+    "version": "1.0.0"
+  },
+  "time_scale": 1.0,
+  "planned_startup_launches": 1
+}

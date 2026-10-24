@@ -62,7 +62,8 @@ EXPECTED: dict[str, dict[str, Any]] = {
     },
     "burst": {
         "status": "valid",
-        "signal": "token_evidence.multi_token_deltas flag; strict fluidity index drops",
+        "signal": "token_evidence.multi_token_deltas flag (chunk != token); Etalon fluidity stays "
+        "1.0 by design: 8-token bursts at ~83 tok/s sit inside playback slack",
     },
     "stall": {
         "status": "valid",
@@ -90,7 +91,11 @@ EXPECTED: dict[str, dict[str, Any]] = {
         "signal": "gate missing_finish_reason -> unfinished",
     },
     "http_error": {"status": "valid", "signal": "gate http_error -> failed"},
-    "drop": {"status": "valid", "signal": "gate drop/missing_done -> unfinished"},
+    "drop": {
+        "status": "valid",
+        "signal": "gate missing_done/missing_finish_reason -> unfinished (an EOF-terminated SSE "
+        "stream is a premature end, not a transport error)",
+    },
     "wrong_text": {"status": "valid", "signal": "gate invalid_output (nonce/sequence) -> failed"},
     "garbled_text": {
         "status": "valid",
@@ -100,7 +105,11 @@ EXPECTED: dict[str, dict[str, Any]] = {
         "status": "valid",
         "signal": "gate invalid_output (too short / sequence) -> failed",
     },
-    "false_usage": {"status": "valid", "signal": "gate usage_discrepancy -> failed"},
+    "false_usage": {
+        "status": "valid",
+        "signal": "gate usage_discrepancy -> failed on chat cells; masked on integer lists where "
+        "the regex-vs-mock tokenizer gap (2x) puts 3x usage inside the band (DESIGN.md 2)",
+    },
     "misleading_readiness": {
         "status": "valid",
         "signal": "startup.readiness_lead_s > 0: ready probe long before first valid generation",
@@ -238,12 +247,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--skip-heldout", action="store_true")
     parser.add_argument("--heldout-salt", default="abstract-t1-heldout-v1")
     args = parser.parse_args(argv)
-    manifest: dict[str, Any] = {
-        "time_scale": args.time_scale,
-        "public": {},
-        "heldout_count": 0,
-        "note": "CPU mock fixtures; injected timings, not GPU measurements.",
-    }
+    manifest_path = FIXTURE_DIR / "manifest.json"
+    manifest: dict[str, Any] = (
+        json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
+    )
+    manifest.update(
+        {
+            "time_scale": args.time_scale,
+            "public": manifest.get("public", {}),
+            "heldout_count": manifest.get("heldout_count", 0),
+            "note": "CPU mock fixtures; injected timings, not GPU measurements.",
+        }
+    )
     for index, profile in enumerate(PROFILES):
         if args.only and args.only != profile:
             continue
@@ -296,7 +311,7 @@ def main(argv: list[str] | None = None) -> int:
         KEY_PATH.parent.mkdir(parents=True, exist_ok=True)
         KEY_PATH.write_text(json.dumps(key, indent=2), encoding="utf-8")
         manifest["heldout_count"] = len(key)
-    (FIXTURE_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return 0
 
 

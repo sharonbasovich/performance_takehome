@@ -149,6 +149,14 @@ class LagMonitor:
         return result
 
 
+def _repo_relative(path: Path) -> str:
+    """Path relative to the repository root when inside it (keeps host paths out of evidence)."""
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT))
+    except ValueError:
+        return path.name
+
+
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -535,7 +543,7 @@ class Runner:
                 "plan_id": self.plan["plan_id"],
                 "digest": plan_digest(Path(self.args.plan)),
                 "schema_version": self.plan["schema_version"],
-                "path": str(self.args.plan),
+                "path": _repo_relative(Path(self.args.plan)),
             },
             "engine": {
                 "base_url": self.base_url,

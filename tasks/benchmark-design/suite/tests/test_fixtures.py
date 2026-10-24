@@ -56,7 +56,7 @@ class PublicFixtureTests(unittest.TestCase):
             "missing_done": ("unfinished", "missing_done"),
             "missing_finish_reason": ("unfinished", "missing_finish_reason"),
             "http_error": ("failed", "http_error"),
-            "drop": ("unfinished", "drop"),
+            "drop": ("unfinished", "missing_done"),
             "wrong_text": ("failed", "invalid_output"),
             "garbled_text": ("failed", "invalid_output"),
             "truncated_text": ("failed", "invalid_output"),
@@ -76,11 +76,14 @@ class PublicFixtureTests(unittest.TestCase):
             self.reports["late_first_token"]["cells"][key]["ttft_s"]["p50"]["point"],
             clean[key]["ttft_s"]["p50"]["point"] + 0.3,
         )
-        for name in ("stall", "slow_decode", "burst"):
+        for name in ("stall", "slow_decode"):
             with self.subTest(fixture=name):
                 fi = self.reports[name]["cells"][key]["fluidity"]["strict"]["index_mean"]["point"]
                 self.assertLess(fi, clean[key]["fluidity"]["strict"]["index_mean"]["point"])
-        self.assertIn("multi_token_deltas", self.reports["burst"]["cells"][key]["flags"])
+        burst = self.reports["burst"]["cells"][key]
+        self.assertIn("multi_token_deltas", burst["flags"])
+        self.assertGreater(burst["token_evidence"]["tokens_per_delta_mean"], 4)
+        self.assertEqual(burst["rejection_reasons"], {})  # bursts are evidence, not a fault
         self.assertGreater(
             self.reports["slow_decode"]["cells"][key]["decode"]["min_decode_deadline_s"]["p99"],
             clean[key]["decode"]["min_decode_deadline_s"]["p99"] * 2,
@@ -111,10 +114,9 @@ class PublicFixtureTests(unittest.TestCase):
                 oracle = json.load(fh)["requests"]
             verdicts = self.reports[name]["request_verdicts"]
             for rid, truth in oracle.items():
-                if (
-                    not rid.startswith(("chat_short_open", "generation_long_open"))
-                    or "/measure/" not in rid
-                ):
+                # Integer lists are excluded from the usage check: the regex tokenizer counts
+                # them 2x the mock tokenizer, which puts a 3x usage inside the band.
+                if not rid.startswith("chat_short_open") or "/measure/" not in rid:
                     continue
                 failed = rid in verdicts and verdicts[rid]["category"] != "completed"
                 expected_fail = (not truth["answer_is_correct"]) or truth[

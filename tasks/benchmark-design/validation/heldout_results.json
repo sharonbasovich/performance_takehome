@@ -1,0 +1,82 @@
+[
+  {
+    "expected_status": "valid",
+    "fixture": "hx-09169a6f2386",
+    "match": true,
+    "observed_status": "valid",
+    "profile": "clean",
+    "rejections": 0
+  },
+  {
+    "expected_status": "valid",
+    "fixture": "hx-bdc8c9170fad",
+    "match": true,
+    "observed_status": "valid",
+    "profile": "noisy",
+    "rejections": 0
+  },
+  {
+    "expected_status": "valid",
+    "fixture": "hx-ec6ac0af8116",
+    "match": true,
+    "observed_status": "valid",
+    "profile": "stall",
+    "rejections": 0
+  },
+  {
+    "expected_status": "valid",
+    "fixture": "hx-8f88736a2396",
+    "match": true,
+    "observed_status": "valid",
+    "profile": "burst",
+    "rejections": 0
+  },
+  {
+    "expected_status": "valid",
+    "fixture": "hx-064edce923bc",
+    "match": true,
+    "observed_status": "valid",
+    "profile": "missing_done",
+    "rejections": 79
+  },
+  {
+    "expected_status": "valid",
+    "fixture": "hx-fc077754065e",
+    "match": true,
+    "observed_status": "valid",
+    "profile": "wrong_text",
+    "rejections": 79
+  },
+  {
+    "expected_status": "valid",
+    "fixture": "hx-5378c2beb99b",
+    "match": true,
+    "observed_status": "valid",
+    "profile": "false_usage",
+    "rejections": 63
+  },
+  {
+    "expected_status": "valid",
+    "fixture": "hx-d7a1bc67f01f",
+    "match": true,
+    "observed_status": "valid",
+    "profile": "drop",
+    "rejections": 26
+  },
+  {
+    "expected_status": "valid",
+    "fixture": "hx-4efea4204d29",
+    "match": true,
+    "observed_status": "valid",
+    "profile": "late_first_token",
+    "rejections": 0
+  },
+  {
+    "expected_status": "valid",
+    "fixture": "hx-cbde13ada41a",
+    "match": true,
+    "observed_status": "valid",
+    "profile": "truncated_text",
+    "rejections": 16
+  }
+]

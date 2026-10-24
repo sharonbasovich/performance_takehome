@@ -1,0 +1,247 @@
+[
+  {
+    "detected": true,
+    "expected_signal": "token_evidence.multi_token_deltas flag (chunk != token); Etalon fluidity stays 1.0 by design: 8-token bursts at ~83 tok/s sit inside playback slack",
+    "expected_status": "valid",
+    "family": "bursts",
+    "fixture": "burst",
+    "observed_signals": [
+      "ttft_p50=0.181s vs clean 0.096s",
+      "multi_token_deltas flag on 16 requests"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "none (control)",
+    "expected_status": "valid",
+    "family": "control",
+    "fixture": "clean",
+    "observed_signals": [],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "run gate: event_loop_lag_max_s > max -> run invalid",
+    "expected_status": "invalid",
+    "family": "evidence_corruption",
+    "fixture": "client_lag",
+    "observed_signals": [
+      "status=invalid: client event-loop lag 0.400s exceeds 0.05s: timings are client-owned"
+    ],
+    "observed_status": "invalid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "gate missing_done/missing_finish_reason -> unfinished (an EOF-terminated SSE stream is a premature end, not a transport error)",
+    "expected_status": "valid",
+    "family": "errors_and_drops",
+    "fixture": "drop",
+    "observed_signals": [
+      "unfinished=29",
+      "gates=invalid_output:7,missing_done:29,missing_finish_reason:29",
+      "fluidity_strict_mean=0.688 vs clean 1.000"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "gate usage_discrepancy -> failed on chat cells; masked on integer lists where the regex-vs-mock tokenizer gap (2x) puts 3x usage inside the band (DESIGN.md 2)",
+    "expected_status": "valid",
+    "family": "false_usage",
+    "fixture": "false_usage",
+    "observed_signals": [
+      "failed=63",
+      "gates=usage_discrepancy:63",
+      "fluidity_strict_mean=0.062 vs clean 1.000"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "gate invalid_output (replacement/garbled) -> failed",
+    "expected_status": "valid",
+    "family": "invalid_output",
+    "fixture": "garbled_text",
+    "observed_signals": [
+      "failed=77",
+      "gates=invalid_output:114",
+      "fluidity_strict_mean=0.062 vs clean 1.000"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "gate http_error -> failed",
+    "expected_status": "valid",
+    "family": "errors_and_drops",
+    "fixture": "http_error",
+    "observed_signals": [
+      "failed=25",
+      "gates=http_error:25",
+      "fluidity_strict_mean=0.562 vs clean 1.000"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "TTFT p50 rises; prefill_deadline_hit_rate falls",
+    "expected_status": "valid",
+    "family": "late_first_tokens",
+    "fixture": "late_first_token",
+    "observed_signals": [
+      "ttft_p50=2.103s vs clean 0.096s",
+      "fluidity_strict_mean=0.417 vs clean 1.000",
+      "readiness_lead=2.53s vs clean 0.54s"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "startup.readiness_lead_s > 0: ready probe long before first valid generation",
+    "expected_status": "valid",
+    "family": "misleading_readiness",
+    "fixture": "misleading_readiness",
+    "observed_signals": [
+      "readiness_lead=3.37s vs clean 0.54s"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "gate missing_done -> unfinished",
+    "expected_status": "valid",
+    "family": "missing_completion",
+    "fixture": "missing_done",
+    "observed_signals": [
+      "unfinished=79",
+      "gates=missing_done:79",
+      "fluidity_strict_mean=0.062 vs clean 1.000"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "gate missing_finish_reason -> unfinished",
+    "expected_status": "valid",
+    "family": "missing_completion",
+    "fixture": "missing_finish_reason",
+    "observed_signals": [
+      "unfinished=79",
+      "gates=missing_finish_reason:79",
+      "fluidity_strict_mean=0.062 vs clean 1.000"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "none (control); A/A must stay no_difference/inconclusive",
+    "expected_status": "valid",
+    "family": "control",
+    "fixture": "noisy",
+    "observed_signals": [],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "reasoning tokens counted separately; TTFT = first content token",
+    "expected_status": "valid",
+    "family": "reasoning_channels",
+    "fixture": "reasoning_channel",
+    "observed_signals": [
+      "ttft_p50=0.701s vs clean 0.096s",
+      "fluidity_strict_mean=0.787 vs clean 1.000",
+      "readiness_lead=1.13s vs clean 0.54s"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "strict fluidity SLO fails; MDD p99 rises; FTGR falls",
+    "expected_status": "valid",
+    "family": "stalls",
+    "fixture": "slow_decode",
+    "observed_signals": [
+      "fluidity_strict_mean=0.133 vs clean 1.000",
+      "min_decode_deadline_p99=0.0669s vs clean 0.0178s",
+      "readiness_lead=1.72s vs clean 0.54s"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "startup_to_first_valid_generation_s > readiness",
+    "expected_status": "valid",
+    "family": "startup",
+    "fixture": "slow_startup",
+    "observed_signals": [
+      "readiness_lead=0.93s vs clean 0.54s"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "fluidity index drops at every tier; min decode deadline p99 rises",
+    "expected_status": "valid",
+    "family": "stalls",
+    "fixture": "stall",
+    "observed_signals": [
+      "fluidity_strict_mean=0.329 vs clean 1.000",
+      "min_decode_deadline_p99=0.0905s vs clean 0.0178s",
+      "readiness_lead=3.54s vs clean 0.54s"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "gate invalid_timing -> evidence_invalid -> run invalid",
+    "expected_status": "invalid",
+    "family": "evidence_corruption",
+    "fixture": "timing_invalid",
+    "observed_signals": [
+      "status=invalid: 7 request(s) with untrustworthy evidence, e.g. chat_short_open|rate=4rps|rep0/measure/6: ['invalid_timing:event[50]<event[49]']",
+      "evidence_invalid=7",
+      "gates=invalid_timing:7",
+      "fluidity_strict_mean=0.875 vs clean 1.000"
+    ],
+    "observed_status": "invalid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "gate invalid_output (too short / sequence) -> failed",
+    "expected_status": "valid",
+    "family": "invalid_output",
+    "fixture": "truncated_text",
+    "observed_signals": [
+      "failed=16",
+      "gates=invalid_output:16"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "tokens counted once across split deltas; no replacement chars",
+    "expected_status": "valid",
+    "family": "unicode_splits",
+    "fixture": "unicode_split",
+    "observed_signals": [
+      "fluidity_strict_mean=0.227 vs clean 1.000",
+      "min_decode_deadline_p99=0.0644s vs clean 0.0178s",
+      "readiness_lead=1.59s vs clean 0.54s"
+    ],
+    "observed_status": "valid"
+  },
+  {
+    "detected": true,
+    "expected_signal": "gate invalid_output (nonce/sequence) -> failed",
+    "expected_status": "valid",
+    "family": "invalid_output",
+    "fixture": "wrong_text",
+    "observed_signals": [
+      "failed=79",
+      "gates=invalid_output:79",
+      "fluidity_strict_mean=0.062 vs clean 1.000"
+    ],
+    "observed_status": "valid"
+  }
+]

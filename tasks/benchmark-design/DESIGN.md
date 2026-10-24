@@ -155,7 +155,32 @@ The machine-generated discrimination table, control false-positive accounting an
 held-out results are in `validation/discrimination.md` (JSON next to it); per-fixture
 reports are in `validation/reports/`. Summary of what was observed:
 
-VALIDATION_SUMMARY_PLACEHOLDER
+* **20/20 public fixtures** produce the expected top-level status and a machine-derived
+  detection signal (`validation/discrimination.json`). Server-fault families are caught by
+  gates (rejected requests appear in `population` and `rejection_reasons`): drop, false_usage, garbled_text, http_error, missing_done, missing_finish_reason, timing_invalid, truncated_text, wrong_text.
+  Timing families move the metric they should: `late_first_token` TTFT p50, `stall` and
+  `slow_decode` strict fluidity and minimum decode deadline p99, `misleading_readiness` and
+  `slow_startup` readiness lead time. `burst` is flagged through `multi_token_deltas`
+  (chunk ≠ token) while its Etalon fluidity stays 1.0 — by design, since 8-token bursts at
+  ~83 tok/s sit inside the playback slack. The two evidence-corruption families
+  (`timing_invalid`, `client_lag`) make the run `invalid`, not scored.
+* **Control false-positive rate 0.00** (0/4 controls: public clean/noisy and the two held-out
+  controls) — no rejected request, status `valid`, within-run A/A decisions
+  ['inconclusive', 'no_difference'] (`validation/controls.json`).
+* **Held-out set: 10/10 opaque fixtures** receive the status the key predicts
+  (`validation/heldout_results.json`; the key is read only by the validation builder).
+* **Two-run comparisons** (`validation/comparison_*.json`): clean vs slow_decode →
+  `regression`, clean vs late_first_token → `regression`, clean vs noisy →
+  `regression` on TTFT p90 only — correct, because the noisy profile really has a 60 % jitter
+  tail; the *within-run* A/A cells of the noisy run are the noise control and stay
+  non-confident. Comparisons with fewer than `min_requests_per_cell` samples on either side
+  are inconclusive by construction.
+* **Known masking**: `false_usage` (3×) is caught on chat cells but not on integer-list
+  outputs, where the regex pre-tokenizer counts 2× the mock tokenizer and 3× lands inside
+  the 0.5–2.0 band. The oracle-agreement test is restricted accordingly; the fix is the
+  pinned tokenizer (§2). Startup `readiness_lead_s` also grows for fault profiles whose
+  faults hit the probe generation itself (e.g. `stall`), which is real behaviour of a
+  faulty server rather than a startup-axis detection.
 
 **False negatives / limitations observed honestly:** the mock's `stall` and `burst`
 families are invisible to fluidity when fixtures are generated with compressed timing
@@ -189,7 +214,14 @@ measurement and the arithmetic is re-run before the full run is scheduled.
 
 ### Measured CPU/mock cost (this host; `validation/timing.md`)
 
-TIMING_PLACEHOLDER
+| What | Measured on this host |
+| --- | --- |
+| fixture generation: runner + cold-started mock, 18 public fixtures (`fixture` mode, 80 offered + 5 warmup requests each) | 721.8 s total, 24.49–74.6 s per fixture |
+| `evaluate.py` over 30 fixtures (public + held-out) | 12.84 s total, 0.27–0.68 s each |
+| candidate unittest suite (OK; Ran 61 tests in 20.031s) | 20.15 s |
+| quick mode of the mock plan (`fixtures/workload.mock.json`, 228 requests) at `--time-scale 0.25` | ≈ 25 s (observed during development, not a committed artifact) |
+
+Host: `Linux-6.8.0-1061-aws-x86_64-with-glibc2.35`, Python 3.11.17, `time_scale = 1.0`.
 
 These measure the candidate tooling only.
 
