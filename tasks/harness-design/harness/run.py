@@ -44,6 +44,7 @@ from abstract_harness import budget as budget_mod  # noqa: E402
 from abstract_harness import results as results_mod  # noqa: E402
 from abstract_harness.engines import make_engine  # noqa: E402
 from abstract_harness.loop import Harness, LoopConfig, Timeouts  # noqa: E402
+from abstract_harness.procs import LockError  # noqa: E402
 from abstract_harness.proposers import PiLaunchConfig, PiProposer, ScriptedProposer  # noqa: E402
 from abstract_harness.state import StateError  # noqa: E402
 
@@ -56,18 +57,64 @@ STANDIN_MODEL = {
 }
 
 
-def _git_head(repo_root: Path) -> str:
+def _git_describe(repo_root: Path) -> tuple[str, bool]:
+    """``(HEAD sha, dirty)`` of the repository that contains the running harness code."""
     try:
-        out = subprocess.run(
+        head = subprocess.run(
             ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
             check=True,
             capture_output=True,
             text=True,
             timeout=30,
-        )
-        return out.stdout.strip()
-    except (subprocess.SubprocessError, OSError):
-        return "unknown"
+        ).stdout.strip()
+        status = subprocess.run(
+            ["git", "-C", str(repo_root), "status", "--porcelain", "--", "tasks/harness-design"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return "UNKNOWN", True
+    dirty = any(
+        line.strip() and not line[3:].startswith(IGNORED_DIRTY_PREFIXES)
+        for line in status.splitlines()
+    )
+    return head, dirty
+
+
+IGNORED_DIRTY_PREFIXES = (
+    "tasks/harness-design/harness/results.tsv",
+    "tasks/harness-design/harness/reports/",
+    "tasks/harness-design/harness/patches/",
+    "tasks/harness-design/submission.json",
+)
+
+HARNESS_TREE_FILES = (
+    "harness/run.py",
+    "harness/abstract_harness",
+    "harness/development-benchmark.json",
+    "harness/program.md",
+    "harness/experiments",
+    "Dockerfile",
+    "standin/Dockerfile",
+)
+
+
+def harness_tree_sha256(task_dir: Path) -> str:
+    """Content hash of the harness code + inputs that produce evidence rows."""
+    digest = hashlib.sha256()
+    for entry in HARNESS_TREE_FILES:
+        base = task_dir / entry
+        files = sorted(p for p in base.rglob("*") if p.is_file()) if base.is_dir() else [base]
+        for path in files:
+            if "__pycache__" in path.parts or not path.exists():
+                continue
+            digest.update(path.relative_to(task_dir).as_posix().encode())
+            digest.update(b"\0")
+            digest.update(path.read_bytes())
+            digest.update(b"\0")
+    return digest.hexdigest()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -141,6 +188,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="pass --no-cache to every docker build in this invocation (cold rebuild)",
     )
     run.add_argument("--keep-candidate-images", action="store_true")
+    run.add_argument(
+        "--allow-dirty",
+        action="store_true",
+        help="run even if tasks/harness-design has uncommitted code changes "
+        "(source_commit is then suffixed with -dirty)",
+    )
+    run.add_argument(
+        "--startup-regression-limit",
+        type=float,
+        default=1.5,
+        help="hard gate: candidate startup slower than this multiple of last-good is regressed",
+    )
 
     val = sub.add_parser("validate-results", help="validate a results.tsv against the contract")
     val.add_argument("--results", type=Path, default=HERE / "results.tsv")
@@ -161,6 +220,15 @@ def build_parser() -> argparse.ArgumentParser:
 def cmd_run(args: argparse.Namespace) -> int:
     """Build config objects and run the loop."""
     now = time.time()
+    head, dirty = _git_describe(REPO_ROOT)
+    if dirty and not args.allow_dirty:
+        print(
+            "[run] tasks/harness-design has uncommitted code changes; commit them so every "
+            "results.tsv row names the code that produced it, or pass --allow-dirty",
+            file=sys.stderr,
+        )
+        return 2
+    source_commit = f"{head}-dirty" if dirty else head
     budget = budget_mod.BudgetConfig(
         api_usd_limit=args.api_spend_limit_usd,
         gpu_hours_limit=args.gpu_hours,
@@ -217,7 +285,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         benchmark_path=args.development_benchmark,
         program_path=args.program,
         out_manifest=args.out,
-        source_commit=_git_head(REPO_ROOT),
+        source_commit=source_commit,
+        harness_tree_sha256=harness_tree_sha256(HERE.parent),
+        startup_regression_limit=args.startup_regression_limit,
         budget=budget,
         timeouts=Timeouts(
             build_s=args.build_timeout_s,
@@ -234,7 +304,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     # A scripted proposer resumes at the on-disk attempt index so queue entries are not replayed.
     try:
         harness = Harness(config, engine, proposer)
-    except StateError as exc:
+    except (StateError, LockError) as exc:
         print(f"[run] {exc}", file=sys.stderr)
         return 4
     if isinstance(proposer, ScriptedProposer) and harness.state.attempt_index > 1:

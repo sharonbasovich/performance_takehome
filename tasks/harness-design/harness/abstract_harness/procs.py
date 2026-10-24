@@ -7,7 +7,7 @@ import os
 import signal
 import subprocess
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -23,6 +23,7 @@ class RunResult:
     stderr: str
     duration_s: float
     timed_out: bool
+    aborted: bool = False
 
     @property
     def ok(self) -> bool:
@@ -58,6 +59,7 @@ def run(
     env: Mapping[str, str] | None = None,
     stdin_text: str | None = None,
     log_path: Path | None = None,
+    should_abort: Callable[[], bool] | None = None,
 ) -> RunResult:
     """Run ``args`` in a new session; kill the process group if ``timeout_s`` elapses.
 
@@ -86,10 +88,27 @@ def run(
             log_fh.close()
         return RunResult(tuple(args), None, "", str(exc), time.monotonic() - start, False)
     timed_out = False
+    aborted = False
     try:
-        stdout, stderr = proc.communicate(input=stdin_text, timeout=timeout_s)
+        if should_abort is None:
+            stdout, stderr = proc.communicate(input=stdin_text, timeout=timeout_s)
+        else:
+            if stdin_text is not None and proc.stdin is not None:
+                proc.stdin.write(stdin_text)
+                proc.stdin.close()
+            deadline = start + timeout_s
+            while True:
+                try:
+                    stdout, stderr = proc.communicate(timeout=0.5)
+                    break
+                except subprocess.TimeoutExpired:
+                    if should_abort():
+                        aborted = True
+                        raise
+                    if time.monotonic() >= deadline:
+                        raise
     except subprocess.TimeoutExpired:
-        timed_out = True
+        timed_out = not aborted
         kill_process_group(proc)
         try:
             stdout, stderr = proc.communicate(timeout=5)
@@ -106,7 +125,9 @@ def run(
     if log_fh is not None:
         stdout = log_path.read_text(encoding="utf-8", errors="replace") if log_path else ""
         stderr = ""
-    return RunResult(tuple(args), proc.returncode, stdout or "", stderr or "", duration, timed_out)
+    return RunResult(
+        tuple(args), proc.returncode, stdout or "", stderr or "", duration, timed_out, aborted
+    )
 
 
 class LockError(RuntimeError):

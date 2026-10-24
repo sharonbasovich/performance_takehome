@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import math
+import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 
@@ -109,3 +112,32 @@ def monotone_now(now_ts: float, last_seen_ts: float) -> tuple[float, bool]:
     if now_ts < last_seen_ts:
         return last_seen_ts, True
     return now_ts, False
+
+
+def worst_case_attempt_s(
+    *,
+    propose_s: float,
+    build_s: float,
+    startup_s: float,
+    measure_s: float,
+    stop_grace_s: float,
+    ab_remeasure: bool = True,
+) -> float:
+    """Upper bound on one attempt's wall time from the configured stage timeouts."""
+    arms = 2 if ab_remeasure else 1
+    return propose_s + build_s + arms * (startup_s + measure_s + stop_grace_s)
+
+
+def stage_timeout(configured_s: float, deadline_monotonic: float, *, floor_s: float = 1.0) -> float:
+    """Clamp a stage timeout so the stage cannot run past ``deadline_monotonic``."""
+    remaining = deadline_monotonic - time.monotonic()
+    return max(floor_s, min(configured_s, remaining))
+
+
+def attempt_estimate_s(configured_s: float, observed_s: Sequence[float]) -> float:
+    """Estimate for the next attempt: the configured value or the 90th percentile observed."""
+    finite = sorted(v for v in observed_s if math.isfinite(v) and v >= 0)
+    if not finite:
+        return configured_s
+    idx = min(len(finite) - 1, int(math.ceil(0.9 * len(finite)) - 1))
+    return max(configured_s, finite[max(0, idx)])

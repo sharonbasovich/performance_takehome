@@ -31,6 +31,9 @@ from . import procs
 PI_PACKAGE = "@earendil-works/pi-coding-agent"
 PI_VERSION = "1.0.0"
 PI_STOCK_TOOLS: tuple[str, ...] = ("read", "bash", "edit", "write")
+# Flags exactly as listed in agent-harness/README.md. Note that in Pi 1.0.0
+# ``--no-approve`` means "ignore project-local files" (dist/cli/args.js L219,
+# ``projectTrustOverride``), not "skip approval prompts"; print mode never asks.
 PI_ISOLATION_FLAGS: tuple[str, ...] = (
     "--no-extensions",
     "--no-skills",
@@ -88,6 +91,10 @@ class Proposer:
         """Return the next proposal or ``None`` when the proposer has nothing left."""
         raise NotImplementedError
 
+    def estimated_usd_per_call(self) -> float:
+        """Upper estimate of model spend for one proposal (0 for offline proposers)."""
+        return 0.0
+
 
 def unified_diff_for_dirs(old_dir: Path, new_dir: Path) -> str:
     """Unified diff (``a/`` / ``b/`` prefixes, applies with ``patch -p1``) between two trees."""
@@ -117,6 +124,46 @@ def unified_diff_for_dirs(old_dir: Path, new_dir: Path) -> str:
     return "".join(chunks)
 
 
+def contained_path(root: Path, relative: str) -> Path:
+    """Resolve ``relative`` inside ``root`` or raise :class:`ProposerError`.
+
+    Rejects absolute paths, ``..`` components, and anything that resolves (via
+    symlinks) outside ``root``; the returned path is the *unresolved* child so
+    callers can still refuse symlinks explicitly.
+    """
+    candidate = Path(relative)
+    if candidate.is_absolute() or ".." in candidate.parts or not relative:
+        raise ProposerError(f"path {relative!r} must be relative and inside the build context")
+    target = root / candidate
+    root_resolved = root.resolve()
+    try:
+        resolved = target.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ProposerError(f"cannot resolve {relative!r}: {exc}") from exc
+    if not resolved.is_relative_to(root_resolved):
+        raise ProposerError(f"path {relative!r} escapes the build context")
+    if target.is_symlink() or any(
+        p.is_symlink() for p in target.parents if p != root and p.is_relative_to(root)
+    ):
+        raise ProposerError(f"path {relative!r} goes through a symlink")
+    return target
+
+
+def escaping_symlinks(root: Path) -> list[str]:
+    """Symlinks under ``root`` that resolve outside it (or dangle); empty when clean."""
+    root_resolved = root.resolve()
+    found: list[str] = []
+    for path in root.rglob("*"):
+        if not path.is_symlink():
+            continue
+        try:
+            if not path.resolve(strict=True).is_relative_to(root_resolved):
+                found.append(path.relative_to(root).as_posix())
+        except (OSError, RuntimeError):
+            found.append(path.relative_to(root).as_posix())
+    return found
+
+
 def apply_patch(patch_text: str, target_dir: Path, *, timeout_s: float = 60) -> tuple[bool, str]:
     """Apply a unified diff to ``target_dir`` with ``patch -p1`` (scratch copies only).
 
@@ -140,6 +187,10 @@ def apply_patch(patch_text: str, target_dir: Path, *, timeout_s: float = 60) -> 
         timeout_s=timeout_s,
         stdin_text=patch_text,
     )
+    if result.ok:
+        bad = escaping_symlinks(target_dir)
+        if bad:
+            return False, f"patch created symlinks escaping the build context: {bad}"
     output = (result.stdout + result.stderr).strip()
     if result.timed_out:
         return False, "patch timed out"
@@ -161,7 +212,35 @@ class ScriptedProposer(Proposer):
 
     name = "scripted"
 
+    @staticmethod
+    def validate_queue(queue: Sequence[Mapping[str, Any]]) -> None:
+        """Schema-check queue entries up front so a typo fails before any build."""
+        seen: set[str] = set()
+        for n, entry in enumerate(queue):
+            if not isinstance(entry, Mapping) or not isinstance(entry.get("experiment"), str):
+                raise ProposerError(f"queue entry {n}: needs a string 'experiment'")
+            if entry["experiment"] in seen:
+                raise ProposerError(
+                    f"queue entry {n}: duplicate experiment {entry['experiment']!r}"
+                )
+            seen.add(entry["experiment"])
+            if "patch" in entry:
+                if not isinstance(entry["patch"], str):
+                    raise ProposerError(f"queue entry {n}: 'patch' must be a string")
+                continue
+            edits = entry.get("edits")
+            if not isinstance(edits, list) or not edits:
+                raise ProposerError(f"queue entry {n}: needs 'patch' or a nonempty 'edits' list")
+            for m, edit in enumerate(edits):
+                if not isinstance(edit, Mapping) or not all(
+                    isinstance(edit.get(k), str) for k in ("file", "find", "replace")
+                ):
+                    raise ProposerError(
+                        f"queue entry {n} edit {m}: needs string 'file', 'find' and 'replace'"
+                    )
+
     def __init__(self, queue: Sequence[Mapping[str, Any]], *, skip: int = 0) -> None:
+        self.validate_queue(queue)
         self._queue = list(queue)
         self._index = skip
 
@@ -191,14 +270,20 @@ class ScriptedProposer(Proposer):
         edits = entry.get("edits") or []
         if not edits:
             raise ProposerError(f"experiment {experiment} has neither patch nor edits")
+        bad_links = escaping_symlinks(context.context_dir)
+        if bad_links:
+            raise ProposerError(f"build context has symlinks escaping it: {bad_links}")
         with tempfile.TemporaryDirectory(prefix="scripted-", dir=context.work_dir) as tmp:
             new_dir = Path(tmp) / "new"
-            shutil.copytree(context.context_dir, new_dir)
+            shutil.copytree(context.context_dir, new_dir, symlinks=True)
             for edit in edits:
-                target = new_dir / edit["file"]
-                if ".." in Path(edit["file"]).parts or not target.is_file():
+                try:
+                    target = contained_path(new_dir, str(edit["file"]))
+                except ProposerError as exc:
+                    raise ProposerError(f"experiment {experiment}: {exc}") from exc
+                if not target.is_file():
                     raise ProposerError(
-                        f"experiment {experiment}: bad edit target {edit['file']!r}"
+                        f"experiment {experiment}: edit target {edit['file']!r} is not a file"
                     )
                 text = target.read_text(encoding="utf-8")
                 if edit.get("regex"):
@@ -271,11 +356,16 @@ class PiProposer(Proposer):
     def __init__(self, config: PiLaunchConfig, *, profile: Mapping[str, Any]) -> None:
         self.config = config
         self.profile = profile
+        self._max_observed_usd = 0.0
         tools = tuple(profile.get("stock_tools", PI_STOCK_TOOLS))
         if tools != PI_STOCK_TOOLS:
             raise ProposerError(
                 f"profile tools {tools} differ from the pinned stock tools {PI_STOCK_TOOLS}"
             )
+
+    def estimated_usd_per_call(self) -> float:
+        """Configured per-call estimate, raised to the largest spend observed so far."""
+        return max(self.config.usd_per_call_estimate, self._max_observed_usd)
 
     def verify_distribution(self) -> str:
         """Check ``pi --version`` matches the pinned version; return the version string."""
@@ -369,9 +459,12 @@ class PiProposer(Proposer):
             raise ProposerError(
                 f"environment variable {self.config.api_key_env} is not set; PiProposer cannot run"
             )
+        bad_links = escaping_symlinks(context.context_dir)
+        if bad_links:
+            raise ProposerError(f"build context has symlinks escaping it: {bad_links}")
         attempt_dir = Path(tempfile.mkdtemp(prefix="pi-attempt-", dir=context.work_dir))
         scratch = attempt_dir / "context"
-        shutil.copytree(context.context_dir, scratch)
+        shutil.copytree(context.context_dir, scratch, symlinks=True)
         patch_out = attempt_dir / "proposal.patch"
         meta_out = attempt_dir / "proposal.json"
         prompt_path = attempt_dir / "prompt.md"
@@ -398,6 +491,8 @@ class PiProposer(Proposer):
             log_path=transcript,
         )
         api_usd = self._cost_from_events(transcript)
+        if api_usd is not None:
+            self._max_observed_usd = max(self._max_observed_usd, api_usd)
         model_error = self._error_from_events(transcript)
         if result.timed_out:
             raise ProposerError(

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import math
 import os
-from collections.abc import Iterator
+import re
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, fields
 from pathlib import Path
 
@@ -32,6 +34,11 @@ KEPT_VALUES: frozenset[str] = frozenset({"0", "1"})
 HEADER_LINE = "\t".join(COLUMNS) + "\n"
 
 _ESCAPES = {"\\": "\\\\", "\t": "\\t", "\n": "\\n", "\r": "\\r"}
+
+
+_DIGEST_RE = re.compile(r"sha256:[0-9a-f]{64}")
+_TS_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+IMPROVED_MIN_SPEEDUP = 0.95
 
 
 class ResultsError(ValueError):
@@ -105,21 +112,43 @@ class ResultRow:
                 raise ResultsError("a kept row must reference its development report")
             if self.outcome not in {"baseline", "improved"}:
                 raise ResultsError(f"outcome {self.outcome!r} cannot be kept")
-        if self.image_digest and not self.image_digest.startswith("sha256:"):
+        if self.image_digest and not _DIGEST_RE.fullmatch(self.image_digest):
             raise ResultsError(
-                f"image_digest must be blank or sha256:..., got {self.image_digest!r}"
+                f"image_digest must be blank or sha256:<64 hex>, got {self.image_digest!r}"
             )
-        for name in ("local_ttft_speedup", "local_ftgr_speedup", "local_startup_s"):
+        if not _TS_RE.fullmatch(self.ts):
+            raise ResultsError(
+                f"ts must be an ISO-8601 UTC timestamp like 2026-01-01T00:00:00Z, got {self.ts!r}"
+            )
+        numbers: dict[str, float] = {}
+        for name in (
+            "local_ttft_speedup",
+            "local_ftgr_speedup",
+            "local_startup_s",
+            "api_usd_cumulative",
+            "gpu_hours_cumulative",
+        ):
             value = getattr(self, name)
-            if value != "":
-                try:
-                    float(value)
-                except ValueError as exc:
-                    raise ResultsError(f"{name} must be blank or numeric") from exc
-        for name in ("api_usd_cumulative", "gpu_hours_cumulative"):
-            value = getattr(self, name)
-            if value != "" and float(value) < 0:
+            if value == "":
+                continue
+            try:
+                number = float(value)
+            except ValueError as exc:
+                raise ResultsError(f"{name} must be blank or numeric, got {value!r}") from exc
+            if not math.isfinite(number):
+                raise ResultsError(f"{name} must be finite, got {value!r}")
+            if number < 0:
                 raise ResultsError(f"{name} cannot be negative")
+            numbers[name] = number
+        if self.outcome == "improved":
+            speedups = [
+                numbers[n] for n in ("local_ttft_speedup", "local_ftgr_speedup") if n in numbers
+            ]
+            if not speedups or max(speedups) <= 1.0 or min(speedups) < IMPROVED_MIN_SPEEDUP:
+                raise ResultsError(
+                    "an improved row needs a primary speedup > 1 and none below "
+                    f"{IMPROVED_MIN_SPEEDUP}; got {speedups}"
+                )
         for f in fields(self):
             raw = getattr(self, f.name)
             if any(ch in raw for ch in "\t\n\r"):
@@ -158,11 +187,13 @@ def ensure_header(path: Path) -> None:
     path.write_text(HEADER_LINE, encoding="utf-8")
 
 
-def repair_torn_tail(path: Path) -> str | None:
-    """Cut off a partial last line (no trailing newline) left by a torn write.
+def repair_torn_tail(path: Path, *, log: Callable[[str], None] | None = None) -> str | None:
+    """Repair a last line that lacks its trailing newline (torn write or truncated copy).
 
-    The fragment is appended to ``<path>.torn`` for forensics and returned;
-    ``None`` when the file is absent or intact.
+    If the fragment parses and validates as a complete row it is kept and only
+    the newline is added. Otherwise it is cut off into ``<path>.torn`` for
+    forensics and returned. ``None`` when the file is absent, intact, or the
+    fragment was a complete row.
     """
     if not path.exists():
         return None
@@ -171,6 +202,21 @@ def repair_torn_tail(path: Path) -> str | None:
         return None
     cut = data.rfind(b"\n") + 1
     torn = data[cut:]
+    try:
+        candidate = ResultRow.from_line(torn.decode("utf-8"))
+        candidate.validate()
+    except (ResultsError, UnicodeDecodeError, ValueError):
+        candidate = None
+    if candidate is not None and cut > 0:
+        with path.open("ab") as fh:
+            fh.write(b"\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+        if log:
+            log(f"[results] added the missing newline after a complete last row in {path}")
+        return None
+    if log:
+        log(f"[results] cut a torn partial last line from {path} into {path.name}.torn")
     with path.with_suffix(path.suffix + ".torn").open("ab") as fh:
         fh.write(torn + b"\n")
     with path.open("r+b") as fh:
@@ -214,17 +260,49 @@ def iter_rows(path: Path) -> Iterator[ResultRow]:
             yield row
 
 
+def has_experiment(path: Path, experiment: str) -> bool:
+    """Whether any data line of ``path`` already names ``experiment`` (tolerates a torn tail)."""
+    if not path.exists():
+        return False
+    with path.open("r", encoding="utf-8") as fh:
+        next(fh, None)
+        for line in fh:
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) > 1 and parts[1] == experiment:
+                return True
+    return False
+
+
 def read_rows(path: Path) -> list[ResultRow]:
     """Read and validate every row of a results file."""
     return list(iter_rows(path))
 
 
 def validate_file(path: Path) -> list[ResultRow]:
-    """Validate the whole file including ordering rules; return the rows."""
+    """Validate the whole file including ordering rules; return the rows.
+
+    Beyond per-row checks: baseline first and only once, experiment ids unique,
+    no byte-identical duplicate rows, timestamps non-decreasing.
+    """
     rows = read_rows(path)
     if rows and rows[0].outcome != "baseline":
         raise ResultsError("first row must be the baseline")
-    for row in rows[1:]:
-        if row.outcome == "baseline":
+    seen_ids: set[str] = set()
+    seen_lines: set[str] = set()
+    previous_ts = ""
+    for number, row in enumerate(rows, start=2):
+        if number > 2 and row.outcome == "baseline":
             raise ResultsError("only the first row may be the baseline")
+        if row.experiment in seen_ids:
+            raise ResultsError(f"{path}:{number}: duplicate experiment id {row.experiment!r}")
+        seen_ids.add(row.experiment)
+        line = row.to_line()
+        if line in seen_lines:
+            raise ResultsError(f"{path}:{number}: duplicate row")
+        seen_lines.add(line)
+        if row.ts < previous_ts:
+            raise ResultsError(
+                f"{path}:{number}: timestamp {row.ts} is earlier than the previous row"
+            )
+        previous_ts = row.ts
     return rows

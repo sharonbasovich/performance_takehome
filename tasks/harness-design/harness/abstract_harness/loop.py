@@ -34,7 +34,7 @@ from . import procs
 from . import results as results_mod
 from .decision import Decision, decide
 from .engines import CONTAINER_PORT, Engine
-from .proposers import Proposal, Proposer, ProposerError, apply_patch
+from .proposers import Proposal, Proposer, ProposerError, apply_patch, escaping_symlinks
 from .state import HarnessState, ImageRef, InProgress, load_state, save_state, utc_ts
 
 
@@ -74,6 +74,8 @@ class LoopConfig:
     image_prefix: str = "abstract-harness"
     min_effect: float = 0.03
     no_cache: bool = False
+    startup_regression_limit: float = 1.5
+    harness_tree_sha256: str = ""
     min_samples: int = 3
     estimated_attempt_s: float = 600.0
     keep_candidate_images: bool = False
@@ -106,6 +108,14 @@ class Harness:
         self.log = log
         self.clock = clock
         self.state_path = config.state_dir / "state.json"
+        self._lock: Any = None
+        self._results_lock: Any = None
+        # Locks first: nothing below may touch state.json or results.tsv until we own both.
+        self._lock = procs.acquire_lock(config.state_dir / "harness.lock")
+        self._results_lock = procs.acquire_lock(
+            config.results_path.with_suffix(config.results_path.suffix + ".lock")
+        )
+        self._attempt_deadline: float | None = None
         self.benchmark = measure_mod.load_benchmark(config.benchmark_path)
         self.state = load_state(self.state_path, on_warning=log) or HarnessState(
             engine=engine.name,
@@ -115,10 +125,29 @@ class Harness:
         self._stop_requested = False
         self._stop_signal = ""
         self._active_container: str | None = None
-        self._lock: Any = None
         for d in (config.state_dir, config.reports_dir, config.patches_dir):
             d.mkdir(parents=True, exist_ok=True)
+        results_mod.repair_torn_tail(config.results_path, log=log)
         results_mod.ensure_header(config.results_path)
+        if self.state.harness_tree_sha256 and config.harness_tree_sha256:
+            if self.state.harness_tree_sha256 != config.harness_tree_sha256:
+                log(
+                    "[harness] WARNING: harness code changed since this state directory was "
+                    f"created ({self.state.harness_tree_sha256[:12]} -> "
+                    f"{config.harness_tree_sha256[:12]}); rows will carry the new source_commit"
+                )
+        self.state.harness_tree_sha256 = (
+            config.harness_tree_sha256 or self.state.harness_tree_sha256
+        )
+        if self.state.source_commit != config.source_commit:
+            self.state.source_commit = config.source_commit
+
+    def _release_locks(self) -> None:
+        for name in ("_results_lock", "_lock"):
+            fh = getattr(self, name, None)
+            if fh is not None:
+                fh.close()
+                setattr(self, name, None)
 
     # ------------------------------------------------------------------ signals
     def install_signal_handlers(self) -> None:
@@ -127,13 +156,19 @@ class Harness:
             signal.signal(sig, self._on_signal)
 
     def _on_signal(self, signum: int, _frame: Any) -> None:
+        name = signal.Signals(signum).name
+        if self._stop_requested:
+            # Second signal: abort whatever is running (even finalize); a third one is fatal.
+            self.log(f"[harness] received {name} again; aborting")
+            for sig in (signal.SIGTERM, signal.SIGINT):
+                signal.signal(sig, signal.SIG_DFL)
+            raise Interrupted(name)
         self._stop_requested = True
-        self._stop_signal = signal.Signals(signum).name
-        self.log(f"[harness] received {self._stop_signal}; finalizing")
-        # A second signal must not abort the finalization that the first one started.
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            signal.signal(sig, signal.SIG_IGN)
-        raise Interrupted(self._stop_signal)
+        self._stop_signal = name
+        self.log(f"[harness] received {name}; stopping at the next checkpoint and finalizing")
+
+    def _should_abort(self) -> bool:
+        return self._stop_requested
 
     def _checkpoint(self) -> None:
         if self._stop_requested:
@@ -141,7 +176,15 @@ class Harness:
 
     # ------------------------------------------------------------------ helpers
     def _save(self) -> None:
+        ip = self.state.in_progress
+        if ip is not None and not ip.attempt_index:
+            ip.attempt_index = self.state.attempt_index
         save_state(self.state_path, self.state)
+
+    def _stage_timeout(self, configured_s: float) -> float:
+        if self._attempt_deadline is None:
+            return configured_s
+        return budget_mod.stage_timeout(configured_s, self._attempt_deadline)
 
     def _gpu_hours(self) -> float:
         return budget_mod.gpu_hours_used(self.config.budget, self.now())
@@ -164,15 +207,24 @@ class Harness:
         )
 
     def _append_row(self, **fields: str) -> None:
+        """Append one row unless a row for this experiment id already exists (idempotent)."""
+        if results_mod.has_experiment(self.config.results_path, fields["experiment"]):
+            self.log(
+                f"[harness] results.tsv already has a row for {fields['experiment']}; not appending"
+            )
+            return
+        gpu_hours = "" if self.config.budget.gpus_allocated == 0 else f"{self._gpu_hours():.4f}"
         row = results_mod.make_row(
             ts=utc_ts(self.clock()),
             source_commit=self.state.source_commit,
             api_usd_cumulative=f"{self.state.api_usd_cumulative:.4f}",
-            gpu_hours_cumulative=f"{self._gpu_hours():.4f}",
+            gpu_hours_cumulative=gpu_hours,
             **fields,
         )
         results_mod.append_row(self.config.results_path, row)
         self.state.history.append({k: getattr(row, k) for k in results_mod.COLUMNS})
+        if self.state.in_progress is not None:
+            self.state.in_progress.row_written = True
 
     def _is_alive(self, container: str) -> Callable[[], bool]:
         return lambda: docker.container_running(container)
@@ -209,10 +261,11 @@ class Harness:
             context_dir,
             tag,
             log_path=log_path,
-            timeout_s=self.config.timeouts.build_s,
+            timeout_s=self._stage_timeout(self.config.timeouts.build_s),
             platform=self.engine.spec.platform,
             dockerfile=context_dir / self.engine.spec.dockerfile.name,
             no_cache=self.config.no_cache,
+            should_abort=self._should_abort,
         )
 
     def measure_image(
@@ -260,7 +313,7 @@ class Harness:
                 base_url,
                 started,
                 self.benchmark,
-                timeout_s=self.config.timeouts.startup_s,
+                timeout_s=self._stage_timeout(self.config.timeouts.startup_s),
                 is_alive=self._is_alive(container),
             )
             self._checkpoint()
@@ -275,9 +328,8 @@ class Harness:
                 startup_s=startup_s,
                 is_alive=self._is_alive(container),
             )
-            if (
-                time.monotonic() - started
-                > self.config.timeouts.startup_s + self.config.timeouts.measure_s
+            if time.monotonic() - started > self._stage_timeout(
+                self.config.timeouts.startup_s + self.config.timeouts.measure_s
             ):
                 raise measure_mod.MeasurementError("measurement exceeded its time budget")
             return measurement, info
@@ -296,11 +348,18 @@ class Harness:
             return
         experiment = "baseline"
         tag = f"{self.config.image_prefix}-{self.engine.name}:baseline"
+        report_path = self._report_path(experiment)
         self.state.in_progress = InProgress(
-            experiment, "unpatched build context", self.clock(), "", stage="building", image_tag=tag
+            experiment,
+            "unpatched build context",
+            self.clock(),
+            "",
+            stage="building",
+            image_tag=tag,
+            attempt_index=self.state.attempt_index,
+            report_path=self.config.rel(report_path),
         )
         self._save()
-        report_path = self._report_path(experiment)
         log_path = self.config.state_dir / "logs" / "000-baseline.build.log"
         report: dict[str, Any] = {
             "experiment": experiment,
@@ -403,6 +462,8 @@ class Harness:
             self.config.rel(patch_path),
             stage="building",
             image_tag=tag,
+            attempt_index=self.state.attempt_index,
+            report_path=self.config.rel(report_path),
         )
         self._save()
         report: dict[str, Any] = {
@@ -418,6 +479,7 @@ class Harness:
             "last_good_before": asdict(self.state.last_good),
         }
         scratch = self.config.state_dir / "scratch" / experiment
+        attempt_start = time.monotonic()
         outcome = "error"
         digest = ""
         kept = "0"
@@ -433,7 +495,10 @@ class Harness:
                 if self.last_good_context.exists()
                 else self.engine.spec.build_context
             )
-            shutil.copytree(source_context, scratch)
+            bad_links = escaping_symlinks(source_context)
+            if bad_links:
+                raise RuntimeError(f"build context has symlinks escaping it: {bad_links}")
+            shutil.copytree(source_context, scratch, symlinks=True)
             ok, output = apply_patch(proposal.patch, scratch)
             report["patch_apply"] = {"ok": ok, "output": output[-2000:]}
             if not ok:
@@ -478,6 +543,7 @@ class Harness:
                 ),
                 min_effect=self.config.min_effect,
                 min_samples=self.config.min_samples,
+                startup_regression_limit=self.config.startup_regression_limit,
             )
             report["decision"] = _decision_summary(decision)
             outcome = decision.outcome
@@ -547,6 +613,7 @@ class Harness:
                 development_report=self.config.rel(report_path),
                 patch_path=self.config.rel(patch_path),
             )
+            self.state.attempt_durations_s.append(round(time.monotonic() - attempt_start, 3))
             self.state.in_progress = None
             self.state.attempt_index += 1
             self._save()
@@ -555,17 +622,35 @@ class Harness:
     # ------------------------------------------------------------------ resume
     def recover_from_previous_run(self) -> None:
         """If a previous process died mid-attempt, log that attempt as ``interrupted``."""
+        self._reconcile_attempt_index()
         ip = self.state.in_progress
         if ip is None:
+            return
+        if results_mod.has_experiment(self.config.results_path, ip.experiment):
+            self.log(
+                f"[harness] results.tsv already records {ip.experiment}; the previous process "
+                "died after writing the row - clearing the in-progress marker only"
+            )
+            docker.kill_containers_with_prefix(self.config.container_prefix + "-")
+            self.state.in_progress = None
+            self.state.attempt_index = max(self.state.attempt_index, ip.attempt_index + 1)
+            self._save()
             return
         self.log(
             f"[harness] previous run died during {ip.experiment} ({ip.stage}); "
             "logging as interrupted"
         )
         docker.kill_containers_with_prefix(self.config.container_prefix + "-")
-        report_path = self._report_path(
-            ip.experiment.split("-", 1)[-1] if ip.experiment != "baseline" else "baseline"
+        report_path = (
+            self.config.repo_root / ip.report_path
+            if ip.report_path
+            else self._report_path(
+                ip.experiment.split("-", 1)[-1] if ip.experiment != "baseline" else "baseline"
+            )
         )
+        if report_path.exists():
+            # Never overwrite a report the previous process finished writing.
+            report_path = report_path.with_suffix(".recovered.json")
         report = {
             "experiment": ip.experiment,
             "kind": "recovered",
@@ -591,8 +676,26 @@ class Harness:
         ):
             docker.remove_image(ip.image_tag)
         self.state.in_progress = None
-        self.state.attempt_index += 1
+        self.state.attempt_index = max(self.state.attempt_index, ip.attempt_index) + 1
         self._save()
+
+    def _reconcile_attempt_index(self) -> None:
+        """Never reuse an attempt number results.tsv already contains (e.g. after a .bak rewind)."""
+        try:
+            rows = results_mod.read_rows(self.config.results_path)
+        except results_mod.ResultsError as exc:
+            raise RuntimeError(f"results file is not usable for resume: {exc}") from exc
+        highest = 0
+        for row in rows:
+            prefix = row.experiment.split("-", 1)[0]
+            if prefix.isdigit():
+                highest = max(highest, int(prefix))
+        if rows and self.state.attempt_index <= highest:
+            self.log(
+                f"[harness] attempt index {self.state.attempt_index} is behind results.tsv "
+                f"({highest}); advancing"
+            )
+            self.state.attempt_index = highest + 1
 
     # ------------------------------------------------------------------ main loop
     def run(self) -> int:
@@ -601,11 +704,6 @@ class Harness:
         Returns a process exit code: 0 normal, 3 interrupted, 2 baseline failure,
         4 when another instance holds the state-directory lock.
         """
-        try:
-            self._lock = procs.acquire_lock(self.config.state_dir / "harness.lock")
-        except procs.LockError as exc:
-            self.log(f"[harness] refusing to start: {exc}")
-            return 4
         self.install_signal_handlers()
         try:
             self.recover_from_previous_run()
@@ -623,11 +721,28 @@ class Harness:
                 if self.config.max_attempts is not None and attempts >= self.config.max_attempts:
                     self.finalize("attempt cap reached")
                     return 0
+                t = self.config.timeouts
+                worst_case_s = budget_mod.worst_case_attempt_s(
+                    propose_s=t.propose_s,
+                    build_s=t.build_s,
+                    startup_s=t.startup_s,
+                    measure_s=t.measure_s,
+                    stop_grace_s=t.stop_grace_s,
+                )
+                estimate_s = budget_mod.attempt_estimate_s(
+                    self.config.estimated_attempt_s, self.state.attempt_durations_s
+                )
                 verdict = budget_mod.check_before_attempt(
                     self.config.budget,
                     api_usd_cumulative=self.state.api_usd_cumulative,
                     now_ts=self.now(),
-                    estimated_attempt_s=self.config.estimated_attempt_s,
+                    estimated_attempt_s=estimate_s,
+                    estimated_attempt_usd=self.proposer.estimated_usd_per_call(),
+                )
+                # Hard bound: no stage may run past the lease's usable window, even if the
+                # configured timeouts (worst case = worst_case_s) would allow it.
+                self._attempt_deadline = time.monotonic() + max(
+                    0.0, min(worst_case_s, verdict.usable_seconds_remaining)
                 )
                 self.log(
                     f"[harness] budget check: {verdict.reason} "
@@ -665,13 +780,12 @@ class Harness:
         except Interrupted:
             self.finalize(f"interrupted by {self._stop_signal}")
             return 3
-        except RuntimeError as exc:
-            self.finalize(f"fatal: {exc}")
+        except Exception as exc:  # noqa: BLE001 - last line of defence: always finalize
+            self.log(f"[harness] fatal {type(exc).__name__}: {exc}\n{traceback.format_exc()}")
+            self.finalize(f"fatal: {type(exc).__name__}: {exc}")
             return 2
         finally:
-            if self._lock is not None:
-                self._lock.close()
-                self._lock = None
+            self._release_locks()
             self.cleanup()
 
     def _proposer_context(self, verdict: budget_mod.BudgetVerdict) -> Any:

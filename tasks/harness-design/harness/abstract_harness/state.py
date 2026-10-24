@@ -37,6 +37,9 @@ class InProgress:
     stage: str = "proposed"
     container: str = ""
     image_tag: str = ""
+    attempt_index: int = 0
+    report_path: str = ""
+    row_written: bool = False
 
 
 @dataclass
@@ -57,6 +60,8 @@ class HarnessState:
     finished: bool = False
     finish_reason: str = ""
     last_clock_ts: float = 0.0
+    harness_tree_sha256: str = ""
+    attempt_durations_s: list[float] = field(default_factory=list)
 
     def to_json(self) -> dict[str, Any]:
         """Plain-dict form."""

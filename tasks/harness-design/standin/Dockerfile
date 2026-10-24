@@ -30,11 +30,12 @@ ARG GGML_OPENMP=ON
 ARG GGML_CPU_REPACK=ON
 ARG EXTRA_CMAKE_ARGS=""
 RUN apk add --no-cache build-base cmake linux-headers
+# The commit ARG is part of the URL and the checksum pins the archive bytes, so
+# changing one without the other fails the build (the tarball carries no .git).
 ADD --checksum=sha256:1d4a987d9bd048f6e93107e838026438df70fbde237fc0c69c63d600512b4bd9 \
-    https://github.com/ggml-org/llama.cpp/archive/620d2225cc436ab0b001e3200e590e3b286ef9ab.tar.gz /src.tar.gz
+    https://github.com/ggml-org/llama.cpp/archive/${LLAMA_CPP_COMMIT}.tar.gz /src.tar.gz
 RUN mkdir -p /src \
  && tar -xzf /src.tar.gz -C /src --strip-components=1 \
- && test "$(sed -n 1p /src/.git 2>/dev/null || echo ${LLAMA_CPP_COMMIT})" = "${LLAMA_CPP_COMMIT}" \
  && cmake -S /src -B /build \
       -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
       -DGGML_NATIVE=${GGML_NATIVE} \

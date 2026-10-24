@@ -84,26 +84,57 @@ class MeasurementError(RuntimeError):
     """Raised when a measurement cannot be completed at all (server unreachable)."""
 
 
+class BenchmarkError(ValueError):
+    """``development-benchmark.json`` is malformed."""
+
+
+def _positive_int(data: Mapping[str, Any], key: str) -> None:
+    value = data.get(key)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise BenchmarkError(f"{key} must be an integer >= 1, got {value!r}")
+
+
+def _positive_number(data: Mapping[str, Any], key: str) -> None:
+    value = data.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not value > 0:
+        raise BenchmarkError(f"{key} must be a number > 0, got {value!r}")
+
+
 def load_benchmark(path: Any) -> dict[str, Any]:
-    """Load and sanity-check ``development-benchmark.json``."""
-    data = json.loads(path.read_text(encoding="utf-8"))
+    """Load and schema-check ``development-benchmark.json`` (raises :class:`BenchmarkError`)."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise BenchmarkError(f"cannot read development benchmark {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise BenchmarkError("development benchmark must be a JSON object")
     if data.get("schema_version") != BENCHMARK_SCHEMA_VERSION:
-        raise ValueError(f"unsupported development benchmark schema {data.get('schema_version')!r}")
+        raise BenchmarkError(
+            f"unsupported development benchmark schema {data.get('schema_version')!r}"
+        )
     prompts = data.get("prompts")
     if not isinstance(prompts, list) or not prompts:
-        raise ValueError("development benchmark needs a nonempty prompts list")
-    ids = [p["id"] for p in prompts]
+        raise BenchmarkError("development benchmark needs a nonempty prompts list")
+    ids: list[str] = []
+    for n, prompt in enumerate(prompts):
+        if not isinstance(prompt, dict):
+            raise BenchmarkError(f"prompt {n} must be an object")
+        for key in ("id", "prompt"):
+            if not isinstance(prompt.get(key), str) or not prompt[key].strip():
+                raise BenchmarkError(f"prompt {n} needs a nonempty string {key!r}")
+        if "max_tokens" in prompt:
+            _positive_int(prompt, "max_tokens")
+        ids.append(prompt["id"])
     if len(set(ids)) != len(ids):
-        raise ValueError("duplicate prompt ids")
-    for key in (
-        "repetitions",
-        "max_tokens",
-        "request_timeout_s",
-        "prefill_deadline_s",
-        "decode_deadline_s",
-    ):
-        if key not in data:
-            raise ValueError(f"development benchmark missing {key!r}")
+        raise BenchmarkError("duplicate prompt ids")
+    for key in ("repetitions", "max_tokens"):
+        _positive_int(data, key)
+    for key in ("request_timeout_s", "prefill_deadline_s", "decode_deadline_s"):
+        _positive_number(data, key)
+    probe = data.get("startup_probe")
+    if not isinstance(probe, dict) or not isinstance(probe.get("prompt"), str):
+        raise BenchmarkError("startup_probe needs a string 'prompt'")
+    _positive_int(probe, "max_tokens")
     return data
 
 
@@ -382,8 +413,10 @@ def correctness_gates(
             GateResult(
                 "golden_output_match",
                 not diffs,
-                f"{len(diffs)} prompts differ from the baseline golden outputs: "
-                f"{sorted(diffs)[:5]}",
+                f"{len(diffs)} prompts differ from the baseline golden outputs"
+                + (
+                    f" (showing 5): {sorted(diffs)[:5]}" if len(diffs) > 5 else f": {sorted(diffs)}"
+                ),
             )
         )
     else:
@@ -395,19 +428,27 @@ def correctness_gates(
     return gates
 
 
-def ftgr_for_traces(traces: Sequence[RequestTrace], benchmark: Mapping[str, Any]) -> float | None:
-    """Etalon fluid token generation rate (tokens/s) over one repetition's successful traces."""
-    arrivals = [t.arrival_times_s for t in traces if t.ok and len(t.arrival_times_s) >= 2]
+def ftgr_for_traces(
+    traces: Sequence[RequestTrace], benchmark: Mapping[str, Any]
+) -> tuple[float | None, int]:
+    """Etalon fluid token generation rate over one repetition's successful traces.
+
+    Returns ``(rate_tok_s_or_None, dropped)`` where ``dropped`` counts traces
+    that had fewer than two token arrivals and therefore carry no rate.
+    """
+    usable = [t for t in traces if t.ok and len(t.arrival_times_s) >= 2]
+    dropped = sum(1 for t in traces if t.ok) - len(usable)
+    arrivals = [t.arrival_times_s for t in usable]
     if not arrivals:
-        return None
+        return None, dropped
     try:
         return metrics.fluid_token_generation_rate(
             arrivals,
             max_miss_rate=float(benchmark.get("ftgr_max_miss_rate", 0.1)),
             request_quantile=float(benchmark.get("ftgr_request_quantile", 0.99)),
-        )
+        ), dropped
     except ValueError:
-        return None
+        return None, dropped
 
 
 def run_benchmark(
@@ -434,6 +475,7 @@ def run_benchmark(
     traces: list[RequestTrace] = []
     ttft_samples: list[float] = []
     ftgr_samples: list[float] = []
+    ftgr_dropped = 0
     ttft_by_prompt: dict[str, list[float]] = {}
     ftgr_by_prompt: dict[str, list[float]] = {}
     notes: list[str] = []
@@ -457,17 +499,23 @@ def run_benchmark(
             if trace.ok and trace.ttft_s is not None:
                 ttft_samples.append(trace.ttft_s)
                 ttft_by_prompt.setdefault(trace.prompt_id, []).append(trace.ttft_s)
-            rate = ftgr_for_traces([trace], benchmark)
+            rate, _ = ftgr_for_traces([trace], benchmark)
             if rate is not None:
                 ftgr_samples.append(rate)
                 ftgr_by_prompt.setdefault(trace.prompt_id, []).append(rate)
-        ftgr = ftgr_for_traces(rep_traces, benchmark)
+            elif trace.ok:
+                ftgr_dropped += 1
+        ftgr, _ = ftgr_for_traces(rep_traces, benchmark)
         if ftgr is not None:
             notes.append(f"repetition {rep}: aggregate FTGR {ftgr:.3f} tok/s")
         else:
             notes.append(
                 f"repetition {rep}: FTGR unresolved (too few tokens or all-at-once decode)"
             )
+    if ftgr_dropped:
+        notes.append(
+            f"{ftgr_dropped} successful request(s) produced < 2 token arrivals and carry no FTGR"
+        )
     gates = correctness_gates(traces, benchmark, golden)
     return Measurement(
         engine_model_id=model_id,

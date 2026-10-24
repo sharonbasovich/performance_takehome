@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -20,7 +20,13 @@ class DockerError(RuntimeError):
 
 @dataclass(frozen=True)
 class BuildResult:
-    """Result of a fresh image build. ``digest`` is the OCI manifest/index digest."""
+    """Result of a fresh image build.
+
+    ``digest`` is what ``buildx --load`` can resolve locally: the image *config*
+    ID (``docker image inspect --format {{.Id}}``), which is why it equals
+    ``image_id`` in every report. A registry manifest digest only exists after a
+    push; the manifest records which kind was used.
+    """
 
     tag: str
     ok: bool
@@ -54,10 +60,11 @@ def build_image(
     build_args: Mapping[str, str] | None = None,
     network: str = "default",
     no_cache: bool = False,
+    should_abort: Callable[[], bool] | None = None,
 ) -> BuildResult:
-    """Build ``context_dir`` into a fresh local image and resolve its digest.
+    """Build ``context_dir`` into a fresh local image and resolve its identity.
 
-    Uses ``docker buildx build --load --metadata-file`` so the OCI digest is
+    Uses ``docker buildx build --load --metadata-file`` so the image ID is
     available without pushing to a registry. ``--no-cache`` is off by default:
     layer caching only reuses byte-identical steps, so a patched
     Dockerfile still produces a genuinely new image, and digests are resolved
@@ -86,7 +93,7 @@ def build_image(
     for key, value in (build_args or {}).items():
         args += ["--build-arg", f"{key}={value}"]
     args.append(str(context_dir))
-    result = _docker(args, timeout_s, log_path=log_path)
+    result = _docker(args, timeout_s, log_path=log_path, should_abort=should_abort)
     if result.timed_out:
         return BuildResult(
             tag, False, True, result.duration_s, None, None, log_path, "build timed out"

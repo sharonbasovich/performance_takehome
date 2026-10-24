@@ -8,6 +8,8 @@ organizer can supply stay as ``UNAVAILABLE_IN_DRAFT: <why>`` strings.
 from __future__ import annotations
 
 import json
+import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -70,7 +72,7 @@ def build_manifest(
     manifest["image"] = image_ref
     manifest["platform"] = engine.spec.platform
     manifest["source"] = {
-        "repository": "https://github.com/sharonbasovich/performance_takehome",
+        "repository": _repo_url(cfg.repo_root),
         "commit": state.source_commit,
         "dockerfile": cfg.rel(engine.spec.dockerfile),
         "build_command": (
@@ -79,7 +81,7 @@ def build_manifest(
             f"{cfg.rel(engine.spec.build_context)}"
         ),
         "engine_source_revision": (
-            "llama.cpp 620d2225cc436ab0b001e3200e590e3b286ef9ab (v0.7.0)"
+            _standin_engine_revision(engine.spec.dockerfile)
             if engine.name == "standin"
             else unavailable(
                 "LLMD source is closed; baseline/lock.json engine_source_revision is null"
@@ -138,7 +140,7 @@ def build_manifest(
             if p.name
             not in {"build-provenance.json", "agent-provenance.json", "final-manifest.json"}
         ],
-        "agent_transcripts": [],
+        "agent_transcripts": _transcripts(cfg),
         "last_good": {
             "tag": last_good.tag if last_good else "",
             "digest": last_good.digest if last_good else "",
@@ -179,10 +181,7 @@ def write_manifest(harness: Harness) -> dict[str, Any]:
     )
     agent = {
         "proposer": harness.proposer.name,
-        "pi_package": "@earendil-works/pi-coding-agent",
-        "pi_version": "1.0.0",
-        "pi_integrity": "sha512-/FtbxoSQU/mEv1QnichJjRjqteqaIaMWxmhB4G367+MwZfX7/"
-        "DI5B9YAg5lqbN7nztFskBEtUSZ+FlmMBECtMw==",
+        **_pi_pins(cfg.repo_root),
         "pi_used_for_these_rows": harness.proposer.name == "pi",
         "api_usd_cumulative": round(state.api_usd_cumulative, 4),
         "note": "ScriptedProposer rows involve no coding-model calls; "
@@ -196,3 +195,58 @@ def write_manifest(harness: Harness) -> dict[str, Any]:
     cfg.out_manifest.parent.mkdir(parents=True, exist_ok=True)
     cfg.out_manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return manifest
+
+
+def _repo_url(repo_root: Path) -> str:
+    """Public GitHub URL of ``origin`` (proxy prefixes and credentials stripped)."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo_root), "remote", "get-url", "origin"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return "UNAVAILABLE_IN_DRAFT: git remote origin not readable"
+    match = re.search(r"github\.com[:/]([^/\s]+/[^/\s]+?)(?:\.git)?$", out)
+    return f"https://github.com/{match.group(1)}" if match else out
+
+
+def _standin_engine_revision(dockerfile: Path) -> str:
+    """llama.cpp commit pinned by ``ARG LLAMA_CPP_COMMIT`` in the stand-in Dockerfile."""
+    try:
+        text = dockerfile.read_text(encoding="utf-8")
+    except OSError:
+        return "UNAVAILABLE_IN_DRAFT: stand-in Dockerfile not readable"
+    match = re.search(r"^ARG LLAMA_CPP_COMMIT=([0-9a-f]{7,40})", text, re.M)
+    return f"llama.cpp {match.group(1)}" if match else "UNAVAILABLE_IN_DRAFT: no LLAMA_CPP_COMMIT"
+
+
+def _pi_pins(repo_root: Path) -> dict[str, str]:
+    """Pi package/version/integrity exactly as pinned in ``agent-harness/profiles.json``."""
+    try:
+        data = json.loads(
+            (repo_root / "agent-harness" / "profiles.json").read_text(encoding="utf-8")
+        )["pi"]
+    except (OSError, KeyError, json.JSONDecodeError):
+        return {"pi_package": "", "pi_version": "", "pi_integrity": ""}
+    return {
+        "pi_package": str(data.get("package", "")),
+        "pi_version": str(data.get("version", "")),
+        "pi_integrity": str(data.get("integrity", "")),
+    }
+
+
+def _transcripts(cfg: Any) -> list[str]:
+    """Pi transcript paths recorded in attempt reports (empty when no Pi call happened)."""
+    found: list[str] = []
+    for report in sorted(cfg.reports_dir.glob("*.json")):
+        try:
+            data = json.loads(report.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        transcript = data.get("transcript")
+        if transcript:
+            found.append(str(transcript))
+    return found

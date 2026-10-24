@@ -203,6 +203,24 @@ def compare_metric(
     return MetricComparison(metric, len(base), len(cand), bm, cm, speedup, lo, hi, verdict, detail)
 
 
+def startup_hard_gate(baseline: Samples, candidate: Samples, limit: float) -> str | None:
+    """Reason string when the candidate's startup median exceeds ``limit`` x baseline, else None.
+
+    Works with a single sample per side; non-finite or missing samples never trip it.
+    """
+    base = [v for vs in _groups(baseline).values() for v in vs if math.isfinite(v) and v > 0]
+    cand = [v for vs in _groups(candidate).values() for v in vs if math.isfinite(v) and v > 0]
+    if not base or not cand or limit <= 0:
+        return None
+    ratio = statistics.median(cand) / statistics.median(base)
+    if ratio > limit:
+        return (
+            f"startup hard gate: candidate startup {statistics.median(cand):.3f}s is "
+            f"{ratio:.2f}x the last-good {statistics.median(base):.3f}s (limit {limit:.2f}x)"
+        )
+    return None
+
+
 def decide(
     baseline: Mapping[str, Samples],
     candidate: Mapping[str, Samples],
@@ -214,13 +232,19 @@ def decide(
     iterations: int = 2000,
     confidence: float = 0.90,
     seed: int = 0,
+    startup_regression_limit: float = 1.5,
 ) -> Decision:
     """Apply the keep/revert rule.
 
     * any correctness gate failure -> ``gate_failed``, never kept;
+    * startup hard gate: with only one cold start per side (the default
+      measurement), a candidate whose startup median is more than
+      ``startup_regression_limit`` x the baseline median is ``regressed``
+      regardless of the primary metrics; with >= ``min_samples`` startups per
+      side the bootstrap comparison applies as well;
     * any primary metric significantly worse -> ``regressed``;
     * otherwise >= 1 primary metric significantly better -> ``improved`` (kept),
-      unless the secondary metric (startup) regressed significantly, which
+      unless the startup bootstrap says it regressed significantly, which
       downgrades to ``regressed``;
     * otherwise ``no_change`` (not kept: the last-good image is already as good).
     """
@@ -244,6 +268,11 @@ def decide(
     by_metric = {c.metric: c for c in comparisons}
     primary = [by_metric[m] for m in PRIMARY_METRICS]
     secondary = [by_metric[m] for m in SECONDARY_METRICS]
+    startup = startup_hard_gate(
+        baseline.get("startup_s", ()), candidate.get("startup_s", ()), startup_regression_limit
+    )
+    if startup is not None:
+        return Decision("regressed", False, startup, comparisons)
     if any(c.verdict == "regressed" for c in primary):
         bad = ", ".join(f"{c.metric} x{c.speedup:.3f}" for c in primary if c.verdict == "regressed")
         return Decision("regressed", False, f"primary metric regressed: {bad}", comparisons)
