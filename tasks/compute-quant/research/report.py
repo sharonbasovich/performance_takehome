@@ -618,14 +618,21 @@ def render_report(results: dict[str, Any]) -> str:
             f"{_pct(item['discount_vs_cheapest_flexible_on_demand_ask_per_gpu_hour'])} discount "
             f"to the cheapest flexible on-demand ask per GPU-hour. {item['treatment']}."
         )
-    for item in xc["historical_variability"]:
+    hist = xc["historical_variability"]
+    if hist["pairs"]:
+        vol = hist["implied_vol_per_sqrt_month"]
         add(
-            f"- **Historical pair** `{item['expired_quote_id']}` → `{item['current_quote_id']}`: "
-            f"{_p(item['expired_usd_per_gpu_hour'])} → {_p(item['current_usd_per_gpu_hour'])} over "
-            f"{item['months_apart']:.2f} months (log move {item['log_move']:.4f}, "
-            f"{_p(item['implied_vol_per_sqrt_month'], 3)}/√month). "
-            f"{item['treatment']}. The declared "
-            f"band parameter is {cfg['horizon_vol_per_sqrt_month']}/√month."
+            f"- **Historical pairs** ({hist['pairs']} expired quote(s) matched to the nearest current "
+            f"quote of the same provider/kind/side/size; {hist['unmatched_expired_quotes']} unmatched): "
+            f"implied vol per √month median {_p(vol['median'], 3)}, range {_p(vol['min'], 3)}–"
+            f"{_p(vol['max'], 3)}. Examples: "
+            + "; ".join(
+                f"`{e['expired_quote_id']}`→`{e['current_quote_id']}` {_p(e['expired_usd_per_gpu_hour'])}→"
+                f"{_p(e['current_usd_per_gpu_hour'])} over {e['months_apart']:.2f} months"
+                for e in hist["examples"]
+            )
+            + f". {hist['treatment']}. The declared band parameter is "
+            f"{cfg['horizon_vol_per_sqrt_month']}/√month."
         )
     add("")
 
