@@ -1,0 +1,310 @@
+"""Buyer's mark-to-model of the fixed-price capacity reservation.
+
+Reserved hours = GPU count × actual calendar hours of each delivery month (the buyer pays
+for all of them; expected usage never reduces the bill). For each month ``m``:
+
+    value_m = (FV_m - K) × hours_m × DF(pay_m) × (1 - unavailability) × survival_m
+
+where ``FV_m`` is the curve's fair value for that delivery month, ``K`` the contract price,
+``DF`` the buyer's discount factor (annual-effective, ACT/365) to the month-end payment date,
+unavailability is the SLA floor (pro-rata fee credit, no consequential damages), and
+``survival_m`` spreads the provider's default probability uniformly from as-of to delivery
+end (on default the buyer neither pays nor receives the undelivered months; recovery applies
+to any positive claim). The mark is the sum; the fair fixed price ``K*`` sets it to zero.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime
+
+from .curve import CurveModel
+from .months import (
+    add_months,
+    format_utc,
+    hours_in_month,
+    month_label,
+    months_between,
+    year_fraction,
+)
+from .schema import Case
+
+
+@dataclass
+class MonthRow:
+    month: datetime
+    tenor: int
+    hours: int
+    status: str
+    fv_mid: float
+    fv_low: float
+    fv_high: float
+    fee_usd: float
+    payment_date: datetime
+    discount_factor: float
+    survival: float
+    availability: float
+    value_undiscounted: float
+    value_discounted: float
+    value_adjusted: float
+    value_low: float
+    value_high: float
+
+
+@dataclass
+class Valuation:
+    rows: list[MonthRow]
+    reserved_hours: int
+    fees_total: float
+    fees_pv: float
+    mark_undiscounted: float
+    mark_discounted: float
+    mark_sla_adjusted: float
+    mark_adjusted: float
+    mark_low: float
+    mark_high: float
+    fair_fixed_price: float
+    fair_fixed_low: float
+    fair_fixed_high: float
+    scenario_marks: dict[str, float]
+    scenario_fair_prices: dict[str, float]
+    decision: str
+    decision_basis: str
+    flip_conditions: list[str]
+    wrong_usage_fees: dict[str, float]
+    assumptions: list[str] = field(default_factory=list)
+
+
+def discount_factor(rate: float, start: datetime, end: datetime) -> float:
+    """Annual-effective ACT/365 discount factor from ``start`` to ``end``."""
+    return (1 + rate) ** (-year_fraction(start, end))
+
+
+def survival_probability(
+    p_default: float, as_of: datetime, when: datetime, deal_end: datetime
+) -> float:
+    """Uniform-hazard survival to ``when`` for a deal-level default probability."""
+    total = (deal_end - as_of).total_seconds()
+    if total <= 0:
+        return 1 - p_default
+    frac = min(1.0, max(0.0, (when - as_of).total_seconds() / total))
+    return 1 - p_default * frac
+
+
+def value_reservation(
+    model: CurveModel,
+    case: Case,
+    *,
+    discount_rate: float | None = None,
+    p_default: float | None = None,
+    kappa: float | None = None,
+    vol_multiplier: float = 1.0,
+) -> Valuation:
+    """Compute the full cash-flow walk and mark for the case reservation."""
+    res, econ = case.reservation, case.economics
+    rate = float(econ.buyer_discount_annual_rate) if discount_rate is None else discount_rate
+    pd = float(econ.provider_default_probability_over_deal) if p_default is None else p_default
+    recovery = float(econ.default_recovery_fraction)
+    unavailable = max(0.0, 1 - float(res.sla_pct) / 100)
+    k = float(res.fixed_usd_per_gpu_hour)
+    rows: list[MonthRow] = []
+    scenario_values = {name: 0.0 for name in model.config["scenarios"]}
+    scenario_weights = {name: 0.0 for name in model.config["scenarios"]}
+    for month in months_between(res.delivery_start, res.delivery_end):
+        tenor = model.tenor_of(month)
+        node = model.node(tenor, kappa=kappa, vol_multiplier=vol_multiplier)
+        if node.mid is None or node.low is None or node.high is None:
+            raise ValueError(
+                f"curve is unidentified for {month_label(month)}; the reservation cannot be marked"
+            )
+        hours = hours_in_month(month) * res.gpu_count
+        pay = add_months(month, 1)
+        df = discount_factor(rate, case.as_of, pay)
+        surv = survival_probability(pd, case.as_of, pay, res.delivery_end)
+        avail = 1 - unavailable
+        fee = k * hours
+        v0 = (node.mid - k) * hours
+        v1 = v0 * df
+        v_sla = v1 * avail
+        v_adj = v_sla * surv + v_sla * (1 - surv) * recovery * (1 if v_sla > 0 else 0)
+        factor = df * avail * (surv + (1 - surv) * recovery * (1 if v_sla > 0 else 0))
+        rows.append(
+            MonthRow(
+                month,
+                tenor,
+                hours,
+                node.status,
+                node.mid,
+                node.low,
+                node.high,
+                fee,
+                pay,
+                df,
+                surv,
+                avail,
+                v0,
+                v1,
+                v_adj,
+                (node.low - k) * hours * factor,
+                (node.high - k) * hours * factor,
+            )
+        )
+        for name in scenario_values:
+            level = node.scenarios[name]
+            if level is not None:
+                scenario_values[name] += (level - k) * hours * factor
+                scenario_weights[name] += hours * factor
+    hours_total = sum(r.hours for r in rows)
+    weight = sum(r.hours * r.discount_factor * r.availability * r.survival for r in rows)
+    weighted_fv = sum(
+        r.fv_mid * r.hours * r.discount_factor * r.availability * r.survival for r in rows
+    )
+    fair = weighted_fv / weight
+    fair_low = (
+        sum(r.fv_low * r.hours * r.discount_factor * r.availability * r.survival for r in rows)
+        / weight
+    )
+    fair_high = (
+        sum(r.fv_high * r.hours * r.discount_factor * r.availability * r.survival for r in rows)
+        / weight
+    )
+    mark_adj = sum(r.value_adjusted for r in rows)
+    mark_low = sum(r.value_low for r in rows)
+    mark_high = sum(r.value_high for r in rows)
+    scenario_fair = {
+        name: (scenario_values[name] / scenario_weights[name] + k)
+        if scenario_weights[name]
+        else float("nan")
+        for name in scenario_values
+    }
+    if mark_low > 0:
+        decision, basis = "sign", "mark positive across the whole interval"
+    elif mark_high < 0:
+        decision, basis = "do_not_sign", "mark negative across the whole interval"
+    elif mark_adj >= 0:
+        decision, basis = "sign_marginal", "mark positive at mid but the interval includes zero"
+    else:
+        decision, basis = (
+            "do_not_sign_at_this_price",
+            "mark negative at mid; the interval includes zero",
+        )
+    flips = [
+        f"sign at or below the fair fixed price {fair:.4f} USD/GPU-hour (mid curve); "
+        f"interval {fair_low:.4f}..{fair_high:.4f}",
+    ]
+    for name, price in scenario_fair.items():
+        verdict = "favourable" if price > k else "unfavourable"
+        flips.append(
+            f"{name} scenario fair fixed price {price:.4f} -> "
+            f"contract at {k:.2f} is {verdict} to the buyer"
+        )
+    used = res.expected_buyer_used_fraction
+    wrong = {
+        "fees_owed_usd": k * hours_total,
+        "expected_used_fraction": float(used) if used is not None else float("nan"),
+        "WRONG_fees_scaled_by_usage_usd": k * hours_total * float(used)
+        if used is not None
+        else float("nan"),
+        "effective_usd_per_used_gpu_hour": k / float(used)
+        if used not in (None, 0)
+        else float("nan"),
+    }
+    return Valuation(
+        rows=rows,
+        reserved_hours=hours_total,
+        fees_total=k * hours_total,
+        fees_pv=sum(r.fee_usd * r.discount_factor for r in rows),
+        mark_undiscounted=sum(r.value_undiscounted for r in rows),
+        mark_discounted=sum(r.value_discounted for r in rows),
+        mark_sla_adjusted=sum(r.value_discounted * r.availability for r in rows),
+        mark_adjusted=mark_adj,
+        mark_low=mark_low,
+        mark_high=mark_high,
+        fair_fixed_price=fair,
+        fair_fixed_low=fair_low,
+        fair_fixed_high=fair_high,
+        scenario_marks=scenario_values,
+        scenario_fair_prices=scenario_fair,
+        decision=decision,
+        decision_basis=basis,
+        flip_conditions=flips,
+        wrong_usage_fees=wrong,
+        assumptions=[
+            f"discount rate {rate:.4f} annual-effective, ACT/365, "
+            f"from as-of {format_utc(case.as_of)} to each "
+            "month-end payment date",
+            f"SLA {float(res.sla_pct)}%: provider assumed to deliver "
+            "exactly at the floor; unavailable hours earn a "
+            "pro-rata fee credit and no consequential damages, so value scales by availability",
+            f"provider default probability {pd:.4f} over the "
+            "deal spread uniformly from as-of to delivery end; "
+            f"recovery {recovery:.2f} applies only to a positive "
+            "buyer claim; undelivered months are neither paid "
+            "nor received",
+            "cancellation none: no optionality value for either side is added",
+            "egress and taxes excluded from the capacity price on both the contract and the curve",
+        ],
+    )
+
+
+def valuation_as_dict(val: Valuation) -> dict[str, object]:
+    """JSON-ready representation with fixed rounding."""
+
+    def r(x: float, p: int = 6) -> float:
+        return round(x, p)
+
+    return {
+        "reserved_hours": val.reserved_hours,
+        "fees_total_usd": r(val.fees_total, 2),
+        "fees_present_value_usd": r(val.fees_pv, 2),
+        "months": [
+            {
+                "delivery_month": month_label(row.month),
+                "tenor_months": row.tenor,
+                "reserved_hours": row.hours,
+                "curve_status": row.status,
+                "fair_value_usd_per_gpu_hour": {
+                    "mid": r(row.fv_mid),
+                    "low": r(row.fv_low),
+                    "high": r(row.fv_high),
+                },
+                "fee_usd": r(row.fee_usd, 2),
+                "payment_date": format_utc(row.payment_date),
+                "discount_factor": r(row.discount_factor, 8),
+                "survival_probability": r(row.survival, 8),
+                "availability": r(row.availability, 8),
+                "value_undiscounted_usd": r(row.value_undiscounted, 2),
+                "value_discounted_usd": r(row.value_discounted, 2),
+                "value_adjusted_usd": r(row.value_adjusted, 2),
+                "value_low_usd": r(row.value_low, 2),
+                "value_high_usd": r(row.value_high, 2),
+            }
+            for row in val.rows
+        ],
+        "buyer_mark": {
+            "undiscounted_usd": r(val.mark_undiscounted, 2),
+            "discounted_usd": r(val.mark_discounted, 2),
+            "sla_adjusted_usd": r(val.mark_sla_adjusted, 2),
+            "default_and_sla_adjusted_usd": r(val.mark_adjusted, 2),
+            "interval_usd": {"low": r(val.mark_low, 2), "high": r(val.mark_high, 2)},
+            "per_reserved_gpu_hour_usd": r(val.mark_adjusted / val.reserved_hours),
+            "per_reserved_gpu_hour_interval_usd": {
+                "low": r(val.mark_low / val.reserved_hours),
+                "high": r(val.mark_high / val.reserved_hours),
+            },
+        },
+        "fair_fixed_price_usd_per_gpu_hour": {
+            "mid": r(val.fair_fixed_price),
+            "low": r(val.fair_fixed_low),
+            "high": r(val.fair_fixed_high),
+        },
+        "scenario_marks_usd": {k: r(v, 2) for k, v in val.scenario_marks.items()},
+        "scenario_fair_fixed_price_usd_per_gpu_hour": {
+            k: r(v) for k, v in val.scenario_fair_prices.items()
+        },
+        "decision": val.decision,
+        "decision_basis": val.decision_basis,
+        "flip_conditions": list(val.flip_conditions),
+        "usage_is_informational_only": {k: r(v, 4) for k, v in val.wrong_usage_fees.items()},
+        "assumptions": list(val.assumptions),
+    }
