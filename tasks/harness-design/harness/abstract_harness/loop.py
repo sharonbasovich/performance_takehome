@@ -215,15 +215,45 @@ class Harness:
             )
         self._attempt_deadline = time.monotonic() + max(0.0, usable_seconds)
 
-    def _measurement_worker(self, operation: str, payload: dict[str, Any], timeout_s: float) -> Any:
+    def _measurement_worker(
+        self,
+        operation: str,
+        payload: dict[str, Any],
+        timeout_s: float,
+        *,
+        is_alive: Callable[[float], bool] | None = None,
+    ) -> Any:
         """Run blocking HTTP measurement in a killable process with an absolute stage cap."""
+        container_stopped = False
+        next_alive_check = 0.0
+        stage_deadline = time.monotonic() + self._stage_timeout(timeout_s)
+
+        def should_abort() -> bool:
+            nonlocal container_stopped, next_alive_check
+            if self._should_abort():
+                return True
+            now = time.monotonic()
+            remaining = stage_deadline - now
+            if is_alive is not None and now >= next_alive_check and remaining > 0:
+                next_alive_check = now + 1.0
+                container_stopped = not is_alive(min(5.0, remaining))
+            return container_stopped
+
+        if should_abort():
+            self._checkpoint()
+            raise measure_mod.MeasurementError(f"engine container stopped during {operation}")
+        remaining = stage_deadline - time.monotonic()
+        if remaining <= 0:
+            raise measure_mod.MeasurementError(f"{operation} exceeded its time budget")
         result = procs.run(
             [sys.executable, str(Path(measure_mod.__file__).with_name("measurement_worker.py"))],
             stdin_text=json.dumps({"operation": operation, **payload}),
-            timeout_s=self._stage_timeout(timeout_s),
-            should_abort=self._should_abort,
+            timeout_s=remaining,
+            should_abort=should_abort,
         )
         self._checkpoint()
+        if container_stopped:
+            raise measure_mod.MeasurementError(f"engine container stopped during {operation}")
         if result.timed_out:
             raise measure_mod.MeasurementError(f"{operation} exceeded its time budget")
         if not result.ok:
@@ -272,8 +302,10 @@ class Harness:
         if self.state.in_progress is not None:
             self.state.in_progress.row_written = True
 
-    def _is_alive(self, container: str) -> Callable[[], bool]:
-        return lambda: docker.container_running(container)
+    def _is_alive(self, container: str) -> Callable[[float], bool]:
+        return lambda timeout_s: docker.container_running(
+            container, timeout_s=timeout_s, should_abort=self._should_abort
+        )
 
     def _stop_active_container(self) -> None:
         if self._active_container:
@@ -374,6 +406,7 @@ class Harness:
                     "timeout_s": self._stage_timeout(self.config.timeouts.startup_s),
                 },
                 self.config.timeouts.startup_s,
+                is_alive=self._is_alive(container),
             )
             self._checkpoint()
             if self.state.in_progress:
@@ -389,6 +422,7 @@ class Harness:
                     "startup_s": startup_s,
                 },
                 self.config.timeouts.measure_s,
+                is_alive=self._is_alive(container),
             )
             data["traces"] = [measure_mod.RequestTrace(**trace) for trace in data["traces"]]
             data["gates"] = [measure_mod.GateResult(**gate) for gate in data["gates"]]

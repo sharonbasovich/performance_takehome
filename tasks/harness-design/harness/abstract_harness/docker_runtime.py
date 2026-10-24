@@ -210,18 +210,28 @@ def run_detached(command: Sequence[str], *, timeout_s: float = 120) -> str:
     return result.stdout.strip()
 
 
-def container_state(name: str) -> dict[str, Any] | None:
+def container_state(
+    name: str,
+    *,
+    timeout_s: float = 60.0,
+    should_abort: Callable[[], bool] | None = None,
+) -> dict[str, Any] | None:
     """``State`` block of ``docker inspect`` or ``None`` when the container is gone."""
-    result = _docker(["inspect", name], timeout_s=60)
+    result = _docker(["inspect", name], timeout_s=timeout_s, should_abort=should_abort)
     if not result.ok:
         return None
     data = json.loads(result.stdout)
     return data[0].get("State") if data else None
 
 
-def container_running(name: str) -> bool:
+def container_running(
+    name: str,
+    *,
+    timeout_s: float = 60.0,
+    should_abort: Callable[[], bool] | None = None,
+) -> bool:
     """True when the container exists and is running."""
-    state = container_state(name)
+    state = container_state(name, timeout_s=timeout_s, should_abort=should_abort)
     return bool(state and state.get("Running"))
 
 

@@ -28,6 +28,9 @@ class _StalledServer(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         time.sleep(3)
 
+    def do_GET(self) -> None:  # noqa: N802
+        time.sleep(3)
+
 
 class _FixtureServer(BaseHTTPRequestHandler):
     """Protocol-only fixture; no weights, local model, or inference engine."""
@@ -86,6 +89,9 @@ class HardDeadlineTest(unittest.TestCase):
                         mock.patch("abstract_harness.loop.docker.image_cmd", return_value=[]),
                         mock.patch("abstract_harness.loop.docker.run_detached"),
                         mock.patch(
+                            "abstract_harness.loop.docker.container_running", return_value=True
+                        ),
+                        mock.patch(
                             "abstract_harness.loop.docker.container_ip", return_value="127.0.0.1"
                         ),
                         mock.patch("abstract_harness.loop.docker.container_logs", return_value=""),
@@ -109,6 +115,55 @@ class HardDeadlineTest(unittest.TestCase):
                     self.assertEqual(measured.traces[0].text, "hello world")
                     self.assertEqual(len(measured.ttft_samples), 3)
                     self.assertEqual(len(measured.ftgr_samples), 3)
+                finally:
+                    harness._release_locks()
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_container_exit_aborts_blocked_startup_worker_and_stops_container(self) -> None:
+        server = ThreadingHTTPServer(("127.0.0.1", 0), _StalledServer)
+        server.daemon_threads = True
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                harness = make_harness(root)
+                harness.engine = StandinEngine.create(_paths.REPO_ROOT, root)
+                harness.config.timeouts.startup_s = 30.0
+                before = time.monotonic()
+                try:
+                    with (
+                        mock.patch(
+                            "abstract_harness.loop.CONTAINER_PORT", server.server_address[1]
+                        ),
+                        mock.patch("abstract_harness.loop.docker.ensure_internal_network"),
+                        mock.patch("abstract_harness.loop.docker.image_cmd", return_value=[]),
+                        mock.patch("abstract_harness.loop.docker.run_detached"),
+                        mock.patch(
+                            "abstract_harness.loop.docker.container_ip", return_value="127.0.0.1"
+                        ),
+                        mock.patch(
+                            "abstract_harness.loop.docker.container_running",
+                            side_effect=lambda *_args, **_kwargs: time.monotonic() - before < 0.75,
+                        ) as running,
+                        mock.patch("abstract_harness.loop.docker.container_logs", return_value=""),
+                        mock.patch("abstract_harness.loop.docker.stop_container") as stop,
+                        mock.patch(
+                            "abstract_harness.loop.procs.wait_for_quiet_host",
+                            return_value={"quiet": True, "idle": 1.0},
+                        ),
+                    ):
+                        with self.assertRaisesRegex(
+                            measure.MeasurementError, "container stopped during startup"
+                        ):
+                            harness.measure_image("fixture-only", golden=None, label="dead")
+                    self.assertLess(time.monotonic() - before, 2.5)
+                    self.assertEqual(running.call_count, 2)
+                    self.assertLessEqual(running.call_args.kwargs["timeout_s"], 5.0)
+                    stop.assert_called_once()
+                    self.assertIsNone(harness._active_container)
                 finally:
                     harness._release_locks()
         finally:
@@ -168,6 +223,12 @@ class HardDeadlineTest(unittest.TestCase):
                     _paths.HARNESS_DIR / "development-benchmark.json"
                 )
                 before = time.monotonic()
+                alive_timeouts = []
+
+                def alive(timeout_s: float) -> bool:
+                    alive_timeouts.append(timeout_s)
+                    return True
+
                 try:
                     with self.assertRaisesRegex(measure.MeasurementError, "time budget"):
                         harness._measurement_worker(
@@ -180,8 +241,11 @@ class HardDeadlineTest(unittest.TestCase):
                                 "startup_s": 0.0,
                             },
                             0.25,
+                            is_alive=alive,
                         )
                     self.assertLess(time.monotonic() - before, 2.5)
+                    self.assertTrue(alive_timeouts)
+                    self.assertLessEqual(max(alive_timeouts), 0.25)
                 finally:
                     harness._release_locks()
         finally:
