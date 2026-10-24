@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "task": "compute-quant",
-  "generated_at": "2026-10-24T08:19:06Z",
+  "generated_at": "2026-10-24T08:30:27Z",
   "generated_at_source": "SOURCE_DATE_EPOCH",
   "code": {
     "package": "tasks/compute-quant/research",
     "version": "1.0.0",
-    "source_sha256": "79b6d5462d58a99d69a8b62b4fa949f16dfb13a2dcce582ce8a0d267d25c9c91",
-    "git_commit": "b8df9cdc8627ffba7f38841f50bfb5bc7e5ea994"
+    "source_sha256": "99d3062585061c1aa4b3c47062d475a17aad880c57552a47bac33fa5ddf0d25a",
+    "git_commit": "376e8c4cb4ce9e1612bd7700a0c868711fb0823d"
   },
   "python": {
     "version": "3.11.17",
