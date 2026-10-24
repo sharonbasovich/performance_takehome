@@ -5,7 +5,8 @@
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
     "branch": "submission/benchmark-design",
-    "commit": "REPLACE_COMMIT_AT_END"
+    "commit": "bd9fd1b9b50d71d5fb6ac75ae37ae945a793d131",
+    "commit_note": "commit containing the suite, fixtures and validation evidence; submission.json itself is committed immediately after it on the same branch"
   },
   "suite": {
     "entrypoint": "tasks/benchmark-design/suite/evaluate.py",
@@ -13,8 +14,14 @@
     "tests": "tasks/benchmark-design/suite/tests",
     "test_command": "cd tasks/benchmark-design/suite && uv run --frozen python -m unittest discover -s tests -v",
     "run_wall_budget_minutes": 180.0,
-    "planned_wall_minutes": {"quick": 33.7, "full": 150.1},
-    "planned_gpu_hours": {"quick": 0.56, "full": 2.5},
+    "planned_wall_minutes": {
+      "quick": 33.7,
+      "full": 150.1
+    },
+    "planned_gpu_hours": {
+      "quick": 0.56,
+      "full": 2.5
+    },
     "planned_cost_source": "tasks/benchmark-design/validation/dry_run_quick.json, dry_run_full.json (planning arithmetic, unmeasured)"
   },
   "fixed_environment": {
