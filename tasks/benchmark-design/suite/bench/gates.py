@@ -109,25 +109,35 @@ def _reparse(
 
 
 def grapheme_boundary_splits(deltas: list[tuple[str, str, float]]) -> int:
-    """Count content deltas that begin inside a grapheme cluster (combining mark, ZWJ,
-    variation selector, or a regional indicator continuing a flag) — the signature of a
-    server that split a multi-byte/multi-code-point character across chunks."""
+    """Count content deltas that begin inside a grapheme cluster.
+
+    A delta starts inside a cluster when its first code point is a combining mark, a
+    zero-width joiner/non-joiner, a variation selector, a lone surrogate (half of a code
+    point that the runner could only decode with ``surrogateescape``), or when the previous
+    delta ended with a ZWJ or with an *unpaired* regional indicator (half a flag). Two
+    complete adjacent flags (two RI pairs) are not a split.
+    """
+
+    def is_ri(ch: str) -> bool:
+        return "\U0001f1e6" <= ch <= "\U0001f1ff"
+
     count = 0
     previous = ""
     for channel, text, _ in deltas:
         if channel != "content" or not text:
             continue
         first = text[0]
+        trailing_ri = 0
+        for ch in reversed(previous):
+            if not is_ri(ch):
+                break
+            trailing_ri += 1
         starts_inside = (
-            unicodedata.category(first).startswith("M")
+            unicodedata.category(first) in ("Mn", "Mc", "Me", "Cs")
             or first in "\u200d\u200c"
             or "\ufe00" <= first <= "\ufe0f"
-            or (
-                "\U0001f1e6" <= first <= "\U0001f1ff"
-                and previous
-                and "\U0001f1e6" <= previous[-1] <= "\U0001f1ff"
-            )
-            or (previous and previous[-1] == "\u200d")
+            or (is_ri(first) and trailing_ri % 2 == 1)
+            or (previous[-1:] == "\u200d")
         )
         if starts_inside:
             count += 1

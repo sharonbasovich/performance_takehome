@@ -95,7 +95,7 @@ its sha256. `validation/build_validation.py` reads the key from that path or fro
 `$BENCHMARK_DESIGN_HELDOUT_KEY` and, without it, still rebuilds every observed column and
 says "key absent" instead of claiming a match.
 
-`fixtures/public` (20 dirs) + `fixtures/heldout` (13 dirs) total 8.4 MB (`du -sh suite/fixtures`), gzip-compressed
+`fixtures/public` (20 dirs) + `fixtures/heldout` (13 dirs) total 8.4 MB as `du -sh suite/fixtures` block usage (apparent size may differ), gzip-compressed
 (`requests.jsonl.gz`, `oracle.json.gz`; `run.json` and `label.json` plain). No committed
 non-fixture file exceeds 1 MB. Regenerate with `uv run --frozen python fixtures/generate.py`
 (≈ 12 min CPU at native mock timing; `--only <profile>` for one fixture, `--skip-heldout`),
