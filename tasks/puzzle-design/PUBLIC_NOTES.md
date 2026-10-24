@@ -2,10 +2,14 @@
 
 Only `puzzle.md` (the statement, "The orthogonal mate", order 50) and this file are public. The
 solution, proof, verifier, verifier tests, REPORT.md, submission.json, authoring log, candidate
-files and all attack / blind-solver evidence are delivered privately to the organizer as
+files and all attack / blind-solver evidence are prepared privately for organizer delivery as
 `puzzle-design-private-bundle-v4.tar.gz` and are **not** in this repository or its history
 (audited from a clean clone: `git log --all --name-only -- tasks/puzzle-design` lists only the
 organizer files, `puzzle.md` and `PUBLIC_NOTES.md`).
+
+The bundle was attached to the Devin coordinator handoff. It has **not** been sent to the
+organizer, and no private submission receipt exists. The local audit recovered the attachment
+and verified its published SHA-256; that recovery is not organizer delivery.
 
 ## Private bundle v4
 - File: `puzzle-design-private-bundle-v4.tar.gz`. Its SHA-256 and compressed size are recorded in the
