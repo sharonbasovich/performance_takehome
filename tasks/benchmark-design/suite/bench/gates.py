@@ -15,6 +15,7 @@ cross-checked. A request ends up in exactly one population category:
 """
 
 import math
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -55,6 +56,7 @@ class Verdict:
     reasoning_tokens: int = 0
     content_events: int = 0
     usage_completion_tokens: int | None = None
+    grapheme_splits: int = 0
     prompt_tokens: int = 0
     done_received: bool = False
     finish_reason: str | None = None
@@ -104,6 +106,33 @@ def _reparse(
         if choices and isinstance(choices[0], dict) and choices[0].get("finish_reason"):
             finish = str(choices[0]["finish_reason"])
     return deltas, done, finish, usage, errors
+
+
+def grapheme_boundary_splits(deltas: list[tuple[str, str, float]]) -> int:
+    """Count content deltas that begin inside a grapheme cluster (combining mark, ZWJ,
+    variation selector, or a regional indicator continuing a flag) — the signature of a
+    server that split a multi-byte/multi-code-point character across chunks."""
+    count = 0
+    previous = ""
+    for channel, text, _ in deltas:
+        if channel != "content" or not text:
+            continue
+        first = text[0]
+        starts_inside = (
+            unicodedata.category(first).startswith("M")
+            or first in "\u200d\u200c"
+            or "\ufe00" <= first <= "\ufe0f"
+            or (
+                "\U0001f1e6" <= first <= "\U0001f1ff"
+                and previous
+                and "\U0001f1e6" <= previous[-1] <= "\U0001f1ff"
+            )
+            or (previous and previous[-1] == "\u200d")
+        )
+        if starts_inside:
+            count += 1
+        previous = text
+    return count
 
 
 def token_times(deltas: list[tuple[str, float]], send_s: float) -> tuple[list[float], int]:
@@ -266,6 +295,7 @@ def judge(record: dict[str, Any], plan: dict[str, Any], schema_errors: list[str]
         if verdict.content_tokens and verdict.content_events:
             if verdict.content_tokens / verdict.content_events > 1.5:
                 verdict.flags.append("multi_token_deltas")
+        verdict.grapheme_splits = grapheme_boundary_splits(deltas)
     keys = {r.split(":", 1)[0] for r in reasons}
     if keys & EVIDENCE_REASONS:
         verdict.category = "evidence_invalid"

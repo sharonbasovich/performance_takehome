@@ -1,5 +1,7 @@
 # Evaluation: fixture-client_lag-901 — status **INVALID**
 
+> ENGINE: mock/llm-d-stand-in (kind=mock) — CPU mock stand-in, NOT llm-d, NOT a GPU measurement
+
 - INVALID: client event-loop lag 0.400s exceeds 0.05s: timings are client-owned
 
 ## Population

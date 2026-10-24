@@ -1,5 +1,7 @@
 # Evaluation: fixture-slow_startup-117 — status **VALID**
 
+> ENGINE: mock/llm-d-stand-in (kind=mock) — CPU mock stand-in, NOT llm-d, NOT a GPU measurement
+
 
 ## Population
 | planned | offered | completed | failed | unfinished | evidence_invalid |

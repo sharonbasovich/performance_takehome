@@ -163,6 +163,7 @@
       "rejection_reasons": {},
       "role": "aa_control",
       "token_evidence": {
+        "grapheme_boundary_splits": 0,
         "resolution": [
           "delta"
         ],
@@ -296,6 +297,7 @@
       "rejection_reasons": {},
       "role": "aa_control",
       "token_evidence": {
+        "grapheme_boundary_splits": 0,
         "resolution": [
           "delta"
         ],
@@ -429,6 +431,7 @@
       "rejection_reasons": {},
       "role": "measure",
       "token_evidence": {
+        "grapheme_boundary_splits": 0,
         "resolution": [
           "delta"
         ],
@@ -562,6 +565,7 @@
       "rejection_reasons": {},
       "role": "measure",
       "token_evidence": {
+        "grapheme_boundary_splits": 0,
         "resolution": [
           "delta"
         ],
@@ -695,6 +699,7 @@
       "rejection_reasons": {},
       "role": "measure",
       "token_evidence": {
+        "grapheme_boundary_splits": 0,
         "resolution": [
           "delta"
         ],

@@ -200,7 +200,7 @@ class Evaluator:
         for rec in self.ev.requests:
             if self._malformed(rec.raw):
                 continue
-            if not self._malformed(rec.raw) and rec.raw["phase"] == "measure":
+            if rec.raw["phase"] == "measure":
                 groups[_group_key(rec.raw)].append((rec.raw, self.verdicts[rec.request_id]))
         return groups
 
@@ -283,6 +283,7 @@ class Evaluator:
                 else None,
                 "tokens_per_delta_max": max(tokens_per_event) if tokens_per_event else None,
                 "usage_reported": sum(1 for _, v in items if v.usage_completion_tokens is not None),
+                "grapheme_boundary_splits": sum(v.grapheme_splits for _, v in items),
                 "usage_discrepancies": sum(
                     1 for _, v in items if any(r.startswith("usage_discrepancy") for r in v.reasons)
                 ),
@@ -644,8 +645,15 @@ def compare_runs(
 
 def summarize(report: dict[str, Any]) -> str:
     """Human-readable Markdown summary of a report."""
+    engine = report.get("engine") or {}
+    kind = engine.get("kind", "unknown")
+    banner = f"ENGINE: {engine.get('model_id', '?')} (kind={kind})"
+    if kind == "mock":
+        banner += " — CPU mock stand-in, NOT llm-d, NOT a GPU measurement"
     lines = [
         f"# Evaluation: {report.get('run_id', '?')} — status **{report['status'].upper()}**",
+        "",
+        f"> {banner}",
         "",
     ]
     for r in report.get("reasons", []):

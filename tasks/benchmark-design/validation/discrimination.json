@@ -1,5 +1,6 @@
 [
   {
+    "ambiguous_with": [],
     "checks": [
       {
         "check": {
@@ -31,6 +32,7 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [],
     "checks": [
       {
         "check": {
@@ -60,6 +62,7 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [],
     "checks": [
       {
         "check": {
@@ -81,6 +84,9 @@
     "observed_status": "invalid"
   },
   {
+    "ambiguous_with": [
+      "missing_done"
+    ],
     "checks": [
       {
         "check": {
@@ -114,6 +120,7 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [],
     "checks": [
       {
         "check": {
@@ -138,6 +145,11 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [
+      "drop",
+      "truncated_text",
+      "wrong_text"
+    ],
     "checks": [
       {
         "check": {
@@ -162,6 +174,7 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [],
     "checks": [
       {
         "check": {
@@ -195,6 +208,9 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [
+      "reasoning_channel"
+    ],
     "checks": [
       {
         "check": {
@@ -220,6 +236,7 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [],
     "checks": [
       {
         "check": {
@@ -263,6 +280,9 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [
+      "drop"
+    ],
     "checks": [
       {
         "check": {
@@ -296,6 +316,9 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [
+      "drop"
+    ],
     "checks": [
       {
         "check": {
@@ -320,6 +343,7 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [],
     "checks": [
       {
         "check": {
@@ -349,6 +373,9 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [
+      "late_first_token"
+    ],
     "checks": [
       {
         "check": {
@@ -381,6 +408,10 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [
+      "stall",
+      "unicode_split"
+    ],
     "checks": [
       {
         "check": {
@@ -416,6 +447,7 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [],
     "checks": [
       {
         "check": {
@@ -449,6 +481,10 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [
+      "slow_decode",
+      "unicode_split"
+    ],
     "checks": [
       {
         "check": {
@@ -484,6 +520,7 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [],
     "checks": [
       {
         "check": {
@@ -517,6 +554,11 @@
     "observed_status": "invalid"
   },
   {
+    "ambiguous_with": [
+      "drop",
+      "garbled_text",
+      "wrong_text"
+    ],
     "checks": [
       {
         "check": {
@@ -540,7 +582,18 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [],
     "checks": [
+      {
+        "check": {
+          "kind": "token_evidence",
+          "name": "grapheme_boundary_splits",
+          "op": "gt",
+          "value": 0
+        },
+        "observed": "token_evidence.grapheme_boundary_splits observed=96 (need > 0)",
+        "passed": true
+      },
       {
         "check": {
           "kind": "gate",
@@ -559,7 +612,7 @@
       }
     ],
     "detected": true,
-    "expected_signal": "no invalid_output rejection: split multi-byte deltas reassemble without replacement characters and tokens are counted once",
+    "expected_signal": "token_evidence.grapheme_boundary_splits > 0 (a content delta starts inside a grapheme cluster: combining mark / ZWJ / flag half) while no invalid_output gate fires: the split pieces are reassembled and counted once",
     "expected_status": "valid",
     "family": "unicode_splits",
     "fixture": "unicode_split",
@@ -571,6 +624,10 @@
     "observed_status": "valid"
   },
   {
+    "ambiguous_with": [
+      "garbled_text",
+      "truncated_text"
+    ],
     "checks": [
       {
         "check": {

@@ -30,7 +30,7 @@ sys.path.insert(0, str(SUITE))
 
 import evaluate as ev_mod  # noqa: E402
 from bench.plan import load_plan  # noqa: E402
-from fixtures.expectations import EXPECTED, run_checks  # noqa: E402
+from fixtures.expectations import AMBIGUOUS_WITH, EXPECTED, run_checks  # noqa: E402
 from fixtures.generate import DEFAULT_KEY_PATH  # noqa: E402
 
 VALIDATION = TASK / "validation"
@@ -121,6 +121,7 @@ def discrimination_rows(
                 "expected_status": expected["status"],
                 "observed_status": report["status"],
                 "expected_signal": expected["signal"],
+                "ambiguous_with": AMBIGUOUS_WITH.get(profile, []),
                 "checks": checks,
                 "observed_signals": observed_signals(report, clean if name != "clean" else None),
                 "detected": status_ok and all(c["passed"] for c in checks),
@@ -220,8 +221,8 @@ def main(argv: list[str] | None = None) -> int:
         "nothing hand-edited.",
         "",
         "| fixture | family | expected status | observed status | expected signal "
-        "| machine-checked results | detected |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
+        "| machine-checked results | also satisfied by (declared) | detected |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for r in rows:
         md.append(
@@ -230,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
             + "<br>".join(
                 f"{'PASS' if c['passed'] else 'FAIL'}: {c['observed']}" for c in r["checks"]
             )
-            + f" | {'yes' if r['detected'] else 'NO'} |"
+            + f" | {', '.join(r['ambiguous_with']) or '-'} | {'yes' if r['detected'] else 'NO'} |"
         )
 
     key_path = Path(os.environ.get("BENCHMARK_DESIGN_HELDOUT_KEY", DEFAULT_KEY_PATH))

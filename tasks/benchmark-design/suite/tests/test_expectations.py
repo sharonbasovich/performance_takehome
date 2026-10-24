@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from bench.plan import load_plan, resolve_mode
-from fixtures.expectations import EXPECTED, run_checks
+from fixtures.expectations import AMBIGUOUS_WITH, CONTROLS, EXPECTED, run_checks
 from mock_server.faults import PROFILES
 
 from tests.helpers import MOCK_PLAN_PATH, plan
@@ -29,7 +29,7 @@ class ExpectationTableTests(unittest.TestCase):
             (SUITE.parent / "validation" / "reports" / "public" / "clean.report.json").read_text()
         )
         for name, exp in EXPECTED.items():
-            if exp["status"] != "valid" or name in ("clean", "noisy", "unicode_split"):
+            if exp["status"] != "valid" or name in CONTROLS:
                 continue
             with self.subTest(profile=name):
                 results = run_checks(clean, clean, exp["checks"])
@@ -48,6 +48,34 @@ class ExpectationTableTests(unittest.TestCase):
                 report = json.loads(path.read_text())
                 results = run_checks(report, clean if name != "clean" else None, exp["checks"])
                 self.assertTrue(all(r["passed"] for r in results), [r["observed"] for r in results])
+
+
+class PredicateSpecificityTests(unittest.TestCase):
+    def test_fault_predicates_are_specific(self) -> None:
+        """Every other public fixture that satisfies a profile's predicates must be declared."""
+        reports_dir = SUITE.parent / "validation" / "reports" / "public"
+        if not reports_dir.is_dir():
+            self.skipTest("validation reports not built")
+        reports = {
+            p.name[: -len(".report.json")]: json.loads(p.read_text(encoding="utf-8"))
+            for p in reports_dir.glob("*.report.json")
+        }
+        clean = reports["clean"]
+        for name, exp in EXPECTED.items():
+            if name not in reports or name in CONTROLS:
+                continue
+            with self.subTest(profile=name):
+                others = sorted(
+                    other
+                    for other, rep in reports.items()
+                    if other != name
+                    and rep["status"] == exp["status"]
+                    and all(
+                        c["passed"]
+                        for c in run_checks(rep, clean if other != "clean" else None, exp["checks"])
+                    )
+                )
+                self.assertEqual(others, sorted(AMBIGUOUS_WITH.get(name, [])))
 
 
 class ModeMinimumTests(unittest.TestCase):

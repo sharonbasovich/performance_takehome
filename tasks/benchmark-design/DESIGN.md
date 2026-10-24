@@ -66,6 +66,15 @@ as `readiness_at`/`readiness_lead_s` and is informational.
 
 ## 2. Metrics and validity
 
+**Startup metric definition.** `startup_to_first_valid_generation_s` = (client `end`
+timestamp of the earliest startup probe whose stream passes *every* gate) − (launch
+timestamp). The clock stops at the probe stream's **end**, not at its first token, because
+validity (finish reason, `[DONE]`, expected text, usage consistency) is only known when the
+stream completes; the metric therefore includes the probe's full decode and depends on the
+probe's `max_tokens` (32 in the shipped plan). Readiness (`/v1/models` 200) is reported
+separately as `first_ready_probe_s`; the gap is `readiness_lead_s`. The per-launch `status`
+field copied from `run.json` is informational only — the evaluator never trusts it.
+
 ### Deadlines (Etalon, arXiv 2407.07000 §4)
 
 * **Prefill deadline** `D_p(prompt_tokens) = max(floor, intercept + slope × tokens) +
@@ -118,6 +127,18 @@ sufficiency gate fired, else `valid`. A valid run can still describe a terrible 
 
 ## 3. Statistical policy
 
+**Threat model — what the evaluator cannot do.** `evaluate.py` enforces schema, internal
+consistency (monotonic client clocks, verbatim payloads vs recorded text, independent token
+counts vs usage, startup derived from probe records and cross-checked against `run.json`)
+and bounded, deterministic processing. It **cannot detect a coherent rewrite of the whole
+evidence directory**: a forger who rewrites the probe records *and* `run.json` consistently
+(or re-times every request) produces evidence that is internally consistent and will be
+scored. Evidence has no external anchor (no signed clock, no server attestation). The
+defence is provenance, which belongs to the organizer: the organizer owns the fixed runner,
+runs it on their host, and ships the raw events; the candidate suite only consumes them.
+Any run whose events were not produced by the organizer's runner is out of scope for the
+verdict.
+
 * **Warmup**: 4 unscored requests per unit (`phase=warmup`), recorded so the population
   table still accounts for them. **Cache state**: flush request before each unit when the
   engine supports it (`--cache-flush-url`), otherwise nonce isolation; the choice is
@@ -158,6 +179,18 @@ public tree (`~/.benchmark-design/heldout_key.json`, sha256 committed as
 `suite/fixtures/heldout/COMMITMENT.sha256`), so "held-out" means *not labelled in this
 tree* — the author generated it and knows the answers; it is not blind to the author.
 
+**Specificity is family-level, not profile-level, for three groups.** The cross-matrix test
+(`tests/test_expectations.py::test_fault_predicates_are_specific`) records which *other*
+profiles also satisfy each profile's predicates; every such overlap must be declared in
+`expectations.py` (`ambiguous_with`). The declared overlaps are: completion faults
+(`missing_done`, `missing_finish_reason`, `drop` — all end as `unfinished` with the same
+gates), invalid-output faults (`wrong_text`, `garbled_text`, `truncated_text` — all fire
+`invalid_output`; `drop`'s truncated streams satisfy the garbled/truncated predicates too), decode faults (`stall`, `slow_decode`, and `unicode_split`'s per-character
+deltas also slow decode), and TTFT shifts (`late_first_token`, `reasoning_channel`). Within
+a group the evaluator *rejects or measures correctly* but does not name the root cause; that
+is by design — the suite grades the server's behaviour, not the mock's label.
+`unicode_split` carries its own positive signal (`token_evidence.grapheme_boundary_splits`).
+
 Fixtures are produced by the CPU mock (`suite/mock_server`, 18 profiles) through the real
 runner with a real cold launch per fixture, at the mock's native injected timings
 (`fixtures/manifest.json: time_scale = 1.0`). Two evidence-corruption families are derived
@@ -182,7 +215,7 @@ reports are in `validation/reports/`. Summary of what was observed:
 * **Control false-positive rate 0.00** (0/4 controls: public clean/noisy and the two held-out
   controls) — no rejected request, status `valid`, within-run A/A decisions
   ['inconclusive', 'no_difference'] (`validation/controls.json`).
-* **Held-out set: 10/10 opaque fixtures** receive the status the key predicts
+* **Held-out set: 13/13 opaque fixtures** (mixed expected outcomes: 10 `valid` mock profiles, `timing_invalid` and `client_lag` → `invalid`, `underpowered` → `inconclusive`) pass their status and every named check from the out-of-tree key
   (`validation/heldout_results.json`; the key is read only by the validation builder).
 * **Two-run comparisons** (`validation/comparison_*.json`): clean vs slow_decode →
   `regression`, clean vs late_first_token → `regression`, clean vs noisy →
@@ -207,6 +240,11 @@ small metric shifts rather than gate rejections; the table lists which signal ca
 detection so that outcome is interpretable.
 
 ## 5. Measured compute cost
+
+Quick-mode cap note: the plan's `planned_wall_minutes_max` for quick (45 min) is *planned +
+margin by construction* — it was raised from 40 when the per-cell request floor added 52
+requests (round-2 review F7). The binding constraint is the organizer's 180-minute suite
+ceiling, which the full mode respects with 20 minutes of head-room.
 
 ### Planned GPU cost (arithmetic, unmeasured — `validation/dry_run_*.json`)
 

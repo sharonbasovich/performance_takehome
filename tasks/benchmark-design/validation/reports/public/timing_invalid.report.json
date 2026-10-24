@@ -161,6 +161,7 @@
       "rejection_reasons": {},
       "role": "aa_control",
       "token_evidence": {
+        "grapheme_boundary_splits": 0,
         "resolution": [
           "delta"
         ],
@@ -295,6 +296,7 @@
       },
       "role": "aa_control",
       "token_evidence": {
+        "grapheme_boundary_splits": 0,
         "resolution": [
           "delta"
         ],
@@ -429,6 +431,7 @@
       },
       "role": "measure",
       "token_evidence": {
+        "grapheme_boundary_splits": 0,
         "resolution": [
           "delta"
         ],
@@ -563,6 +566,7 @@
       },
       "role": "measure",
       "token_evidence": {
+        "grapheme_boundary_splits": 0,
         "resolution": [
           "delta"
         ],
@@ -699,6 +703,7 @@
       },
       "role": "measure",
       "token_evidence": {
+        "grapheme_boundary_splits": 0,
         "resolution": [
           "delta"
         ],

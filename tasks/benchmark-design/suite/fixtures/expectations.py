@@ -13,6 +13,25 @@ from typing import Any
 KEY = "chat_short_open|rate=4rps"
 CONTROL_AA = ["no_difference", "inconclusive"]
 
+# Measured cross-matrix (tests/test_expectations.py::test_fault_predicates_are_specific): the
+# other profiles whose public fixture ALSO satisfies a profile's predicates. Detection is
+# family-level inside these groups; any undeclared overlap fails the test.
+AMBIGUOUS_WITH: dict[str, list[str]] = {
+    "stall": ["slow_decode", "unicode_split"],
+    "slow_decode": ["stall", "unicode_split"],
+    "late_first_token": ["reasoning_channel"],
+    "reasoning_channel": ["late_first_token"],
+    "missing_done": ["drop"],
+    "missing_finish_reason": ["drop"],
+    "drop": ["missing_done"],
+    "wrong_text": ["garbled_text", "truncated_text"],
+    "garbled_text": ["drop", "truncated_text", "wrong_text"],
+    "truncated_text": ["drop", "garbled_text", "wrong_text"],
+}
+# Controls carry no detection predicate: their checks ("nothing rejected, A/A not confident")
+# are satisfied by every well-behaved profile by design.
+CONTROLS = ("clean", "noisy")
+
 EXPECTED: dict[str, dict[str, Any]] = {
     "clean": {
         "status": "valid",
@@ -66,9 +85,14 @@ EXPECTED: dict[str, dict[str, Any]] = {
     },
     "unicode_split": {
         "status": "valid",
-        "signal": "no invalid_output rejection: split multi-byte deltas reassemble without "
-        "replacement characters and tokens are counted once",
-        "checks": [{"kind": "gate", "name": "invalid_output", "max": 0}, {"kind": "no_rejections"}],
+        "signal": "token_evidence.grapheme_boundary_splits > 0 (a content delta starts inside a "
+        "grapheme cluster: combining mark / ZWJ / flag half) while no invalid_output gate fires: "
+        "the split pieces are reassembled and counted once",
+        "checks": [
+            {"kind": "token_evidence", "name": "grapheme_boundary_splits", "op": "gt", "value": 0},
+            {"kind": "gate", "name": "invalid_output", "max": 0},
+            {"kind": "no_rejections"},
+        ],
     },
     "missing_done": {
         "status": "valid",

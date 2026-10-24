@@ -1,5 +1,7 @@
 # Evaluation: fixture-unicode_split-107 — status **VALID**
 
+> ENGINE: mock/llm-d-stand-in (kind=mock) — CPU mock stand-in, NOT llm-d, NOT a GPU measurement
+
 
 ## Population
 | planned | offered | completed | failed | unfinished | evidence_invalid |

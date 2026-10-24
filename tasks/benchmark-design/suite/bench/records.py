@@ -236,14 +236,13 @@ def _iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
             raise EvidenceError(f"{path}:{number}: not valid UTF-8 ({exc})") from exc
         if not line:
             continue
-        if True:
-            try:
-                record = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise EvidenceError(f"{path}:{number}: invalid JSON ({exc})") from exc
-            if not isinstance(record, dict):
-                raise EvidenceError(f"{path}:{number}: record must be an object")
-            yield record
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise EvidenceError(f"{path}:{number}: invalid JSON ({exc})") from exc
+        if not isinstance(record, dict):
+            raise EvidenceError(f"{path}:{number}: record must be an object")
+        yield record
 
 
 def load_events(directory: Path, adapter: str = "native") -> Evidence:

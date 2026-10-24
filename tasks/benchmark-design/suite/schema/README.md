@@ -40,3 +40,10 @@ touches files. To accept the organizer's runner output:
    directly instead of delta-arrival attribution.
 
 Nothing in `evaluate.py` changes; `--adapter organizer-vN` selects the loader.
+
+## Startup launch `status` is informational
+
+`run.startup[*].status` / `first_valid_generation_at` / `first_valid_request_id` are the
+runner's own summary. `evaluate.py` derives startup from the probe request records (earliest
+probe that passes every gate, timed at its client `end`) and only cross-checks these fields;
+a disagreement is the gate `startup_self_report_mismatch` and makes the run invalid.

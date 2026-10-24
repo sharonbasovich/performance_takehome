@@ -1,5 +1,7 @@
 # Evaluation: fixture-timing_invalid-900 — status **INVALID**
 
+> ENGINE: mock/llm-d-stand-in (kind=mock) — CPU mock stand-in, NOT llm-d, NOT a GPU measurement
+
 - INVALID: 7 request(s) with untrustworthy evidence, e.g. chat_short_open|rate=4rps|rep0/measure/6: ['invalid_timing:event[50]<event[49]']
 
 ## Population
