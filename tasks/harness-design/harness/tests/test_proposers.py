@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -201,3 +203,99 @@ class PiProposerTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+FAKE_PI = Path(__file__).resolve().parent / "fixtures" / "fake_pi.py"
+
+
+class FakePiEndToEndTest(unittest.TestCase):
+    """PiProposer against a faithful ``pi --print --mode json`` test double (no model, no net)."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        self.context_dir = root / "context"
+        self.context_dir.mkdir()
+        (self.context_dir / "Dockerfile").write_text(
+            'FROM scratch\nARG GGML_LTO=OFF\nCMD ["x"]\n', encoding="utf-8"
+        )
+        self.work = root / "work"
+        self.work.mkdir()
+        self.agent_dir = root / "agent"
+        self.env = mock.patch.dict(os.environ, {"HARNESS_TEST_KEY": "not-a-real-key"}, clear=False)
+        self.env.start()
+
+    def tearDown(self) -> None:
+        self.env.stop()
+        self.tmp.cleanup()
+
+    def _proposer(self, mode: str, *, timeout_s: float = 20) -> PiProposer:
+        # The scrubbed child env drops ambient variables, so the fixture's mode
+        # switch has to travel through the one sanctioned channel: extra_env.
+        cfg = PiLaunchConfig(
+            pi_bin=FAKE_PI,
+            agent_dir=self.agent_dir,
+            api_key_env="HARNESS_TEST_KEY",
+            timeout_s=timeout_s,
+            extra_env={"FAKE_PI_MODE": mode},
+        )
+        return PiProposer(cfg, profile=PROFILES["profiles"]["harness-design"])
+
+    def _propose(self, mode: str, *, timeout_s: float = 20):
+        return self._proposer(mode, timeout_s=timeout_s).propose(
+            _context(self.context_dir, self.work)
+        )
+
+    def _transcript(self) -> Path:
+        files = list(self.work.glob("pi-attempt-*/pi-events.jsonl"))
+        self.assertEqual(len(files), 1)
+        return files[0]
+
+    def test_version_check_passes_against_pinned_string(self) -> None:
+        self.assertEqual(self._proposer("ok").verify_distribution(), PI_VERSION)
+
+    def test_ok_run_yields_one_applicable_patch_and_message_end_cost_only(self) -> None:
+        proposal = self._propose("ok")
+        self.assertEqual(proposal.experiment, "fake-pi-lto-toggle")
+        self.assertIn("LTO", proposal.hypothesis)
+        self.assertIn("+ARG GGML_LTO=ON", proposal.patch)
+        self.assertAlmostEqual(proposal.api_usd, 0.0048 + 0.0075, places=9)
+        fresh = Path(self.tmp.name) / "fresh"
+        shutil.copytree(self.context_dir, fresh)
+        ok, out = apply_patch(proposal.patch, fresh)
+        self.assertTrue(ok, out)
+        self.assertIn("ARG GGML_LTO=ON", (fresh / "Dockerfile").read_text("utf-8"))
+        self.assertIn("ARG GGML_LTO=OFF", (self.context_dir / "Dockerfile").read_text("utf-8"))
+        transcript = self._transcript().read_text("utf-8")
+        self.assertEqual(json.loads(transcript.splitlines()[0])["type"], "session")
+        self.assertNotIn("not-a-real-key", transcript)
+
+    def test_malformed_lines_are_skipped_without_losing_cost(self) -> None:
+        proposal = self._propose("malformed")
+        self.assertAlmostEqual(proposal.api_usd, 0.0123, places=9)
+        self.assertIn("not json at all", self._transcript().read_text("utf-8"))
+
+    def test_model_error_is_reported_with_spend(self) -> None:
+        with self.assertRaises(ProposerError) as ctx:
+            self._propose("error")
+        self.assertIn("insufficient_quota", str(ctx.exception))
+        self.assertEqual(ctx.exception.api_usd, 0.0)
+
+    def test_nonzero_exit_is_an_error(self) -> None:
+        with self.assertRaises(ProposerError) as ctx:
+            self._propose("exit")
+        self.assertIn("exited 2", str(ctx.exception))
+        self.assertIsNone(ctx.exception.api_usd)
+
+    def test_hang_is_killed_at_timeout(self) -> None:
+        start = time.monotonic()
+        with self.assertRaises(ProposerError) as ctx:
+            self._propose("hang", timeout_s=2)
+        self.assertLess(time.monotonic() - start, 15)
+        self.assertIn("timed out", str(ctx.exception))
+
+    def test_run_without_edits_is_rejected(self) -> None:
+        with self.assertRaises(ProposerError) as ctx:
+            self._propose("nopatch")
+        self.assertIn("no patch", str(ctx.exception))
+        self.assertAlmostEqual(ctx.exception.api_usd or 0.0, 0.0123, places=9)
