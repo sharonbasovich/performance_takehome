@@ -70,18 +70,37 @@ def _require(condition: bool, message: str) -> None:
 
 
 def _positive(value: Any, name: str) -> None:
-    _require(isinstance(value, int | float) and not isinstance(value, bool)
-             and math.isfinite(value) and value > 0, f"{name} must be a finite positive number")
+    _require(
+        isinstance(value, int | float)
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and value > 0,
+        f"{name} must be a finite positive number",
+    )
 
 
 def validate_plan(plan: dict[str, Any]) -> None:
     """Raise ``PlanError`` unless the plan is structurally and semantically valid."""
     _require(isinstance(plan, dict), "plan must be a JSON object")
-    _require(plan.get("schema_version") in SUPPORTED_PLAN_SCHEMA,
-             f"unsupported plan schema_version {plan.get('schema_version')!r}")
-    for key in ("plan_id", "seeds", "output_policy", "deadlines", "prompt_sources", "cells",
-                "modes", "planning_assumptions", "statistics", "startup", "warmup",
-                "token_accounting", "client_integrity"):
+    _require(
+        plan.get("schema_version") in SUPPORTED_PLAN_SCHEMA,
+        f"unsupported plan schema_version {plan.get('schema_version')!r}",
+    )
+    for key in (
+        "plan_id",
+        "seeds",
+        "output_policy",
+        "deadlines",
+        "prompt_sources",
+        "cells",
+        "modes",
+        "planning_assumptions",
+        "statistics",
+        "startup",
+        "warmup",
+        "token_accounting",
+        "client_integrity",
+    ):
         _require(key in plan, f"plan is missing required key {key!r}")
     for seed in ("prompt_seed", "arrival_seed", "bootstrap_seed"):
         _require(isinstance(plan["seeds"].get(seed), int), f"seeds.{seed} must be an integer")
@@ -91,8 +110,10 @@ def validate_plan(plan: dict[str, Any]) -> None:
     deadlines = plan["deadlines"]
     prefill = deadlines["prefill"]
     for key in ("intercept_s", "slope_s_per_prompt_token", "floor_s", "scheduling_slack_s"):
-        _require(isinstance(prefill.get(key), int | float) and prefill[key] >= 0,
-                 f"deadlines.prefill.{key} must be a nonnegative number")
+        _require(
+            isinstance(prefill.get(key), int | float) and prefill[key] >= 0,
+            f"deadlines.prefill.{key} must be a nonnegative number",
+        )
     tiers = deadlines["decode_tiers"]
     _require(isinstance(tiers, dict) and tiers, "deadlines.decode_tiers must be a nonempty object")
     for name, tier in tiers.items():
@@ -100,7 +121,9 @@ def validate_plan(plan: dict[str, Any]) -> None:
     slo = deadlines["fluidity_slo"]
     _require(0 <= slo["max_miss_rate"] < 1, "fluidity_slo.max_miss_rate must be in [0, 1)")
     _require(0 < slo["request_quantile"] <= 1, "fluidity_slo.request_quantile must be in (0, 1]")
-    _require(isinstance(deadlines.get("ttft_slo_s"), dict), "deadlines.ttft_slo_s must be an object")
+    _require(
+        isinstance(deadlines.get("ttft_slo_s"), dict), "deadlines.ttft_slo_s must be an object"
+    )
 
     sources = plan["prompt_sources"]
     for name, cfg in sources.items():
@@ -109,41 +132,59 @@ def validate_plan(plan: dict[str, Any]) -> None:
             comps = cfg.get("components")
             _require(isinstance(comps, list) and comps, f"mixture {name} needs components")
             for comp in comps:
-                _require(comp[0] in sources and sources[comp[0]]["kind"] != "mixture",
-                         f"mixture {name} references unknown or nested source {comp[0]!r}")
+                _require(
+                    comp[0] in sources and sources[comp[0]]["kind"] != "mixture",
+                    f"mixture {name} references unknown or nested source {comp[0]!r}",
+                )
                 _positive(comp[1], f"mixture {name} weight")
         else:
-            _require(kind in ("synthetic_chat", "synthetic_rag", "integer_sequence"),
-                     f"prompt source {name} has unknown kind {kind!r}")
+            _require(
+                kind in ("synthetic_chat", "synthetic_rag", "integer_sequence"),
+                f"prompt source {name} has unknown kind {kind!r}",
+            )
             _positive(cfg.get("max_tokens"), f"prompt source {name} max_tokens")
             span = cfg.get("prompt_tokens", {})
-            _require(0 < span.get("min", 0) <= span.get("max", 0),
-                     f"prompt source {name} prompt_tokens range invalid")
+            _require(
+                0 < span.get("min", 0) <= span.get("max", 0),
+                f"prompt source {name} prompt_tokens range invalid",
+            )
             _require(isinstance(cfg.get("expected"), dict), f"prompt source {name} needs expected")
-            _require(cfg["expected"].get("finish_reasons"),
-                     f"prompt source {name} expected.finish_reasons required")
+            _require(
+                cfg["expected"].get("finish_reasons"),
+                f"prompt source {name} expected.finish_reasons required",
+            )
 
     cell_ids = set()
     for cell in plan["cells"]:
         cid = cell.get("id")
-        _require(isinstance(cid, str) and cid and cid not in cell_ids, f"bad/duplicate cell id {cid!r}")
+        _require(
+            isinstance(cid, str) and cid and cid not in cell_ids, f"bad/duplicate cell id {cid!r}"
+        )
         cell_ids.add(cid)
-        _require(cell.get("prompt_source") in sources,
-                 f"cell {cid} references unknown prompt source {cell.get('prompt_source')!r}")
-        _require(cell.get("deadline_profile") in deadlines["ttft_slo_s"],
-                 f"cell {cid} deadline_profile has no ttft_slo_s entry")
+        _require(
+            cell.get("prompt_source") in sources,
+            f"cell {cid} references unknown prompt source {cell.get('prompt_source')!r}",
+        )
+        _require(
+            cell.get("deadline_profile") in deadlines["ttft_slo_s"],
+            f"cell {cid} deadline_profile has no ttft_slo_s entry",
+        )
         arrival = cell.get("arrival", {})
         if arrival.get("type") == "poisson":
             rates, counts = arrival.get("rates_rps"), arrival.get("requests_per_rate")
-            _require(isinstance(rates, list) and rates and len(rates) == len(counts or []),
-                     f"cell {cid} rates_rps/requests_per_rate must be equal-length lists")
+            _require(
+                isinstance(rates, list) and rates and len(rates) == len(counts or []),
+                f"cell {cid} rates_rps/requests_per_rate must be equal-length lists",
+            )
             for rate, count in zip(rates, counts, strict=True):
                 _positive(rate, f"cell {cid} rate")
                 _require(isinstance(count, int) and count > 0, f"cell {cid} request count")
         elif arrival.get("type") == "closed_loop":
             levels, counts = arrival.get("concurrency"), arrival.get("requests_per_level")
-            _require(isinstance(levels, list) and levels and len(levels) == len(counts or []),
-                     f"cell {cid} concurrency/requests_per_level must be equal-length lists")
+            _require(
+                isinstance(levels, list) and levels and len(levels) == len(counts or []),
+                f"cell {cid} concurrency/requests_per_level must be equal-length lists",
+            )
             for level, count in zip(levels, counts, strict=True):
                 _require(isinstance(level, int) and level > 0, f"cell {cid} concurrency level")
                 _require(isinstance(count, int) and count > 0, f"cell {cid} request count")
@@ -154,28 +195,42 @@ def validate_plan(plan: dict[str, Any]) -> None:
             _require(all(isinstance(g, int) and g > 0 for g in grid), f"cell {cid} bad token grid")
 
     for mode_name, mode in plan["modes"].items():
-        _require(isinstance(mode.get("repetitions"), int) and mode["repetitions"] > 0,
-                 f"mode {mode_name} repetitions must be a positive integer")
-        _require(isinstance(mode.get("startup_launches"), int) and mode["startup_launches"] >= 0,
-                 f"mode {mode_name} startup_launches must be a nonnegative integer")
+        _require(
+            isinstance(mode.get("repetitions"), int) and mode["repetitions"] > 0,
+            f"mode {mode_name} repetitions must be a positive integer",
+        )
+        _require(
+            isinstance(mode.get("startup_launches"), int) and mode["startup_launches"] >= 0,
+            f"mode {mode_name} startup_launches must be a nonnegative integer",
+        )
         for cid in mode.get("cells", []):
             _require(cid in cell_ids, f"mode {mode_name} references unknown cell {cid!r}")
-        _positive(mode.get("planned_wall_minutes_max"), f"mode {mode_name} planned_wall_minutes_max")
+        _positive(
+            mode.get("planned_wall_minutes_max"), f"mode {mode_name} planned_wall_minutes_max"
+        )
         scale = mode.get("requests_scale", 1.0)
         _positive(scale, f"mode {mode_name} requests_scale")
     warm = plan["warmup"]
-    _require(isinstance(warm.get("requests_per_cell"), int) and warm["requests_per_cell"] >= 0,
-             "warmup.requests_per_cell must be a nonnegative integer")
+    _require(
+        isinstance(warm.get("requests_per_cell"), int) and warm["requests_per_cell"] >= 0,
+        "warmup.requests_per_cell must be a nonnegative integer",
+    )
     stats = plan["statistics"]
-    _require(isinstance(stats.get("bootstrap_resamples"), int) and stats["bootstrap_resamples"] > 0,
-             "statistics.bootstrap_resamples must be positive")
+    _require(
+        isinstance(stats.get("bootstrap_resamples"), int) and stats["bootstrap_resamples"] > 0,
+        "statistics.bootstrap_resamples must be positive",
+    )
     _require(0 < stats.get("confidence", 0) < 1, "statistics.confidence must be in (0, 1)")
-    _require(isinstance(stats.get("min_requests_per_cell"), int), "statistics.min_requests_per_cell")
+    _require(
+        isinstance(stats.get("min_requests_per_cell"), int), "statistics.min_requests_per_cell"
+    )
     _positive(plan["client_integrity"].get("max_event_loop_lag_s"), "max_event_loop_lag_s")
     _positive(plan["startup"].get("max_wait_s"), "startup.max_wait_s")
     band = plan["token_accounting"].get("usage_ratio_band")
-    _require(isinstance(band, list) and len(band) == 2 and 0 < band[0] < 1 < band[1],
-             "token_accounting.usage_ratio_band must bracket 1.0")
+    _require(
+        isinstance(band, list) and len(band) == 2 and 0 < band[0] < 1 < band[1],
+        "token_accounting.usage_ratio_band must bracket 1.0",
+    )
 
 
 def cell_by_id(plan: dict[str, Any], cell_id: str) -> dict[str, Any]:
@@ -213,13 +268,21 @@ def resolve_mode(plan: dict[str, Any], mode_name: str) -> list[ScheduledCell]:
                 seed_material = f"{base_seed}:{cid}:{load}:{repetition}:{offset}"
                 seed = int(hashlib.sha256(seed_material.encode()).hexdigest()[:12], 16)
                 grid = cell.get("prompt_token_grid")
-                per_rep[repetition].append(ScheduledCell(
-                    cell_id=cid, repetition=repetition, prompt_source=cell["prompt_source"],
-                    arrival_type=arrival["type"], load=float(load), requests=requests,
-                    warmup=warmup if load_index == 0 else 0,
-                    deadline_profile=cell["deadline_profile"], role=cell.get("role", "measure"),
-                    arrival_seed=seed, prompt_token_grid=tuple(grid) if grid else None,
-                ))
+                per_rep[repetition].append(
+                    ScheduledCell(
+                        cell_id=cid,
+                        repetition=repetition,
+                        prompt_source=cell["prompt_source"],
+                        arrival_type=arrival["type"],
+                        load=float(load),
+                        requests=requests,
+                        warmup=warmup if load_index == 0 else 0,
+                        deadline_profile=cell["deadline_profile"],
+                        role=cell.get("role", "measure"),
+                        arrival_seed=seed,
+                        prompt_token_grid=tuple(grid) if grid else None,
+                    )
+                )
     if mode.get("interleave", False):
         return [unit for rep in per_rep for unit in rep]
     ordered: list[ScheduledCell] = []
@@ -252,8 +315,10 @@ def estimate_mode(plan: dict[str, Any], mode_name: str) -> dict[str, Any]:
     def expected_request_s(source: str, concurrency: float) -> tuple[float, float]:
         cfg = sources[source]
         if cfg["kind"] == "mixture":
-            parts = [(expected_request_s(name, concurrency), weight)
-                     for name, weight in cfg["components"]]
+            parts = [
+                (expected_request_s(name, concurrency), weight)
+                for name, weight in cfg["components"]
+            ]
             total = sum(w for _, w in parts)
             typical = sum(t * w for (t, _), w in parts) / total
             worst = max(worst for (_, worst), _ in parts)
@@ -261,8 +326,10 @@ def estimate_mode(plan: dict[str, Any], mode_name: str) -> dict[str, Any]:
         prompt_mid = (cfg["prompt_tokens"]["min"] + cfg["prompt_tokens"]["max"]) / 2
         prompt_max = cfg["prompt_tokens"]["max"]
         out_typ = cfg["max_tokens"] * assumptions["expected_output_fraction_of_max_tokens"]
-        per_stream = min(assumptions["decode_tokens_per_s_per_stream"],
-                         assumptions["aggregate_decode_tokens_per_s"] / max(concurrency, 1.0))
+        per_stream = min(
+            assumptions["decode_tokens_per_s_per_stream"],
+            assumptions["aggregate_decode_tokens_per_s"] / max(concurrency, 1.0),
+        )
         typical = prompt_mid / assumptions["prefill_tokens_per_s"] + out_typ / per_stream
         worst = prompt_max / assumptions["prefill_tokens_per_s"] + cfg["max_tokens"] / per_stream
         return typical, worst
@@ -284,12 +351,20 @@ def estimate_mode(plan: dict[str, Any], mode_name: str) -> dict[str, Any]:
         setup = assumptions["per_cell_setup_s"] + assumptions["cache_flush_s"]
         unit_total = busy + warm + setup
         total_s += unit_total
-        breakdown.append({"unit": unit.unit_id, "requests": unit.requests,
-                          "busy_s": round(busy, 1), "warmup_s": round(warm, 1),
-                          "setup_s": setup, "total_s": round(unit_total, 1)})
+        breakdown.append(
+            {
+                "unit": unit.unit_id,
+                "requests": unit.requests,
+                "busy_s": round(busy, 1),
+                "warmup_s": round(warm, 1),
+                "setup_s": setup,
+                "total_s": round(unit_total, 1),
+            }
+        )
     startup_s = mode["startup_launches"] * (
         assumptions.get("startup_launch_s", plan["startup"]["planning_cold_start_s"])
-        + assumptions["teardown_s"])
+        + assumptions["teardown_s"]
+    )
     raw_total = total_s + startup_s + assumptions["teardown_s"]
     margin = assumptions["safety_margin"]
     planned = raw_total * margin

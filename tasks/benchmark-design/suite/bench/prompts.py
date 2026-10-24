@@ -21,9 +21,12 @@ _WORDS = (
     "valid invalid report gate control noise signal variance estimate confidence power"
 ).split()
 _TOPICS = (
-    "why streaming responses feel faster", "how to size a GPU cluster",
-    "what a benchmark should never trust", "how caches change latency",
-    "why tail latency matters more than mean", "how to explain jitter to a product manager",
+    "why streaming responses feel faster",
+    "how to size a GPU cluster",
+    "what a benchmark should never trust",
+    "how caches change latency",
+    "why tail latency matters more than mean",
+    "how to explain jitter to a product manager",
 )
 
 
@@ -51,7 +54,9 @@ def _rng(prompt_seed: int, *parts: Any) -> random.Random:
 
 def _nonce(rng: random.Random) -> str:
     alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-    return "CODE-" + "".join(rng.choice(alphabet) for _ in range(4)) + f"-{rng.randrange(1000, 9999)}"
+    return (
+        "CODE-" + "".join(rng.choice(alphabet) for _ in range(4)) + f"-{rng.randrange(1000, 9999)}"
+    )
 
 
 def _filler(rng: random.Random, target_tokens: int) -> str:
@@ -63,7 +68,9 @@ def _filler(rng: random.Random, target_tokens: int) -> str:
     return " ".join(words)
 
 
-def _chat(rng: random.Random, source_cfg: dict[str, Any], prompt_id: str, source: str) -> PromptSpec:
+def _chat(
+    rng: random.Random, source_cfg: dict[str, Any], prompt_id: str, source: str
+) -> PromptSpec:
     nonce = _nonce(rng)
     length = rng.randint(source_cfg["prompt_tokens"]["min"], source_cfg["prompt_tokens"]["max"])
     topic = rng.choice(_TOPICS)
@@ -75,14 +82,27 @@ def _chat(rng: random.Random, source_cfg: dict[str, Any], prompt_id: str, source
     messages = [{"role": "user", "content": body}]
     expected = dict(source_cfg["expected"])
     expected["nonce"] = nonce
-    return PromptSpec(prompt_id, source, "synthetic_chat", messages, source_cfg["max_tokens"],
-                      _count_messages(messages), expected)
+    return PromptSpec(
+        prompt_id,
+        source,
+        "synthetic_chat",
+        messages,
+        source_cfg["max_tokens"],
+        _count_messages(messages),
+        expected,
+    )
 
 
-def _rag(rng: random.Random, source_cfg: dict[str, Any], prompt_id: str, source: str,
-         forced_tokens: int | None = None) -> PromptSpec:
+def _rag(
+    rng: random.Random,
+    source_cfg: dict[str, Any],
+    prompt_id: str,
+    source: str,
+    forced_tokens: int | None = None,
+) -> PromptSpec:
     length = forced_tokens or rng.randint(
-        source_cfg["prompt_tokens"]["min"], source_cfg["prompt_tokens"]["max"])
+        source_cfg["prompt_tokens"]["min"], source_cfg["prompt_tokens"]["max"]
+    )
     vault = rng.choice(("Aurora", "Basalt", "Cobalt", "Delta", "Ember"))
     code = str(rng.randrange(10000, 99999))
     paragraphs = []
@@ -101,12 +121,20 @@ def _rag(rng: random.Random, source_cfg: dict[str, Any], prompt_id: str, source:
     messages = [{"role": "user", "content": body}]
     expected = dict(source_cfg["expected"])
     expected["must_contain"] = code
-    return PromptSpec(prompt_id, source, "synthetic_rag", messages, source_cfg["max_tokens"],
-                      _count_messages(messages), expected)
+    return PromptSpec(
+        prompt_id,
+        source,
+        "synthetic_rag",
+        messages,
+        source_cfg["max_tokens"],
+        _count_messages(messages),
+        expected,
+    )
 
 
-def _sequence(rng: random.Random, source_cfg: dict[str, Any], prompt_id: str, source: str
-              ) -> PromptSpec:
+def _sequence(
+    rng: random.Random, source_cfg: dict[str, Any], prompt_id: str, source: str
+) -> PromptSpec:
     end = rng.randint(source_cfg["sequence_end"]["min"], source_cfg["sequence_end"]["max"])
     pad = rng.randint(source_cfg["prompt_tokens"]["min"], source_cfg["prompt_tokens"]["max"])
     body = (
@@ -117,8 +145,15 @@ def _sequence(rng: random.Random, source_cfg: dict[str, Any], prompt_id: str, so
     messages = [{"role": "user", "content": body}]
     expected = dict(source_cfg["expected"])
     expected["sequence_end"] = end
-    return PromptSpec(prompt_id, source, "integer_sequence", messages, source_cfg["max_tokens"],
-                      _count_messages(messages), expected)
+    return PromptSpec(
+        prompt_id,
+        source,
+        "integer_sequence",
+        messages,
+        source_cfg["max_tokens"],
+        _count_messages(messages),
+        expected,
+    )
 
 
 def _count_messages(messages: list[dict[str, str]]) -> int:
@@ -126,8 +161,13 @@ def _count_messages(messages: list[dict[str, str]]) -> int:
 
 
 def make_prompt(
-    plan: dict[str, Any], source: str, cell_id: str, repetition: int, index: int,
-    *, forced_prompt_tokens: int | None = None,
+    plan: dict[str, Any],
+    source: str,
+    cell_id: str,
+    repetition: int,
+    index: int,
+    *,
+    forced_prompt_tokens: int | None = None,
 ) -> PromptSpec:
     """Build the deterministic prompt for one slot of a cell."""
     sources = plan["prompt_sources"]
