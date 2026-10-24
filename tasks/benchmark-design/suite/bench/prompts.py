@@ -61,10 +61,13 @@ def _nonce(rng: random.Random) -> str:
 
 def _filler(rng: random.Random, target_tokens: int) -> str:
     words: list[str] = []
-    while count_tokens(" ".join(words)) < target_tokens:
-        words.extend(rng.choice(_WORDS) for _ in range(8))
+    tokens = 0
+    while tokens < target_tokens:
+        batch = [rng.choice(_WORDS) for _ in range(8)]
         if rng.random() < 0.2:
-            words[-1] += "."
+            batch[-1] += "."
+        words.extend(batch)
+        tokens += count_tokens(" " + " ".join(batch))
     return " ".join(words)
 
 
