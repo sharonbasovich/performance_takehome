@@ -90,8 +90,8 @@ currency → unit (`gpu_hour` as is; `node_hour` ÷ GPUs; `node_month` ÷ GPUs �
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | 2026-11 | 720 | OBSERVED | 4.5325 | 4.1650 | 4.9000 | n/a | 4.9000 | one-sided(ask)-spread-estimate | q04 | 4.1650 | 4.5325 | 4.9000 |
 | 3 | 2027-01 | 744 | OBSERVED | 4.2500 | 4.0000 | 4.5000 | 4.0000 | 4.5000 | bid-ask | q05, q06 | 4.0000 | 4.2500 | 4.5000 |
-| 6 | 2027-04 | 720 | MODELED | 3.9201 | 2.8639 | 5.1235 | n/a | n/a | model-band+scenario-union | q04, q05, q06, q07 | 3.4996 | 3.9201 | 4.6830 |
-| 12 | 2027-10 | 744 | FORECAST | 3.4964 | 2.2142 | 5.5800 | n/a | n/a | judgmental-band+scenario-union | q04, q05, q06, q07 | 2.8570 | 3.4964 | 4.9179 |
+| 6 | 2027-04 | 720 | MODELED | 3.9201 | 2.8639 | 5.1235 | n/a | n/a | model-band+scenario-union | q05, q06 | 3.4996 | 3.9201 | 4.6830 |
+| 12 | 2027-10 | 744 | FORECAST | 3.4964 | 2.2142 | 5.5800 | n/a | n/a | judgmental-band+scenario-union | q05, q06 | 2.8570 | 3.4964 | 4.9179 |
 
 ### Anchors (comparable reserved-capacity evidence by tenor)
 
@@ -164,10 +164,10 @@ The observed market nodes (2026-11 4.5325, 2027-01 4.2500) sit well above the fu
 
 ### Cross-checks (never curve inputs)
 
-- **H200 via performance ratio** (`q08`, p01, p02): 3.3000 × 1.250 = 4.1250 per MI355X-equivalent hour, ±14.1% → 3.5416–4.7084. Comparable same-class MI355X asks: 5.2000, 5.2000. throughput parity on one synthetic dense-decode workload; ignores memory (141 vs 288 GiB), software and demand mix. Weak cross-check only.
+- **H200 via performance ratio** (`q08`, p01, p02): 3.3000 × 1.250 = 4.1250 per MI355X-equivalent hour, ±14.1% → 3.5416–4.7084. Comparable same-class MI355X prices (flexible_on_demand/ask): 2 quote(s), min 5.2000, median 5.2000, max 5.2000. throughput parity on one synthetic dense-decode workload; ignores memory (141 vs 288 GiB), software and demand mix. Weak cross-check only.
 - **Usage commitment** `q03`: 3.4000 for 12 months, capacity guaranteed = False, minimum 600 GPU-hours/month. NOT a forward: no delivery window, no guaranteed capacity, postpaid spend commitment; shown as the provider's willingness to discount predictable current usage, and as a soft long-run cross-check only.
 - **Spot/preemptible** `q09`: 1.8000 at SLA 0.0%, a 60.0% discount to the cheapest flexible on-demand ask per GPU-hour. context only: preemptible with no SLA is not comparable to reserved capacity.
-- **Historical pairs** (1 expired quote(s) matched to the nearest current quote of the same provider/kind/side/size; 0 unmatched): implied vol per √month median 0.087, range 0.087–0.087. Examples: `q10`→`q01` 4.6000→5.2000 over 1.97 months. expired prices are never current levels; each expired quote is paired with the nearest current quote of the same provider/kind/side/size only to inform the declared horizon-widening parameter; a handful of pairs cannot estimate volatility reliably. The declared band parameter is 0.08/√month.
+- **Historical pairs** (1 expired quote(s) matched to the nearest-dated valid quote of the same provider/kind/side/size; 0 unmatched): implied vol per √month median 0.087, range 0.087–0.087. Examples: `q10`→`q01` 4.6000→5.2000 over 1.97 months. expired prices are never current levels; each expired quote is paired with the nearest-dated valid quote of the same provider/kind/side/size only to inform the declared horizon-widening parameter; a handful of pairs cannot estimate volatility reliably. The declared band parameter is 0.08/√month.
 
 ## Reservation mark
 
