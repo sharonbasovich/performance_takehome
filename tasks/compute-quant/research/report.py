@@ -640,8 +640,8 @@ def render_report(results: dict[str, Any]) -> str:
     if hist["pairs"]:
         vol = hist["implied_vol_per_sqrt_month"]
         add(
-            f"- **Historical pairs** ({hist['pairs']} expired quote(s) matched to the nearest-dated "
-            "valid quote of the same provider/kind/side/size; "
+            f"- **Historical pairs** ({hist['pairs']} expired quote(s) matched to the "
+            "nearest-dated valid quote of the same provider/kind/side/size; "
             f"{hist['unmatched_expired_quotes']} unmatched): "
             f"implied vol per √month median {_p(vol['median'], 3)}, range {_p(vol['min'], 3)}–"
             f"{_p(vol['max'], 3)}. Examples: "
