@@ -92,10 +92,11 @@ candidate removed that bias (cost: 2x measurement time per attempt).
 | 010-parallel-4-slots | 0 | no_change | 0.9800 | 0.9735 | 0.706 | no primary metric moved significantly |
 | 011-no-warmup | 0 | no_change | 0.7278 | 0.8212 | 0.762 | no primary metric moved significantly |
 | 012-kv-cache-q8 | 0 | gate_failed | 1.2100 | 1.4361 | 0.736 | golden_output_match: 3 prompts differ from the baseline golden outputs: ['colors', 'explai |
+| 013-openmp-off-cold-rebuild | 0 | no_change | 1.0052 | 0.9519 | 0.705 | no primary metric moved significantly |
 
-Speedups are candidate vs the same-attempt re-measurement of the last-good image (>1 = faster). `012-kv-cache-q8` was ~1.2-1.4x faster yet rejected: quantised KV cache changed 3 of 6 greedy outputs, which is exactly the never-keep-on-correctness-failure rule. `011-no-warmup` looked ~25% slower but the bootstrap interval still covered 1.0, so it is `no_change`, not `regressed`. Rows ending with `error` have blank metrics (blank != 0).
+Speedups are candidate vs the same-attempt re-measurement of the last-good image (>1 = faster). `012-kv-cache-q8` was ~1.2-1.4x faster yet rejected: quantised KV cache changed 3 of 6 greedy outputs, which is exactly the never-keep-on-correctness-failure rule. `013-openmp-off-cold-rebuild` was appended in a later invocation of the same state directory with `--no-cache`: its build was a real uncached llama.cpp compile (`build.duration_s` = 100.22 s, 199 `Building C/CXX object` lines and no `CACHED` compile step in `harness/reports/013-openmp-off-cold-rebuild.json` / the build log), so the build-timeout/budget path was exercised on a real build, not only in unit tests. `011-no-warmup` looked ~25% slower but the bootstrap interval still covered 1.0, so it is `no_change`, not `regressed`. Rows ending with `error` have blank metrics (blank != 0).
 
-Every row was written by `run.py`; nothing was hand-edited. Per-attempt JSON reports with raw
+Every row was written by `run.py`; nothing was hand-edited. Rows 0-12 come from one invocation (plus the SIGTERM resume); row 13 from a third invocation of `run.py run ... --no-cache` on the same state directory after the queue was extended by one experiment. Per-attempt JSON reports with raw
 samples, container commands and log tails are in `harness/reports/`; patches in
 `harness/patches/`. `error` rows come from fault injection (a wrong `--port` so readiness
 never arrives; `GGML_AVX512=ON` on a host without AVX-512 so the binary dies at startup),
@@ -115,13 +116,51 @@ next invocation resumed from `state.json` and continued the queue.
    the first keep every candidate silently lacked the kept change and "regressed" by the same
    ratio -> persistent `last-good-context` promoted on every keep. Runs 1-4 were discarded.
 7. Publishing a host port on an `--internal` network does not work -> container IP is used.
+8. Pi cost accounting over-counted: JSON mode attaches the running `usage` to every
+   `message_update` delta (`dist/modes/json-event.js`), so summing every `cost.total` in the
+   transcript multiplied the spend. Fixed to count only `message_end` events; found while
+   building the Pi test double (below).
+9. Adversarial pass (reviewer-requested) found and fixed: a corrupt/truncated `state.json`
+   crashed on resume (now falls back to the `.bak` of the previous checkpoint, or refuses to
+   start fresh with a clear error instead of duplicating the baseline row); a torn partial
+   last line in `results.tsv` would have been glued to the next row (now cut off into
+   `results.tsv.torn` and rejected by `validate-results`); two harness instances could share a
+   state directory (now an `flock` on `harness.lock`, exit 4); a backwards wall-clock step
+   could extend the lease (budgets now use a clamped, persisted timestamp); a model error
+   inside Pi (`stopReason: error`) was indistinguishable from a crash (now surfaced with its
+   `errorMessage` and the spend so far). Container-exits-before-readiness and ready-but-every-
+   request-500s paths were already errors; the latter now has a test against a stub server.
+
+## Pi test double (what `PiProposer` was actually tested against)
+
+No model was ever called. `harness/tests/fixtures/fake_pi.py` is a CANDIDATE-BUILT executable
+that speaks the pinned CLI's non-interactive protocol, derived by reading the installed
+`@earendil-works/pi-coding-agent@1.0.0` package:
+
+| Behaviour | Source in the installed package |
+| --- | --- |
+| `--print` / `-p` flag, `@file` prompt arguments, `--mode` text/json/rpc | `dist/cli/args.js` L134-135, L224-225, L47 |
+| First stdout line is the `SessionHeader` `{type:"session", version, id, timestamp, cwd}` | `dist/modes/print-mode.js` L97-101; `dist/core/session-manager.d.ts` L5-12 |
+| One JSON line per session event | `dist/modes/print-mode.js` L85-87 (`JSON.stringify(toJsonEvent(event))`) |
+| `message_update` rewritten to `{type, usage, assistantMessageEvent}` | `dist/modes/json-event.js` (`toJsonEvent`) |
+| Event types `agent_start`, `turn_start`, `message_start`, `message_update`, `message_end`, `tool_execution_start/update/end`, `turn_end`, `agent_end` | `node_modules/@earendil-works/pi-agent-core/dist/types.d.ts` L451-483 |
+| `usage` = `{input, output, cacheRead, cacheWrite, totalTokens, cost:{input, output, cacheRead, cacheWrite, total}}` | `node_modules/@earendil-works/pi-ai/dist/types.d.ts` L292-310 |
+| Assistant `stopReason` (`stop`/`length`/`toolUse`/`error`/`aborted`) and `errorMessage` | `node_modules/@earendil-works/pi-ai/dist/types.d.ts` L386-388 |
+
+`FakePiEndToEndTest` drives the real `PiProposer` against it: a successful run yields exactly one
+`patch -p1`-applicable diff and the spend from `message_end` events only (0.0048 + 0.0075);
+non-JSON lines in the stream are skipped without losing cost; a model error (`402
+insufficient_quota`) is surfaced with its message and spend; a non-zero exit, a hang (killed
+at the timeout) and a run that edits nothing are all `ProposerError`s. Not verified: that a
+real provider's error text and exit code match the fixture's; the fixture's values are
+illustrative, its *shapes* are the ones in the type definitions above.
 
 ## Limitations (honest)
 
 * Stand-in results say nothing about LLMD on MI355X; they prove the loop, not the hypotheses.
 * 8 shared vCPUs: absolute numbers are noisy; only the paired A/B ratios are meaningful.
-* Scripted proposer only; the Pi path stops at the key check. Pi's exact JSON event format for
-  cost extraction is parsed defensively (`_cost_from_events`) but unverified against a real run.
+* Scripted proposer only for the evidence rows; the Pi path is exercised end to end against the
+  test double above but never against a real model/provider.
 * `extra_request_fields.cache_prompt=false` in the benchmark is llama.cpp-specific; set it to
   `{}` for LLMD if it rejects unknown fields (documented in the JSON).
 * GPU-hours are allocation x elapsed; API spend is only known when the proposer reports cost.
@@ -170,7 +209,7 @@ Active agent time: one unattended session (~a working day equivalent). API charg
 coding-model calls). GPU-hours: 0 (none allocated). CPU: 8 vCPU VM; the committed evidence run
 (13 rows) spanned 2026-10-24T08:29:42Z..08:33:29Z (3 min 47 s). Builds in that run were Docker
 layer-cache hits (0.16-0.31 s each, see `build.duration_s` in the reports) because the same
-Dockerfile/flags had been compiled in four earlier, discarded development runs; a cold llama.cpp
-compile on this VM takes minutes. Per attempt: ~10-18 s for build + readiness + gates + A/B
+Dockerfile/flags had been compiled in four earlier, discarded development runs; row 13 was
+added afterwards with `--no-cache` and took 100.22 s for a full llama.cpp compile on 8 vCPUs. Per attempt: ~6-18 s for build + readiness + gates + A/B
 measurement, 95 s for the readiness-timeout fault. Cut: Pi end-to-end run (no key),
 LLMD execution (no GPU), more repetitions (time).

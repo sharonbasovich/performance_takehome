@@ -136,6 +136,17 @@
           "replace": "\"--cache-type-k\", \"q8_0\""
         }
       ]
+    },
+    {
+      "experiment": "openmp-off-cold-rebuild",
+      "hypothesis": "ggml's own thread pool (GGML_OPENMP=OFF) may schedule decode graph work with less barrier overhead than libgomp on an 8-vCPU container, raising FTGR. Compile-flag change: forces a full llama.cpp rebuild; run with --no-cache so the row records a real multi-minute build.",
+      "edits": [
+        {
+          "file": "Dockerfile",
+          "find": "ARG GGML_OPENMP=ON",
+          "replace": "ARG GGML_OPENMP=OFF"
+        }
+      ]
     }
   ]
 }

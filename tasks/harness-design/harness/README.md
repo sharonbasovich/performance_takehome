@@ -141,3 +141,8 @@ uv run --frozen python -m unittest discover -s tasks/harness-design/harness/test
 ```sh
 uv run --frozen python tasks/harness-design/harness/run.py validate-results --results tasks/harness-design/harness/results.tsv
 ```
+
+Add `--no-cache` to a `run` invocation to force every image build in that invocation to be a
+full uncached rebuild (recorded as `build.no_cache` in the attempt report); the harness exits 4
+if another instance already holds `<state-dir>/harness.lock` or if `state.json` is corrupt
+and no `.bak` checkpoint exists.

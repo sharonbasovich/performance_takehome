@@ -1,5 +1,5 @@
 {
-  "attempts": 13,
+  "attempts": 14,
   "base_image": null,
   "build_context": "tasks/harness-design/standin",
   "digest_resolution": "docker buildx --metadata-file containerimage.digest / docker image inspect RepoDigests",

@@ -94,7 +94,8 @@
       "tasks/harness-design/harness/reports/009-flash-attn-on.json",
       "tasks/harness-design/harness/reports/010-parallel-4-slots.json",
       "tasks/harness-design/harness/reports/011-no-warmup.json",
-      "tasks/harness-design/harness/reports/012-kv-cache-q8.json"
+      "tasks/harness-design/harness/reports/012-kv-cache-q8.json",
+      "tasks/harness-design/harness/reports/013-openmp-off-cold-rebuild.json"
     ],
     "agent_transcripts": [],
     "last_good": {
