@@ -143,11 +143,16 @@ class Harness:
             self.state.source_commit = config.source_commit
 
     def _release_locks(self) -> None:
+        results_lock = self.config.results_path.with_suffix(
+            self.config.results_path.suffix + ".lock"
+        )
         for name in ("_results_lock", "_lock"):
             fh = getattr(self, name, None)
             if fh is not None:
                 fh.close()
                 setattr(self, name, None)
+                if name == "_results_lock":
+                    results_lock.unlink(missing_ok=True)
 
     # ------------------------------------------------------------------ signals
     def install_signal_handlers(self) -> None:
