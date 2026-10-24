@@ -134,6 +134,19 @@ class LockError(RuntimeError):
     """Another harness instance already owns the state directory."""
 
 
+def results_lock_path(results_path: Path) -> Path:
+    """Persistent host-wide lock file for ``results_path`` (never unlinked).
+
+    Lives outside the repository so a run that appends to committed evidence does
+    not leave an untracked ``.lock`` next to it; keyed by the resolved path.
+    """
+    import hashlib
+    import tempfile
+
+    key = hashlib.sha256(str(results_path.resolve()).encode("utf-8")).hexdigest()[:24]
+    return Path(tempfile.gettempdir()) / "abstract-harness-locks" / f"{key}.lock"
+
+
 def acquire_lock(path: Path) -> Any:
     """Take an exclusive, non-blocking ``flock`` on ``path`` and record our pid in it.
 

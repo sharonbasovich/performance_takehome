@@ -161,7 +161,10 @@ class ProvenanceTest(unittest.TestCase):
             self.assertEqual(agent["pi_node_requirement"], pins["node_requirement"])
             self.assertEqual(agent["pi_version"], pins["version"])
         sub = json.loads((_paths.HARNESS_DIR.parent / "submission.json").read_text())
-        self.assertEqual(sub["agent_harness"]["pi_integrity"], pins["artifact_integrity"])
+        self.assertEqual(sub["agent_harness"]["base_version"], pins["version"])
+        self.assertEqual(sub["agent_harness"]["base_package"], pins["package"])
+        linked = _paths.REPO_ROOT / sub["agent_harness"]["provenance_path"]
+        self.assertEqual(json.loads(linked.read_text())["pi_integrity"], pins["artifact_integrity"])
 
     def test_run_refuses_dirty_tree_without_allow_dirty(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -112,9 +112,7 @@ class Harness:
         self._results_lock: Any = None
         # Locks first: nothing below may touch state.json or results.tsv until we own both.
         self._lock = procs.acquire_lock(config.state_dir / "harness.lock")
-        self._results_lock = procs.acquire_lock(
-            config.results_path.with_suffix(config.results_path.suffix + ".lock")
-        )
+        self._results_lock = procs.acquire_lock(procs.results_lock_path(config.results_path))
         self._attempt_deadline: float | None = None
         self.benchmark = measure_mod.load_benchmark(config.benchmark_path)
         self.state = load_state(self.state_path, on_warning=log) or HarnessState(

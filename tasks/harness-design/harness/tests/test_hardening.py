@@ -396,7 +396,8 @@ class EarlyLockTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            lock = root / "results.tsv.lock"
+            lock = procs.results_lock_path(root / "results.tsv")
+            lock.parent.mkdir(parents=True, exist_ok=True)
             holder = subprocess.Popen(
                 [
                     sys.executable,
@@ -438,7 +439,7 @@ class EarlyLockTest(unittest.TestCase):
             root = Path(tmp)
             first = make_harness(root)
             try:
-                lock = root / "results.tsv.lock"
+                lock = procs.results_lock_path(root / "results.tsv")
                 self.assertTrue(lock.exists())
                 self.assertEqual(lock.read_text("utf-8").strip(), str(os.getpid()))
                 with self.assertRaises(procs.LockError):
