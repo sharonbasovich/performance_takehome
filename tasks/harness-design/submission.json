@@ -13,7 +13,9 @@
     "patches": [
       "tasks/harness-design/harness/patches/013-openmp-off-cold-rebuild.patch"
     ],
-    "provenance_path": "tasks/harness-design/harness/reports/build-provenance.json"
+    "provenance_path": "tasks/harness-design/harness/reports/build-provenance.json",
+    "harness_tree_sha256": "f4a25e8e51d8b619672e5dcae9b0debe1e029518fad32d382f15de2741d30e81",
+    "image_identity_kind": "docker-image-config-id"
   },
   "model": {
     "repository": "unsloth/SmolLM2-135M-Instruct-GGUF",
