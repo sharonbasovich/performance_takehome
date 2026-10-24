@@ -10,7 +10,7 @@ if str(SUITE) not in sys.path:
     sys.path.insert(0, str(SUITE))
 
 import bench  # noqa: E402,F401  (puts the repo root on sys.path)
-from bench.plan import load_plan  # noqa: E402
+from bench.plan import load_plan, plan_digest  # noqa: E402
 from bench.prompts import make_prompt  # noqa: E402
 from bench.records import EVENT_SCHEMA_VERSION  # noqa: E402
 from bench.tokens import TIMING_RESOLUTION, TOKENIZER_ID, count_tokens  # noqa: E402
@@ -211,7 +211,7 @@ def make_run(
         "status": status,
         "plan": {
             "plan_id": "abstract-t1-mock-cpu-v1",
-            "digest": "0" * 64,
+            "digest": plan_digest(MOCK_PLAN_PATH),
             "schema_version": "1.0.0",
             "path": "x",
         },

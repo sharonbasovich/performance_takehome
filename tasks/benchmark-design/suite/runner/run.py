@@ -239,6 +239,7 @@ class Runner:
             "end": None,
         }
         http_status: int | None = None
+        content_type: str | None = None
         error: dict[str, str] | None = None
         done_received = False
         finish_reason: str | None = None
@@ -255,6 +256,7 @@ class Runner:
             ) as response:
                 ts["headers"] = time.monotonic()
                 http_status = response.status_code
+                content_type = response.headers.get("content-type")
                 if http_status != 200:
                     await response.aread()
                     error = {"kind": "http_error", "message": f"HTTP {http_status}"}
@@ -319,6 +321,7 @@ class Runner:
             "request_body_sha256": _sha256(body_bytes),
             "timestamps_mono_s": ts,
             "http_status": http_status,
+            "response_content_type": content_type,
             "events": events,
             "finish_reason": finish_reason,
             "done_received": done_received,

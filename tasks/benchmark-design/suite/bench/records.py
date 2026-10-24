@@ -19,6 +19,8 @@ EVENT_SCHEMA_VERSION = "1.0.0"
 RUN_FILE = "run.json"
 REQUESTS_FILE = "requests.jsonl"
 ADAPTERS = ("native",)
+MAX_EVIDENCE_BYTES = 256 * 1024 * 1024  # decompressed bytes per requests file
+MAX_RECORD_BYTES = 16 * 1024 * 1024  # one request line
 
 
 class SchemaError(ValueError):
@@ -183,8 +185,17 @@ def _open_text(path: Path) -> Any:
 
 
 def _iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
+    """Stream records with hard byte bounds so a corrupt or hostile file fails fast, not OOM."""
+    total = 0
     with _open_text(path) as handle:
         for number, line in enumerate(handle, start=1):
+            total += len(line)
+            if len(line) > MAX_RECORD_BYTES:
+                raise EvidenceError(f"{path}:{number}: record exceeds {MAX_RECORD_BYTES} bytes")
+            if total > MAX_EVIDENCE_BYTES:
+                raise EvidenceError(
+                    f"{path}: evidence exceeds {MAX_EVIDENCE_BYTES} decompressed bytes"
+                )
             line = line.strip()
             if not line:
                 continue

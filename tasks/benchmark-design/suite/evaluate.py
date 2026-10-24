@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from bench import SUITE_VERSION  # noqa: E402
 from bench.gates import Verdict, judge  # noqa: E402
-from bench.plan import load_plan, prefill_deadline_s  # noqa: E402
+from bench.plan import load_plan, plan_digest, prefill_deadline_s  # noqa: E402
 from bench.records import Evidence, EvidenceError, load_events  # noqa: E402
 from bench.stats import bonferroni, decide, difference_ci, percentile_ci  # noqa: E402
 
@@ -48,8 +48,11 @@ def _group_key(record: dict[str, Any]) -> str:
 class Evaluator:
     """Evaluates one events directory against a plan."""
 
-    def __init__(self, plan: dict[str, Any], evidence: Evidence) -> None:
+    def __init__(
+        self, plan: dict[str, Any], evidence: Evidence, plan_digest_hex: str | None = None
+    ) -> None:
         self.plan = plan
+        self.plan_digest_hex = plan_digest_hex
         self.ev = evidence
         self.stats_cfg = plan["statistics"]
         self.seed = plan["seeds"]["bootstrap_seed"]
@@ -93,6 +96,11 @@ class Evaluator:
         for key in ("model_id", "lock_digest"):
             if not engine.get(key) or engine.get(key) == "unknown":
                 self.reasons.append(f"engine identity incomplete: {key} missing")
+        recorded_digest = (run.get("plan") or {}).get("digest")
+        if self.plan_digest_hex and recorded_digest and recorded_digest != self.plan_digest_hex:
+            self.reasons.append(
+                "run was recorded under a different workload plan (digest mismatch); refusing"
+            )
         plan_digest = (run.get("plan") or {}).get("plan_id")
         if plan_digest and plan_digest != self.plan["plan_id"]:
             self.reasons.append(
@@ -479,7 +487,7 @@ def compare_groups(
 
 
 def evaluate(
-    plan: dict[str, Any], events_dir: Path, adapter: str
+    plan: dict[str, Any], events_dir: Path, adapter: str, plan_digest_hex: str | None = None
 ) -> tuple[dict[str, Any], Evaluator | None, dict[str, Any]]:
     """Evaluate one events directory; returns (report, evaluator, per-group samples)."""
     try:
@@ -494,7 +502,7 @@ def evaluate(
             None,
             {},
         )
-    ev = Evaluator(plan, evidence)
+    ev = Evaluator(plan, evidence, plan_digest_hex)
     ev.run_gates()
     ev.judge_all()
     population = ev.population()
@@ -655,10 +663,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--summary", type=Path, help="also write a Markdown summary here")
     args = parser.parse_args(argv)
     plan = load_plan(args.workload)
-    base = evaluate(plan, args.events, args.adapter)
+    digest = plan_digest(args.workload)
+    base = evaluate(plan, args.events, args.adapter, digest)
     report = base[0]
     if args.compare:
-        other = evaluate(plan, args.compare, args.adapter)
+        other = evaluate(plan, args.compare, args.adapter, digest)
         report["comparison"] = {
             **compare_runs(plan, base, other),
             "other_status": other[0]["status"],

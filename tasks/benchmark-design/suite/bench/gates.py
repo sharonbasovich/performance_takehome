@@ -14,6 +14,7 @@ cross-checked. A request ends up in exactly one population category:
                        Any such request makes the whole run ``invalid``.
 """
 
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -72,6 +73,7 @@ def _reparse(
     finish: str | None = None
     usage: dict[str, Any] | None = None
     errors: list[str] = []
+    ids: set[str] = set()
     for event in events:
         try:
             decoded = decode_payload(str(event["raw"]))
@@ -83,6 +85,13 @@ def _reparse(
             continue
         if done:
             errors.append("protocol_error:data after [DONE]")
+        if usage is not None:
+            errors.append("protocol_error:data after the usage chunk")
+        if decoded.get("id") is not None:
+            ids.add(str(decoded["id"]))
+            if len(ids) > 1:
+                errors.append("protocol_error:chunks from more than one completion id")
+                ids = {str(decoded["id"])}
         if isinstance(decoded.get("usage"), dict):
             usage = decoded["usage"]
         try:
@@ -129,6 +138,11 @@ def _timing_errors(ts: dict[str, Any], events: list[dict[str, Any]], http_ok: bo
             errors.append(f"missing_timestamp:{key}")
     if errors:
         return errors
+    values = [v for v in ts.values() if isinstance(v, int | float)] + [
+        e.get("t") for e in events if isinstance(e.get("t"), int | float)
+    ]
+    if any(not math.isfinite(v) or v < 0 for v in values):
+        return ["invalid_timing:non-finite or negative timestamp"]
     order = [("send", ts["send"])]
     for key in ("headers", "first_byte"):
         value = ts.get(key)
@@ -210,6 +224,9 @@ def judge(record: dict[str, Any], plan: dict[str, Any], schema_errors: list[str]
         first_text = next((at for t, at in content if t), None)
         if first_text is not None:
             verdict.ttft_s = first_text - send
+    content_type = record.get("response_content_type")
+    if http_ok and content_type is not None and "text/event-stream" not in str(content_type):
+        reasons.append(f"protocol_error:content-type {content_type!r} is not text/event-stream")
     if http_ok and not error:
         if not done:
             reasons.append("missing_done")

@@ -68,6 +68,17 @@ uv run --frozen python -m runner --plan workload.json --mode full --out <events_
 Exit codes: `evaluate.py` returns 0 for `valid`, 3 for `inconclusive`, 4 for `invalid`;
 `runner --dry-run` returns 2 when the mode does not fit its wall cap.
 
+## Fixture size and regeneration
+
+`fixtures/public` (20 dirs) + `fixtures/heldout` (10 dirs) total ≈ 7.8 MB, gzip-compressed
+(`requests.jsonl.gz`, `oracle.json.gz`; `run.json` and `label.json` plain). No committed
+non-fixture file exceeds 1 MB. Regenerate with `uv run --frozen python fixtures/generate.py`
+(≈ 12 min CPU at native mock timing; `--only <profile>` for one fixture, `--skip-heldout`),
+then rebuild `../validation/` with `(cd .. && uv run --frozen python validation/build_validation.py)`,
+which also re-derives the discrimination / control / held-out tables from scratch.
+Evidence loading is bounded (`bench/records.py`: 16 MB per record, 256 MB per file
+decompressed) so a corrupt or hostile fixture fails fast instead of exhausting memory.
+
 ## Evidence rules the suite enforces
 
 * **Timestamps** are `time.monotonic()` from the client process; nothing is back-filled.

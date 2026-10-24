@@ -106,8 +106,8 @@ the band and changes the resolution flag to `token` — nothing else changes.
 
 | Gate | Outcome | Category |
 | --- | --- | --- |
-| schema violation, timestamp missing / non-monotonic, record text ≠ verbatim payloads, send later than `planned_send + max_send_lag_s` | request `evidence_invalid` → **run invalid** | evidence |
-| HTTP ≠ 200, protocol violation (bad JSON, data after `[DONE]`, multiple choices), empty output, text fails expected properties, `finish_reason` not allowed, usage outside band | request `failed` (scored as failure, fluidity 0) | server |
+| schema violation, timestamp missing / non-finite / negative / non-monotonic, record text ≠ verbatim payloads, workload digest mismatch, oversized or truncated evidence file, send later than `planned_send + max_send_lag_s` | request `evidence_invalid` → **run invalid** | evidence |
+| HTTP ≠ 200, protocol violation (bad JSON, data after `[DONE]` or after the usage chunk, chunks from more than one completion id, multiple choices, non-`text/event-stream` response), empty output, text fails expected properties, `finish_reason` not allowed, usage outside band | request `failed` (scored as failure, fluidity 0) | server |
 | no `[DONE]`, no `finish_reason`, connection drop, timeout | request `unfinished` (scored as failure) | server |
 | run-level: status ≠ completed, event-loop lag > 50 ms in a measurement window, lag not measured, engine identity missing, A/A controls confidently different, claimed-valid startup probe fails gates | **run invalid** | evidence |
 | fewer than `min_requests_per_cell` trustworthy requests in a cell, no cold launch, no launch reached a valid generation, no cell with enough evidence | **run inconclusive** | sufficiency |
@@ -218,7 +218,7 @@ measurement and the arithmetic is re-run before the full run is scheduled.
 | --- | --- |
 | fixture generation: runner + cold-started mock, 18 public fixtures (`fixture` mode, 80 offered + 5 warmup requests each) | 721.8 s total, 24.49–74.6 s per fixture |
 | `evaluate.py` over 30 fixtures (public + held-out) | 12.84 s total, 0.27–0.68 s each |
-| candidate unittest suite (OK; Ran 61 tests in 20.031s) | 20.15 s |
+| candidate unittest suite (OK; Ran 77 tests in 34.595s) | 34.75 s |
 | quick mode of the mock plan (`fixtures/workload.mock.json`, 228 requests) at `--time-scale 0.25` | ≈ 25 s (observed during development, not a committed artifact) |
 
 Host: `Linux-6.8.0-1061-aws-x86_64-with-glibc2.35`, Python 3.11.17, `time_scale = 1.0`.
