@@ -1,62 +1,102 @@
-# Puzzle: Two thousand numbers, no repeated gap
+# Puzzle: The orthogonal mate
 
 ## Statement
 
-Find a set **S** of integers such that
+A **Latin square of order 50** is a 50 × 50 array whose entries are the integers `0 … 49`,
+such that every row contains each of the 50 integers exactly once and every column contains
+each of the 50 integers exactly once.
 
-1. every element of S is an integer **x** with **0 ≤ x < 4,000,000**;
-2. S contains **at least 2,000 distinct** integers;
-3. **all pairwise differences are distinct**: whenever **a, b, c, d** are elements of S with
-   **a > b**, **c > d**, and **(a, b) ≠ (c, d)**, then **a − b ≠ c − d**.
+Two Latin squares `L` and `M` of order 50 are **orthogonal** if the 2500 ordered pairs
+`(L[r][c], M[r][c])`, taken over all cells `(r, c)`, are pairwise distinct (equivalently: every
+ordered pair of integers from `0 … 49` occurs in exactly one cell).
 
-In words: no two *different* pairs of elements of S have the same gap between them.
-(Equivalently, all sums **a + b** over unordered pairs of distinct elements **{a, b}** are
-distinct.)
+Below is a Latin square `L` of order 50.
 
-Nothing else is required. Any set that satisfies conditions 1–3 is a correct answer; there
-is no unique intended answer.
+**Find a Latin square `M` of order 50 that is orthogonal to `L`.**
+
+Any such `M` is a correct answer; there is no unique intended answer.
+
+## Square L (row r is the r-th line, r = 0 … 49; column c is the c-th number in the line, c = 0 … 49)
+
+```
+25 45  8 15  5 17 37 12 27 28  4  1  6 26 21 31 44 43 32 16 11 22 35 34 24 46 18 20 38 49 33 36 47 10 19 29 40  0  7  2 48 14 41 39 42 23 30  3  9 13
+42 44  1  4 22 34 27  3 32 12  8 30 13 17 28 47  7  9 49  5  6  2 36 41 40 10 48 29 24 31 19 38 16 43 25 45 15 35 46 39 21 26 11 18  0 20 33 23 14 37
+34 35 39 40  9 21 29 13 45  6  2  8  5 48 24 22 47 17 18  4 27 14 46 31  3 11 12  7 36  1 49 10 28  0 33 26 23 42 16 20 44 25 19 15 41 38 32 43 37 30
+48  8 24 39 21 43 16 18 11 45  9 49  2 13 33 19 14 38 22 42  0 31 47 27  6 17  1 15 23 28  4 25  3 37 41 34 35 10 20 12 46 40  5 44 30 26 29  7 32 36
+16 43  9 28  1 10 19 39 41 15 45  5 22  0 20 33 38 36 24 18 42 49 13  4 14 30  8 40 44 46 29 47 12  2 37 17  6 26 23 35  7 11  3 34 48 32 21 25 27 31
+44 39 27 29 11 15 43 19 38 31 37 48 40 20 49  2 18 34 14 41 32  0 28 45  5 21  3 46  9 30 17 12 36 35 47 33 22  6  1 13 42 23 25  4  7 24 26 16  8 10
+14 18 48 37  0 39 38 41 23 19 16 26 17 15 31 36  1  8 30 11 40 10 45 25 21 35 42 33  5  2 47  9 27 34 44 12 29 28 49  4 22 20 32  3  6 46 13 24  7 43
+40  5  0 25 17  3  7 32 46 27 42 35 45 12 37  9 22 48 10 26 29 34  8 23 33 39  6 47 30 43 38  1 14 18 24 16 19  4  2 41 13 28 20 11 15 31 36 49 21 44
+ 4 13 36  0 44 22 28 17 12 26 35 38 48  5 14 20 37 31  3 45 18  7 30  2 25 32 43 11 19 23 40 33 29 49 15  6 42  1 27 46  9 16 39 10  8 41 24 34 47 21
+38 47 18 13 32 35 34  4 25  2 19 14 49 46  6 28  3 37 42  9  5 30 15 36  1 40 44 26 16 22 31 43 39 17 45 10 20 21 24 33 23 48 27 12 11  7  0  8 41 29
+ 6 42 30 41 13 18 14 11 20 16 48 10 34 45 36 38 21  1 17 40 15 43  9  7 29 12  0 19 49 37 25 24 32 44 23  3  4 39 31 27  2 33 26  5 35 28 47 22 46  8
+ 7  3 14 43 49 47 41  9 48 39 27 20 15 10  2  4 23 25 26 32 30 29 12 44 22 28 24 35 11 33 45 16 38 36 18 19 13 31  6 37  0 46 42  8 21 40 17  5  1 34
+32 25 23 36  6 45  9 16 14 47  3 40 28 29 35 12 48 27 20 24 22 13 34 18 46 31  7 17 42 15 39 41 44 19  8 37 10 33 21 43 26 30  1 38 49  0  2 11  5  4
+ 8 37 38 35  7  2 12 34  3 17 36 24 21 22 26 29 27 47 23 44 48 46 33 39 42 49  9  6 25 20 15 19 45 31  4 13  0 30 32 10 14  5 18 43  1 11 40 41 16 28
+ 3  4 41 33 48 13 47 45 16 29 34 42 26  6 30 17  9 12 11 25  7 21  2 43 32 20 27 22  8  0 10 39 37 15 36 28 49 40 14 31  5 24 38 19 23  1 46 18 44 35
+22 32 21 18 10  9 23 48  6 41  7 31 19 39 34 25 49 24 28 46 35 47 27  5 17 37 30  4 20 36 16 14  1  8 11 38 45 43 29 44 15  2 40 42 13 33 12 26  0  3
+28 49 17 48 43  1 20  0 15 11 26 47  8 18 41 32 31 46 45 10 34 38  5 21 37 16  2  3 29 25  7 22 40 24  6 42 27  9 19 14 36 39 35 30 12  4 44 13 33 23
+39 17 37 46 25 40 35 33 36 30 10  3 11 24  7 21  4 13 38 12 16 42 49 15 41  1 45 14 34 48 26 28 31  6  2 20  5 32  8  0 18 27 47 29 44  9 23 19 43 22
+13 20 29  5 19 23  0 49 10  1 21 37 27 38 18 42 15 40  4 31 36 41 14 30 45 25 33  8 28  3 48  6 22 32 26  7  9 44 39 24 12 43  2 46 47 34 16 35 17 11
+18 19  3 17 42 28 36 37 44 33 43  7 30 40  0 10  8 39 48 38 23 26 31 47 11  6 41 49 27 21  2 34  4 13 12 35 46 22  5 29 24  1 16 45 32 14 20  9 25 15
+46 24 49  8 29 16 48 14 21  9 32 33 37 47  4 27  6  7 31 30 17 45  3 11  2 43 22 12 40 19 41 23  5 38 42 44 39 36 13 18 28 35  0  1 10 15 34 20 26 25
+ 5 41  7 47 20 19 18 38  1 43 44  6 33 31 10 34 11  3 21 23 46 15 37 16 26 13 32  2 48 35 12 27  8  4  9 36 17 29  0 45 40 49 24 25 22 30 28 14 42 39
+41 12 44  2 24 33  4 36  8 35 39 32 20 30 22 13 25 45  1 27 14 40 10 19 23  0 16 21  3  6 28 37 43 29 34 31 26 46 42 15 11  7  9 47  5 48 49 38 18 17
+11 38 32 12 40 37  8 44  5 36 18 22 35 33 15 39 42 41  6  1 49 28 43  9 20 29 23 10  7 13 34  3 25 45 27  4  2 17 26 47 30  0 14 16 46 21 31 48 24 19
+27 34 16 31 23 29 39 47  9 10 12 11  0 49 46 35 41  4  5  3 24  6 17 37  7 26 25 30 18 40 13 45 19 33 43 15 21 20 48 28  1 32  8 36 14 42 22 44 38  2
+ 2 30 10 42 47 14  6 21 13 48 46 36 44  9 25  7 29 22 43 35 12 16 32 20 34 18 17 27 33 38 23 49 26  1 40  5 41  8 45 11 37  4 15  0 39 19  3 31 28 24
+17 46 13 11 39 48 49  6 29 23 22 43 38 41  3 24 10 30 37  2  4  9  7 26 12 44 35 25 31  8 14 21  0 42 20  1 16 18 47  5 19 34 33 40 45 36 27 28 15 32
+35 21 33  1 37  7 26 22 17  5 30 19  9 44 16 11 28 20 34 13 43 27 24 46  4  3 31 18 15 41 42 40  6 23  0 48  8 38 12 32 47 45 10 49 36 39 25  2 29 14
+45 31 47 26 38 49 15 10 39  0 13 44  7  1 11 40 19 33 25 43  8 23 21 35 16 24 36 42 37 32  6 29 17 46 28 22 48  5 41 30 27 18 34  2  9  3 14  4 12 20
+36 28 19 30 27 46 17  2 34 22 33 25 14  7  5  6 12 29 41 37  9 32 40 10  8 23 47 48  4 11  0 15 13 20 35 21  1 24  3 49 16 44 43 31 38 18 42 39 45 26
+37 10 12  6 18  0 31 15 19 20 28  9 42 11 23 46 43  2 16 39  3  1 26 13 44 14 34 32 47 24 22 17 33 30 29 40  7 48 38 21  8 41  4 35 27 25  5 45 36 49
+29 40 35 23 45 11 21 20 31 14  6 39  3 16  8  1 13  0 12 33 19 18 48 22 47 27 15 38 10 44 24 30 46  5 49 32 25 41 43  7 34 36 28 26  4 37  9 17  2 42
+20  1 46 27 33 44 42  5 26  8 11 17  4 36 19 41 40 23 29  0 10 37 18 48 31 47 49 39 22 45  3 32 24 16  7 25 34 12 28  9 35 15 21 14  2 13 43  6 30 38
+15  6 31 14 34 24 46 30 35 32  0 45 41  3  9  5  2 26 36 29 37 25  1 40 19  8 28 44 13 27 11 20 49  7 21 23 18 16  4 42 39 47 17 22 43 12 38 33 10 48
+ 1  9 11 45 46  4  3 25 24 34 38 21 10  2 29 37 32 44 40 48 26 35 19  8  0 33  5 28 14 17 43 18 41 12 16 39 31 13 30 36 49  6  7 27 20 22 15 42 23 47
+19 29 43 21  3 30  2 35  4 46 15 16 23 32 48 26 34 28  8 47 44 24  0 33 38 42 37  5 45  7 20 31 10 22 13 49 11 14 25 40 41  9 12 17 18 27  1 36 39  6
+23 27  5 34 30 36 25  8 42  4 41 46 31 35 17 45 24 16  0  7 21 33 39 38 49 15 14 13 32 29 37 44 18 47  3 43 28  2 40 19 20 22 48  9 26  6 10  1 11 12
+21 11  6 44 15 41  1 23 49 38 14 28 12 19 43  8  0 42 35 20 33 39 16 24 13  4 40 36 26 34  9 48  7  3  5 27 47 37 10 25 17 31 46 32 29  2 45 30 22 18
+31  0  2  7 36  5 40 26 28 42 20 12 25  8 38 23 33 49 47 15 39 44 11  6 43  9 10 41 17 16 32 46 30 14 22 24  3 27 37 48  4 19 13 21 34 45 18 29 35  1
+12  2 45 20 41  6 10 29 47 49 17 18  1 23 32 30 39 35 44 34 25 48 22 28 27  5  4 24 43 42 21 13 15 40 31  0 14 11  9 26 38  3 36 33 16  8  7 37 19 46
+49  7 26  3 35  8 24 42 40 25 23  2 43  4 12 16 30 14 15 22 13 36 41  1 10 19 21 45 46 47 44  5 11  9 32 18 37 34 33 38 31 17  6 48 28 29 39  0 20 27
+24 16 42 19 26 12 44 27  7 37 25  0 29 28 13 43  5 18 46 14 20 17  4  3 30  2 11 31  1 10 36  8  9 39 38 47 33 15 22 34  6 21 23 41 40 49 35 32 48 45
+33 26 15 24 12 32 22 46  2  7 40  4 16 27 44 48 17  6 39 28 47  3 42 49 36 41 29  9 35 18  1  0 21 11 30 14 38 25 34 23 45 37 31 20 19 43  8 10 13  5
+10 22 28 32  4 42 30 40 33 24 49 34 18 25 27 14 35 21 19 17 45  8 23  0 39 38 13 16  2  9  5 26 20 48 46 11 44  3 36  1 43 12 29  6 37 47 41 15 31  7
+30 14 40 38 28 27  5  7 22 44 24 15 47 37 45 18 26 11  2 21 31 12 25 32 35 34 20 43  0 39  8 42 48 41  1  9 36 19 17  3 29 13 49 23 33 10  4 46  6 16
+ 0 48 20 16  2 25 32 24 30  3  1 13 39 34 47 44 46  5 33  6 28  4 38 42 15 36 26 37 21 12 18 11 23 27 14 41 43 45 35  8 10 29 22  7 31 17 19 40 49  9
+ 9 36 25 10 14 31 45 43 18 13 47 23 46 21 40 15 16 19  7  8  1 20 29 12 48 22 38  0 41 26 35  4 34 28 39  2 30 49 11 17 32 42 44 37 24  5  6 27  3 33
+26 23 22  9 31 38 11  1  0 18  5 29 36 43 39  3 20 32 13 49  2 19 44 14 28 45 46 34  6  4 27  7 42 25 48  8 12 47 15 16 33 10 30 24 17 35 37 21 40 41
+47 33  4 49 16 20 13 31 43 21 29 41 32 14 42  0 45 15 27 36 38 11  6 17  9  7 19  1 39  5 30 35  2 26 10 46 24 23 18 22  3  8 37 28 25 44 48 12 34 40
+43 15 34 22  8 26 33 28 37 40 31 27 24 42  1 49 36 10  9 19 41  5 20 29 18 48 39 23 12 14 46  2 35 21 17 30 32  7 44  6 25 38 45 13  3 16 11 47  4  0
+```
 
 ## Conventions
 
-- "Integer" means a plain JSON integer (no decimal point, no exponent, no quotes).
-- The pairs in condition 3 are **unordered pairs of distinct elements**; the condition only
-  constrains pairs where the two elements differ. A difference compares exactly two
-  elements of S, and the same element may appear in many pairs.
-- Order of the elements in your answer does not matter. Repeating an element is **not**
-  allowed (the list must have no duplicates).
-- Submitting more than 2,000 elements is allowed as long as conditions 1–3 still hold.
+- Rows and columns are indexed `0 … 49` from the top-left as laid out above; cell `(r, c)` of
+  `L` corresponds to cell `(r, c)` of your `M`.
+- Entries of `M` must be plain JSON integers in `0 … 49`.
+- Relabeling the symbols of a valid `M` by any permutation of `0 … 49` gives another valid `M`.
 
 ## Answer format
 
-Your final answer must be a single JSON object with exactly one key, `"numbers"`, whose
-value is a JSON array of the elements of S:
+A single JSON object with exactly one key, `"square"`, whose value is an array of 50 rows,
+each an array of 50 integers (`"square"[r][c]` is the entry in row `r`, column `c`):
 
 ```json
-{"numbers": [0, 1, 3]}
+{"square": [[0, 1, 2, …], [1, 2, 3, …], …]}
 ```
 
-That example has the right *shape* only. It would **not** be accepted as an answer to this
-puzzle because it has 3 elements, not at least 2,000. (It does satisfy condition 3: the
-differences 1 − 0 = 1, 3 − 0 = 3, 3 − 1 = 2 are all distinct.)
+(Illustration of the shape only; not a valid answer.)
 
-Checked mechanically, in this order:
-
-| check | rejected if |
-|---|---|
-| size | the answer is longer than 32 KiB (32,768 bytes) |
-| syntax | the answer is not valid UTF-8 JSON, or the top-level value is not an object with exactly the one key `"numbers"`, or `"numbers"` is not an array |
-| elements | any element is not a JSON integer, or is outside `0 ≤ x < 4000000` |
-| count | fewer than 2,000 elements |
-| distinct | two elements are equal |
-| gaps | some difference `a − b` (with `a > b`) occurs for two different pairs |
-
-Any answer passing every check is accepted. The checker is deterministic, uses only the
-Python standard library, and tests the stated conditions directly — it does **not** compare
-your answer against a stored answer.
+Checks, in order: the answer is at most 32 KiB; it is valid UTF-8 JSON; the top-level value is
+an object with exactly the one key `"square"`; it is a 50 × 50 array of JSON integers in
+`0 … 49`; every row and every column of `M` is a permutation of `0 … 49`; the 2500 pairs
+`(L[r][c], M[r][c])` are pairwise distinct. The checker is deterministic, uses only the Python
+standard library, and tests these conditions directly — it does not compare against a stored
+answer.
 
 ## Limits
 
-- Statement: this file.
-- Final answer: at most 32 KiB. (2,000 seven-digit integers in the format above need
-  roughly 18 KiB, so the limit is not a constraint for a straightforward answer.)
-- You may use any tools you like; the puzzle is self-contained and needs no external data.
+- Final answer: at most 32 KiB (a 50 × 50 square in the format above needs about 10 KiB).
+- The puzzle is self-contained; no external data is needed.
