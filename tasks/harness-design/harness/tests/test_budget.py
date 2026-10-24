@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import unittest
 
-from abstract_harness.budget import BudgetConfig, check_before_attempt, gpu_hours_used
+from abstract_harness.budget import (
+    BudgetConfig,
+    check_before_attempt,
+    gpu_hours_used,
+    monotone_now,
+)
 
 from . import _paths  # noqa: F401
 
@@ -76,3 +81,13 @@ class BudgetGuardTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MonotoneClockTest(unittest.TestCase):
+    def test_backwards_wall_clock_is_clamped(self) -> None:
+        self.assertEqual(monotone_now(100.0, 90.0), (100.0, False))
+        self.assertEqual(monotone_now(80.0, 90.0), (90.0, True))
+        self.assertEqual(monotone_now(90.0, 90.0), (90.0, False))
+
+    def test_gpu_hours_never_negative_when_clock_steps_back(self) -> None:
+        self.assertEqual(gpu_hours_used(_cfg(gpus_allocated=1), T0 - 500.0), 0.0)

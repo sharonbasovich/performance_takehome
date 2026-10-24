@@ -158,9 +158,36 @@ def ensure_header(path: Path) -> None:
     path.write_text(HEADER_LINE, encoding="utf-8")
 
 
+def repair_torn_tail(path: Path) -> str | None:
+    """Cut off a partial last line (no trailing newline) left by a torn write.
+
+    The fragment is appended to ``<path>.torn`` for forensics and returned;
+    ``None`` when the file is absent or intact.
+    """
+    if not path.exists():
+        return None
+    data = path.read_bytes()
+    if not data or data.endswith(b"\n"):
+        return None
+    cut = data.rfind(b"\n") + 1
+    torn = data[cut:]
+    with path.with_suffix(path.suffix + ".torn").open("ab") as fh:
+        fh.write(torn + b"\n")
+    with path.open("r+b") as fh:
+        fh.truncate(cut)
+        fh.flush()
+        os.fsync(fh.fileno())
+    return torn.decode("utf-8", "replace")
+
+
 def append_row(path: Path, row: ResultRow) -> None:
-    """Validate then append one row; the write is flushed and fsynced."""
+    """Validate then append one row; the write is flushed and fsynced.
+
+    A torn partial last line from an earlier crash is removed first (see
+    :func:`repair_torn_tail`) so the new row never gets glued onto it.
+    """
     row.validate()
+    repair_torn_tail(path)
     ensure_header(path)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(row.to_line())
@@ -177,6 +204,8 @@ def iter_rows(path: Path) -> Iterator[ResultRow]:
         for number, line in enumerate(fh, start=2):
             if not line.strip():
                 continue
+            if not line.endswith("\n"):
+                raise ResultsError(f"{path}:{number}: truncated last line (no trailing newline)")
             row = ResultRow.from_line(line)
             try:
                 row.validate()

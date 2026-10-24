@@ -53,3 +53,18 @@ class ProcessGroupTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StateDirLockTest(unittest.TestCase):
+    def test_second_instance_is_refused_until_release(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            lock = Path(tmp) / "harness.lock"
+            first = procs.acquire_lock(lock)
+            try:
+                with self.assertRaises(procs.LockError) as ctx:
+                    procs.acquire_lock(lock)
+                self.assertIn(str(os.getpid()), str(ctx.exception))
+            finally:
+                first.close()
+            second = procs.acquire_lock(lock)
+            second.close()

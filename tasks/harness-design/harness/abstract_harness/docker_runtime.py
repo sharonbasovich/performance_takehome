@@ -53,12 +53,13 @@ def build_image(
     dockerfile: Path | None = None,
     build_args: Mapping[str, str] | None = None,
     network: str = "default",
+    no_cache: bool = False,
 ) -> BuildResult:
     """Build ``context_dir`` into a fresh local image and resolve its digest.
 
     Uses ``docker buildx build --load --metadata-file`` so the OCI digest is
-    available without pushing to a registry. ``--no-cache`` is deliberately not
-    used: layer caching only reuses byte-identical steps, so a patched
+    available without pushing to a registry. ``--no-cache`` is off by default:
+    layer caching only reuses byte-identical steps, so a patched
     Dockerfile still produces a genuinely new image, and digests are resolved
     from the result, never guessed.
     """
@@ -78,6 +79,8 @@ def build_image(
         "-t",
         tag,
     ]
+    if no_cache:
+        args.append("--no-cache")
     if dockerfile is not None:
         args += ["-f", str(dockerfile)]
     for key, value in (build_args or {}).items():

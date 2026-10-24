@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import os
 import signal
 import subprocess
@@ -9,6 +10,7 @@ import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -105,3 +107,29 @@ def run(
         stdout = log_path.read_text(encoding="utf-8", errors="replace") if log_path else ""
         stderr = ""
     return RunResult(tuple(args), proc.returncode, stdout or "", stderr or "", duration, timed_out)
+
+
+class LockError(RuntimeError):
+    """Another harness instance already owns the state directory."""
+
+
+def acquire_lock(path: Path) -> Any:
+    """Take an exclusive, non-blocking ``flock`` on ``path`` and record our pid in it.
+
+    The returned file object must stay referenced for as long as the lock is
+    needed; closing it (or process death) releases the lock.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fh = path.open("a+", encoding="utf-8")
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as exc:
+        fh.seek(0)
+        owner = fh.read().strip() or "unknown pid"
+        fh.close()
+        raise LockError(f"{path} is held by another harness instance ({owner})") from exc
+    fh.seek(0)
+    fh.truncate()
+    fh.write(f"{os.getpid()}\n")
+    fh.flush()
+    return fh

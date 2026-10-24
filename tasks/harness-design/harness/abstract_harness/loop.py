@@ -30,6 +30,7 @@ from typing import Any
 from . import budget as budget_mod
 from . import docker_runtime as docker
 from . import measure as measure_mod
+from . import procs
 from . import results as results_mod
 from .decision import Decision, decide
 from .engines import CONTAINER_PORT, Engine
@@ -72,6 +73,7 @@ class LoopConfig:
     container_prefix: str = "abstract-harness"
     image_prefix: str = "abstract-harness"
     min_effect: float = 0.03
+    no_cache: bool = False
     min_samples: int = 3
     estimated_attempt_s: float = 600.0
     keep_candidate_images: bool = False
@@ -105,7 +107,7 @@ class Harness:
         self.clock = clock
         self.state_path = config.state_dir / "state.json"
         self.benchmark = measure_mod.load_benchmark(config.benchmark_path)
-        self.state = load_state(self.state_path) or HarnessState(
+        self.state = load_state(self.state_path, on_warning=log) or HarnessState(
             engine=engine.name,
             source_commit=config.source_commit,
             lease_start_ts=config.budget.lease_start_ts,
@@ -113,6 +115,7 @@ class Harness:
         self._stop_requested = False
         self._stop_signal = ""
         self._active_container: str | None = None
+        self._lock: Any = None
         for d in (config.state_dir, config.reports_dir, config.patches_dir):
             d.mkdir(parents=True, exist_ok=True)
         results_mod.ensure_header(config.results_path)
@@ -141,7 +144,15 @@ class Harness:
         save_state(self.state_path, self.state)
 
     def _gpu_hours(self) -> float:
-        return budget_mod.gpu_hours_used(self.config.budget, self.clock())
+        return budget_mod.gpu_hours_used(self.config.budget, self.now())
+
+    def now(self) -> float:
+        """Wall clock for budgets, clamped so it never moves backwards across checkpoints."""
+        ts, went_back = budget_mod.monotone_now(self.clock(), self.state.last_clock_ts)
+        if went_back:
+            self.log("[harness] wall clock went backwards; budgets use the last seen timestamp")
+        self.state.last_clock_ts = ts
+        return ts
 
     def _report_path(self, experiment: str) -> Path:
         return self.config.reports_dir / f"{self.state.attempt_index:03d}-{experiment}.json"
@@ -201,6 +212,7 @@ class Harness:
             timeout_s=self.config.timeouts.build_s,
             platform=self.engine.spec.platform,
             dockerfile=context_dir / self.engine.spec.dockerfile.name,
+            no_cache=self.config.no_cache,
         )
 
     def measure_image(
@@ -586,8 +598,14 @@ class Harness:
     def run(self) -> int:
         """Drive the loop until the proposer, budget, attempt cap, or a signal stops it.
 
-        Returns a process exit code: 0 normal, 3 interrupted, 2 baseline failure.
+        Returns a process exit code: 0 normal, 3 interrupted, 2 baseline failure,
+        4 when another instance holds the state-directory lock.
         """
+        try:
+            self._lock = procs.acquire_lock(self.config.state_dir / "harness.lock")
+        except procs.LockError as exc:
+            self.log(f"[harness] refusing to start: {exc}")
+            return 4
         self.install_signal_handlers()
         try:
             self.recover_from_previous_run()
@@ -608,7 +626,7 @@ class Harness:
                 verdict = budget_mod.check_before_attempt(
                     self.config.budget,
                     api_usd_cumulative=self.state.api_usd_cumulative,
-                    now_ts=self.clock(),
+                    now_ts=self.now(),
                     estimated_attempt_s=self.config.estimated_attempt_s,
                 )
                 self.log(
@@ -624,6 +642,7 @@ class Harness:
                     proposal = self.proposer.propose(self._proposer_context(verdict))
                 except ProposerError as exc:
                     self.log(f"[harness] proposer error: {exc}")
+                    self.state.api_usd_cumulative += exc.api_usd or 0.0
                     self._append_row(
                         experiment=f"{self.state.attempt_index:03d}-proposer",
                         image_digest="",
@@ -650,6 +669,9 @@ class Harness:
             self.finalize(f"fatal: {exc}")
             return 2
         finally:
+            if self._lock is not None:
+                self._lock.close()
+                self._lock = None
             self.cleanup()
 
     def _proposer_context(self, verdict: budget_mod.BudgetVerdict) -> Any:
@@ -710,6 +732,7 @@ def _build_summary(build: docker.BuildResult, config: LoopConfig) -> dict[str, A
         "ok": build.ok,
         "timed_out": build.timed_out,
         "duration_s": round(build.duration_s, 2),
+        "no_cache": config.no_cache,
         "tag": build.tag,
         "image_id": build.image_id,
         "digest": build.digest,

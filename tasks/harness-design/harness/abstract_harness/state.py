@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -54,6 +56,7 @@ class HarnessState:
     history: list[dict[str, Any]] = field(default_factory=list)
     finished: bool = False
     finish_reason: str = ""
+    last_clock_ts: float = 0.0
 
     def to_json(self) -> dict[str, Any]:
         """Plain-dict form."""
@@ -76,11 +79,48 @@ class HarnessState:
         return state
 
 
-def load_state(path: Path) -> HarnessState | None:
-    """Load state or return ``None`` when no state exists yet."""
+class StateError(RuntimeError):
+    """The on-disk state cannot be trusted and the harness must not guess."""
+
+
+_DECODE_ERRORS = (json.JSONDecodeError, ValueError, TypeError, KeyError)
+
+
+def backup_path(path: Path) -> Path:
+    """Location of the previous good copy kept by :func:`save_state`."""
+    return path.with_suffix(path.suffix + ".bak")
+
+
+def load_state(
+    path: Path, *, on_warning: Callable[[str], None] | None = None
+) -> HarnessState | None:
+    """Load state, or ``None`` when no state exists yet.
+
+    A corrupt or truncated file falls back to the ``.bak`` copy of the previous
+    checkpoint (with a warning); if that is unusable too a :class:`StateError`
+    is raised instead of silently starting a fresh run, which would re-run the
+    baseline and append duplicate rows to results.tsv.
+    """
     if not path.exists():
         return None
-    return HarnessState.from_json(json.loads(path.read_text(encoding="utf-8")))
+    try:
+        return HarnessState.from_json(json.loads(path.read_text(encoding="utf-8")))
+    except _DECODE_ERRORS as exc:
+        bak = backup_path(path)
+        if not bak.exists():
+            raise StateError(
+                f"{path} is corrupt ({type(exc).__name__}: {exc}) and no {bak.name} exists; "
+                "move it aside to start a new run"
+            ) from exc
+        try:
+            state = HarnessState.from_json(json.loads(bak.read_text(encoding="utf-8")))
+        except _DECODE_ERRORS as exc2:
+            raise StateError(
+                f"{path} is corrupt ({exc}) and {bak} is unreadable too ({exc2})"
+            ) from exc2
+        if on_warning is not None:
+            on_warning(f"{path} is corrupt ({exc}); resumed from {bak}")
+        return state
 
 
 def save_state(path: Path, state: HarnessState) -> None:
@@ -92,6 +132,8 @@ def save_state(path: Path, state: HarnessState) -> None:
         fh.write("\n")
         fh.flush()
         os.fsync(fh.fileno())
+    if path.exists():
+        shutil.copy2(path, backup_path(path))
     os.replace(tmp, path)
 
 

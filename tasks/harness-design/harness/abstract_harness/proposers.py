@@ -21,7 +21,7 @@ import os
 import re
 import shutil
 import tempfile
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -43,7 +43,15 @@ SECRET_ENV_PATTERN = re.compile(r"(API_KEY|TOKEN|SECRET|PASSWORD)", re.IGNORECAS
 
 
 class ProposerError(RuntimeError):
-    """A proposer could not produce a usable proposal."""
+    """A proposer could not produce a usable proposal.
+
+    ``api_usd`` carries any model spend that happened before the failure so the
+    loop can still account for it.
+    """
+
+    def __init__(self, message: str, *, api_usd: float | None = None) -> None:
+        super().__init__(message)
+        self.api_usd = api_usd
 
 
 @dataclass(frozen=True)
@@ -390,19 +398,28 @@ class PiProposer(Proposer):
             log_path=transcript,
         )
         api_usd = self._cost_from_events(transcript)
+        model_error = self._error_from_events(transcript)
         if result.timed_out:
             raise ProposerError(
-                f"pi timed out after {self.config.timeout_s:.0f}s (transcript {transcript})"
+                f"pi timed out after {self.config.timeout_s:.0f}s (transcript {transcript})",
+                api_usd=api_usd,
+            )
+        if model_error is not None:
+            raise ProposerError(
+                f"pi model call failed: {model_error} (transcript {transcript})",
+                api_usd=api_usd,
             )
         if not result.ok:
-            raise ProposerError(f"pi exited {result.returncode} (transcript {transcript})")
+            raise ProposerError(
+                f"pi exited {result.returncode} (transcript {transcript})", api_usd=api_usd
+            )
         patch = (
             patch_out.read_text(encoding="utf-8")
             if patch_out.exists()
             else unified_diff_for_dirs(context.context_dir, scratch)
         )
         if not patch.strip():
-            raise ProposerError(f"pi produced no patch (transcript {transcript})")
+            raise ProposerError(f"pi produced no patch (transcript {transcript})", api_usd=api_usd)
         meta: dict[str, Any] = {}
         if meta_out.exists():
             try:
@@ -421,23 +438,53 @@ class PiProposer(Proposer):
 
     @staticmethod
     def _cost_from_events(transcript: Path) -> float | None:
-        """Sum any ``usage.cost.total``-style fields Pi emits in JSON mode; ``None`` if absent."""
-        if not transcript.exists():
-            return None
+        """Sum ``message.usage.cost.total`` over ``message_end`` events; ``None`` if none.
+
+        Pi's JSON mode (``dist/modes/json-event.js``) also attaches the running
+        ``usage`` to every ``message_update`` delta, so only the terminal
+        ``message_end`` event of each assistant message is counted.
+        """
         total = 0.0
         seen = False
-        for line in transcript.read_text(encoding="utf-8", errors="replace").splitlines():
-            line = line.strip()
-            if not line.startswith("{"):
+        for event in _iter_events(transcript):
+            if event.get("type") != "message_end":
                 continue
-            try:
-                event = json.loads(line)
-            except json.JSONDecodeError:
+            message = event.get("message")
+            if not isinstance(message, dict):
                 continue
-            for cost in _find_costs(event):
+            for cost in _find_costs(message.get("usage")):
                 total += cost
                 seen = True
         return total if seen else None
+
+    @staticmethod
+    def _error_from_events(transcript: Path) -> str | None:
+        """Return the first ``errorMessage`` of an errored/aborted assistant message."""
+        for event in _iter_events(transcript):
+            if event.get("type") != "message_end":
+                continue
+            message = event.get("message")
+            if not isinstance(message, dict):
+                continue
+            if message.get("stopReason") in {"error", "aborted"}:
+                return str(message.get("errorMessage") or message.get("stopReason"))
+        return None
+
+
+def _iter_events(transcript: Path) -> Iterator[dict[str, Any]]:
+    """Yield parseable JSON-object lines of a Pi JSON transcript, skipping garbage."""
+    if not transcript.exists():
+        return
+    for line in transcript.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict):
+            yield event
 
 
 def _find_costs(node: Any) -> list[float]:

@@ -45,6 +45,7 @@ from abstract_harness import results as results_mod  # noqa: E402
 from abstract_harness.engines import make_engine  # noqa: E402
 from abstract_harness.loop import Harness, LoopConfig, Timeouts  # noqa: E402
 from abstract_harness.proposers import PiLaunchConfig, PiProposer, ScriptedProposer  # noqa: E402
+from abstract_harness.state import StateError  # noqa: E402
 
 STANDIN_MODEL = {
     "repo": "unsloth/SmolLM2-135M-Instruct-GGUF",
@@ -134,6 +135,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--render-device", default="/dev/dri/renderD128")
     run.add_argument("--render-gid", default=None)
     run.add_argument("--standin-cpus", default="4")
+    run.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="pass --no-cache to every docker build in this invocation (cold rebuild)",
+    )
     run.add_argument("--keep-candidate-images", action="store_true")
 
     val = sub.add_parser("validate-results", help="validate a results.tsv against the contract")
@@ -220,12 +226,17 @@ def cmd_run(args: argparse.Namespace) -> int:
         ),
         max_attempts=args.max_attempts,
         min_effect=args.min_effect,
+        no_cache=args.no_cache,
         min_samples=args.min_samples,
         estimated_attempt_s=args.estimated_attempt_minutes * 60,
         keep_candidate_images=args.keep_candidate_images,
     )
     # A scripted proposer resumes at the on-disk attempt index so queue entries are not replayed.
-    harness = Harness(config, engine, proposer)
+    try:
+        harness = Harness(config, engine, proposer)
+    except StateError as exc:
+        print(f"[run] {exc}", file=sys.stderr)
+        return 4
     if isinstance(proposer, ScriptedProposer) and harness.state.attempt_index > 1:
         proposer = ScriptedProposer.from_file(
             args.experiments, skip=harness.state.attempt_index - 1

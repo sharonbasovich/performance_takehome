@@ -101,3 +101,62 @@ class ResultsSchemaTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TornTailTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = Path(self.tmp.name) / "results.tsv"
+        results.append_row(
+            self.path,
+            results.make_row(
+                ts="2026-10-24T00:00:00Z",
+                experiment="baseline",
+                source_commit="abc",
+                image_digest="sha256:" + "0" * 64,
+                kept="1",
+                outcome="baseline",
+                local_startup_s="1.0",
+                api_usd_cumulative="0.00",
+                gpu_hours_cumulative="0.000",
+                development_report="reports/000-baseline.json",
+            ),
+        )
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _row(self, experiment: str) -> results.ResultRow:
+        return results.make_row(
+            ts="2026-10-24T00:01:00Z",
+            experiment=experiment,
+            source_commit="abc",
+            image_digest="",
+            kept="0",
+            outcome="error",
+            api_usd_cumulative="0.00",
+            gpu_hours_cumulative="0.000",
+            notes="x",
+        )
+
+    def test_partial_last_line_is_rejected_by_validate(self) -> None:
+        with self.path.open("a", encoding="utf-8") as fh:
+            fh.write("2026-10-24T00:00:30Z\t001-torn\tabc\tsha256:")
+        with self.assertRaises(results.ResultsError) as ctx:
+            results.validate_file(self.path)
+        self.assertIn("truncated last line", str(ctx.exception))
+
+    def test_append_repairs_partial_last_line_and_keeps_fragment(self) -> None:
+        with self.path.open("a", encoding="utf-8") as fh:
+            fh.write("2026-10-24T00:00:30Z\t001-torn\tabc\tsha256:")
+        results.append_row(self.path, self._row("002-next"))
+        rows = results.validate_file(self.path)
+        self.assertEqual([r.experiment for r in rows], ["baseline", "002-next"])
+        torn = self.path.with_suffix(".tsv.torn").read_text("utf-8")
+        self.assertIn("001-torn", torn)
+
+    def test_intact_file_is_left_alone(self) -> None:
+        before = self.path.read_bytes()
+        self.assertIsNone(results.repair_torn_tail(self.path))
+        self.assertEqual(self.path.read_bytes(), before)
+        self.assertFalse(self.path.with_suffix(".tsv.torn").exists())
