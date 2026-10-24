@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "task": "compute-quant",
+  "status": "draft-submission-synthetic-inputs",
+  "source": {
+    "repository": "https://github.com/sharonbasovich/performance_takehome",
+    "commit": "UNAVAILABLE_IN_DRAFT: the submission commit is the PR head; it cannot be recorded inside itself and the organizer freezes it at the deadline"
+  },
+  "inputs": {
+    "case": "tasks/compute-quant/data/demo-case.json",
+    "input_pack_digest": "63ece891d056ae2bd28480b9894279b65b3a91dcd1e2451dffc31e0e162a6daa",
+    "input_pack_digest_definition": "candidate-defined: sha256 over sorted '<role>:<sha256>\\n' lines of the case, quotes and performance files (see research/loader.py); the organizer has not published a digest definition",
+    "input_file_sha256": {
+      "tasks/compute-quant/data/demo-case.json": "7dede1786adbac38afd2c90034f55c3c664c0ce4a71274128a1d27f80b53a568",
+      "tasks/compute-quant/data/demo-quotes.csv": "558ff39df4ec4bd8b8683bc053f26b12243883b3cee2948bff25423cdbbcd91f",
+      "tasks/compute-quant/data/demo-performance.csv": "794e22b2dbc398e8ef2baa1aeddb02d04d7df51bbb6247243644f978f1111933"
+    },
+    "kind": "synthetic-demo-not-market-data"
+  },
+  "model": {
+    "entrypoint": "tasks/compute-quant/research/run.py",
+    "command": "python tasks/compute-quant/research/run.py --case tasks/compute-quant/data/demo-case.json --out tasks/compute-quant/outputs/ --report tasks/compute-quant/outputs/REPORT.md",
+    "configuration": "tasks/compute-quant/research/config/default.json",
+    "python": ">=3.11, stdlib only, no network",
+    "run_manifest": "tasks/compute-quant/run-manifest.json"
+  },
+  "evidence": {
+    "report": "tasks/compute-quant/REPORT.md",
+    "curve": "tasks/compute-quant/curve.csv",
+    "reservation_valuation": "tasks/compute-quant/valuation.json",
+    "tests": "tasks/compute-quant/tests/",
+    "test_command": "python -m unittest discover -s tasks/compute-quant/tests -t tasks/compute-quant -v"
+  },
+  "integrity": {
+    "starter_commit": "81aead87d78ed468c4c374fb42921471b44c3f80",
+    "starter_tag": "UNAVAILABLE_IN_DRAFT: the organizer has not created a takehome-start tag; the only upstream commit SHA was used instead",
+    "command": "python -B -m tools.check_integrity --base 81aead87d78ed468c4c374fb42921471b44c3f80"
+  },
+  "organizer_receipt": "UNAVAILABLE_IN_DRAFT: no private submission channel or receipt exists for Task 3 in this draft"
+}

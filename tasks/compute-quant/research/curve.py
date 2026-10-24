@@ -196,6 +196,24 @@ class CurveModel:
             {"flat_from_first_anchor": first.tenor, "months_before": first.tenor - tenor},
         )
 
+    def _structural_band(self, last: Anchor, dt: float, vol: float) -> tuple[float, float]:
+        """Band beyond the last anchor: scenarios x declared kappa range, plus a random walk.
+
+        The union contains the flat extension of the anchor interval (kappa = 0) and the fast
+        reversion to every scenario anchor (upper kappa), so it depends only on the anchor
+        interval and declared parameters, never on the fitted kappa. Removing evidence can
+        therefore only widen it.
+        """
+        k_lo, k_hi = (float(k) for k in self.config["curve"]["reversion_band_per_month"])
+        values: list[float] = []
+        for scenario in self.config["scenarios"]:
+            start_level = self._scenario_level_at_anchor(last, scenario)
+            long_run = self.scenario_anchor_levels.get(scenario)
+            for k in (k_lo, k_hi):
+                values.append(self._extrapolate(start_level, long_run, dt, k))
+        v = vol * math.sqrt(dt) * last.high
+        return min(*values, last.low - v), max(*values, last.high + v)
+
     def node(self, tenor: int, kappa: float | None = None, vol_multiplier: float = 1.0) -> Node:
         """Full node (mid/low/high/status/scenarios) for a tenor."""
         base_start = month_start(self.case.as_of)
@@ -249,40 +267,41 @@ class CurveModel:
                 0.0,
             )
         distance = min(abs(a.tenor - tenor) for a in self.anchors)
-        half = self.spread_estimate(mid) / 2 + vol * math.sqrt(distance) * mid
-        low = max(0.0, mid - half)
-        high = mid + half
         if status == STATUS_IMPLIED:
             lo_t, hi_t = detail["interpolated_between"]
             lo_a = next(a for a in self.anchors if a.tenor == lo_t)
             hi_a = next(a for a in self.anchors if a.tenor == hi_t)
             w = (tenor - lo_t) / (hi_t - lo_t)
-            low = min(low, (1 - w) * lo_a.low + w * hi_a.low)
-            high = max(high, (1 - w) * lo_a.high + w * hi_a.high)
+            v = vol * math.sqrt(distance) * max(lo_a.high, hi_a.high)
+            low = (1 - w) * lo_a.low + w * hi_a.low - v
+            high = (1 - w) * lo_a.high + w * hi_a.high + v
             notes.append(f"linear interpolation between anchors at tenors {lo_t} and {hi_t}")
             unc = "interpolation-between-anchors+horizon-widening"
         else:
             beyond = detail.get("months_beyond")
             if beyond is not None:
+                last = next(a for a in self.anchors if a.tenor == detail["from_anchor"])
+                low, high = self._structural_band(last, beyond, vol)
+                band = self.config["curve"]["reversion_band_per_month"]
                 notes.append(
-                    f"mean reversion from the tenor-{detail['from_anchor']} "
-                    "anchor toward the scenario anchor; "
-                    f"kappa={self.kappa:.4f}/month ({self.kappa_source})"
+                    f"mid: mean reversion from the tenor-{last.tenor} anchor toward the base "
+                    f"anchor, kappa={self.kappa:.4f}/month ({self.kappa_source}); band: union "
+                    f"over scenarios and kappa in {band} plus a random-walk band of "
+                    f"{vol:.3f}*sqrt({beyond:g}) around the anchor interval"
                 )
             else:
-                notes.append(
-                    "flat extension from the first anchor at "
-                    f"tenor {detail['flat_from_first_anchor']}"
-                )
+                first = next(a for a in self.anchors if a.tenor == detail["flat_from_first_anchor"])
+                v = vol * math.sqrt(distance) * first.high
+                low, high = first.low - v, first.high + v
+                notes.append(f"flat extension from the first anchor at tenor {first.tenor}")
             unc = (
                 "model-band+scenario-union"
                 if status == STATUS_MODELED
                 else "judgmental-band+scenario-union"
             )
         finite = [v for v in scenarios.values() if v is not None]
-        if finite:
-            low = min(low, *finite)
-            high = max(high, *finite)
+        low = max(0.0, min(low, mid, *finite))
+        high = max(high, mid, *finite)
         evidence = sorted({qid for a in self.anchors for qid in a.evidence_ids})
         return Node(
             tenor,

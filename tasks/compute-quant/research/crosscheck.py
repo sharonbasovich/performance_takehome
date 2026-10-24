@@ -132,7 +132,7 @@ def commitment_context(items: list[NormalizedQuote], case: Case) -> list[dict[st
 def spot_context(items: list[NormalizedQuote], case: Case) -> list[dict[str, object]]:
     """Preemptible/spot quotes for the same hardware: a different (0% SLA) product."""
     flexible_asks = [
-        float(peer.single_gpu_equivalent or 0)
+        float(peer.usd_per_gpu_hour or 0)
         for peer in _valid_comparable(items)
         if peer.classification.contract_class == CLASS_FLEXIBLE and peer.quote.side == "ask"
     ]
@@ -149,7 +149,7 @@ def spot_context(items: list[NormalizedQuote], case: Case) -> list[dict[str, obj
                 "quote_id": item.quote.id,
                 "normalized_usd_per_gpu_hour": price,
                 "sla_pct": _f(item.quote.sla_pct),
-                "discount_vs_cheapest_flexible_on_demand_ask": (
+                "discount_vs_cheapest_flexible_on_demand_ask_per_gpu_hour": (
                     None if not flexible_asks else 1 - price / min(flexible_asks)
                 ),
                 "treatment": "context only: preemptible with "

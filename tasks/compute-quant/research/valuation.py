@@ -54,6 +54,7 @@ class MonthRow:
 @dataclass
 class Valuation:
     rows: list[MonthRow]
+    identified: bool
     reserved_hours: int
     fees_total: float
     fees_pv: float
@@ -114,9 +115,7 @@ def value_reservation(
         tenor = model.tenor_of(month)
         node = model.node(tenor, kappa=kappa, vol_multiplier=vol_multiplier)
         if node.mid is None or node.low is None or node.high is None:
-            raise ValueError(
-                f"curve is unidentified for {month_label(month)}; the reservation cannot be marked"
-            )
+            return _unidentified(case, k, month_label(month))
         hours = hours_in_month(month) * res.gpu_count
         pay = add_months(month, 1)
         df = discount_factor(rate, case.as_of, pay)
@@ -211,6 +210,7 @@ def value_reservation(
     }
     return Valuation(
         rows=rows,
+        identified=True,
         reserved_hours=hours_total,
         fees_total=k * hours_total,
         fees_pv=sum(r.fee_usd * r.discount_factor for r in rows),
@@ -247,13 +247,60 @@ def value_reservation(
     )
 
 
+def _unidentified(case: Case, k: float, month: str) -> Valuation:
+    res = case.reservation
+    hours = sum(hours_in_month(m) for m in months_between(res.delivery_start, res.delivery_end))
+    hours *= res.gpu_count
+    nan = float("nan")
+    return Valuation(
+        rows=[],
+        identified=False,
+        reserved_hours=hours,
+        fees_total=k * hours,
+        fees_pv=nan,
+        mark_undiscounted=nan,
+        mark_discounted=nan,
+        mark_sla_adjusted=nan,
+        mark_adjusted=nan,
+        mark_low=nan,
+        mark_high=nan,
+        fair_fixed_price=nan,
+        fair_fixed_low=nan,
+        fair_fixed_high=nan,
+        scenario_marks={},
+        scenario_fair_prices={},
+        decision="unidentified",
+        decision_basis=f"the curve is unidentified for delivery month {month}; no mark is produced",
+        flip_conditions=[],
+        wrong_usage_fees={"fees_owed_usd": k * hours},
+        assumptions=[
+            "reserved hours and fees are contractual facts; fair value needs comparable evidence"
+        ],
+    )
+
+
 def valuation_as_dict(val: Valuation) -> dict[str, object]:
     """JSON-ready representation with fixed rounding."""
 
     def r(x: float, p: int = 6) -> float:
         return round(x, p)
 
+    if not val.identified:
+        return {
+            "identified": False,
+            "reserved_hours": val.reserved_hours,
+            "fees_total_usd": r(val.fees_total, 2),
+            "months": [],
+            "buyer_mark": None,
+            "fair_fixed_price_usd_per_gpu_hour": None,
+            "decision": val.decision,
+            "decision_basis": val.decision_basis,
+            "usage_is_informational_only": {k: r(v, 4) for k, v in val.wrong_usage_fees.items()},
+            "assumptions": list(val.assumptions),
+        }
+
     return {
+        "identified": True,
         "reserved_hours": val.reserved_hours,
         "fees_total_usd": r(val.fees_total, 2),
         "fees_present_value_usd": r(val.fees_pv, 2),

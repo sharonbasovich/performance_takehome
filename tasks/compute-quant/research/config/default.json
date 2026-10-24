@@ -7,6 +7,7 @@
     "fit_min_tenor_months": 1,
     "default_reversion_per_month": 0.10,
     "max_reversion_per_month": 2.0,
+    "reversion_band_per_month": [0.0, 0.30],
     "horizon_vol_per_sqrt_month": 0.08,
     "model_horizon_months_before_forecast": 6
   },

@@ -127,52 +127,7 @@ def run_pipeline(
     nodes = [model.node(t) for t in case.tenor_months]
     base_cost = breakeven(case.economics)
     valuation = value_reservation(model, case)
-    sens = config["sensitivities"]
-    sensitivities = {
-        "supply_cost_breakeven_grid": sensitivity_grid(
-            case.economics, sens["utilizations"], sens["financing_rates"]
-        ),
-        "reversion_multiplier": [
-            {
-                "multiplier": m,
-                "kappa": model.kappa * m,
-                "curve_mid_by_tenor": {
-                    str(t): model.price(t, "base", model.kappa * m)[0] for t in case.tenor_months
-                },
-                "mark_adjusted_usd": value_reservation(
-                    model, case, kappa=model.kappa * m
-                ).mark_adjusted,
-            }
-            for m in sens["reversion_multipliers"]
-        ],
-        "discount_rate_bump": [
-            {
-                "bump": b,
-                "rate": float(case.economics.buyer_discount_annual_rate) + b,
-                "mark_adjusted_usd": value_reservation(
-                    model, case, discount_rate=float(case.economics.buyer_discount_annual_rate) + b
-                ).mark_adjusted,
-            }
-            for b in sens["discount_rate_bumps"]
-        ],
-        "default_probability": [
-            {
-                "p_default": p,
-                "mark_adjusted_usd": value_reservation(model, case, p_default=p).mark_adjusted,
-            }
-            for p in sens["default_probabilities"]
-        ],
-        "horizon_vol_multiplier": [
-            {
-                "multiplier": m,
-                "mark_interval_usd": {
-                    "low": value_reservation(model, case, vol_multiplier=m).mark_low,
-                    "high": value_reservation(model, case, vol_multiplier=m).mark_high,
-                },
-            }
-            for m in sens["horizon_vol_multipliers"]
-        ],
-    }
+    sensitivities = _sensitivities(model, case, config["sensitivities"], valuation.identified)
     quote_table = []
     for item in normalized:
         q, c = item.quote, item.classification
@@ -221,7 +176,11 @@ def run_pipeline(
             }
         )
     exclusions = [
-        {"id": row["id"], "reason": row["excluded_reason"] or "; ".join(row["reasons"])}
+        {
+            "id": row["id"],
+            "reason": row["excluded_reason"]
+            or "; ".join(x for x in row["reasons"] if not x.startswith("observed on/before")),
+        }
         for row in quote_table
         if not row["curve_eligible"]
     ]
@@ -246,7 +205,7 @@ def run_pipeline(
             "cancellation": case.reference_product.cancellation,
         },
         "inputs": {
-            "files": [f.__dict__ for f in loaded.files],
+            "files": [dict(f.__dict__, path=_display_path(f.path)) for f in loaded.files],
             "input_pack_digest": loaded.input_pack_digest,
             "input_pack_digest_definition": "sha256 over sorted "
             "'<role>:<sha256>\\n' lines (candidate-defined)",
@@ -335,6 +294,72 @@ def run_pipeline(
     return _round_floats(results)
 
 
+def _sensitivities(
+    model: CurveModel, case: Case, sens: dict, identified: bool
+) -> dict[str, object]:
+    """Sensitivity tables; valuation-based ones are empty when the curve is unidentified."""
+    out: dict[str, object] = {
+        "supply_cost_breakeven_grid": sensitivity_grid(
+            case.economics, sens["utilizations"], sens["financing_rates"]
+        ),
+        "reversion_multiplier": [
+            {
+                "multiplier": m,
+                "kappa": model.kappa * m,
+                "curve_mid_by_tenor": {
+                    str(t): model.price(t, "base", model.kappa * m)[0] for t in case.tenor_months
+                },
+            }
+            for m in sens["reversion_multipliers"]
+        ],
+        "discount_rate_bump": [],
+        "default_probability": [],
+        "horizon_vol_multiplier": [],
+    }
+    if not identified:
+        return out
+    base_rate = float(case.economics.buyer_discount_annual_rate)
+    for row in out["reversion_multiplier"]:
+        row["mark_adjusted_usd"] = value_reservation(model, case, kappa=row["kappa"]).mark_adjusted
+    out["discount_rate_bump"] = [
+        {
+            "bump": b,
+            "rate": base_rate + b,
+            "mark_adjusted_usd": value_reservation(
+                model, case, discount_rate=base_rate + b
+            ).mark_adjusted,
+        }
+        for b in sens["discount_rate_bumps"]
+    ]
+    out["default_probability"] = [
+        {
+            "p_default": p,
+            "mark_adjusted_usd": value_reservation(model, case, p_default=p).mark_adjusted,
+        }
+        for p in sens["default_probabilities"]
+    ]
+    out["horizon_vol_multiplier"] = [
+        {
+            "multiplier": m,
+            "mark_interval_usd": {
+                "low": value_reservation(model, case, vol_multiplier=m).mark_low,
+                "high": value_reservation(model, case, vol_multiplier=m).mark_high,
+            },
+        }
+        for m in sens["horizon_vol_multipliers"]
+    ]
+    return out
+
+
+def _display_path(path: str) -> str:
+    """Repository-relative POSIX path when the file is inside the repo, else as given."""
+    repo_root = PACKAGE_DIR.parents[2]
+    try:
+        return Path(path).resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return Path(path).as_posix()
+
+
 def _round_floats(obj):
     if isinstance(obj, float):
         return round(obj, 8)
@@ -406,7 +431,7 @@ def build_manifest(
             "implementation": platform.python_implementation(),
         },
         "command": argv,
-        "case": case_path.as_posix(),
+        "case": _display_path(str(case_path)),
         "config": (Path(config_path).as_posix() if config_path else "research/config/default.json"),
         "config_name": results["config"].get("name"),
         "inputs": results["inputs"],
