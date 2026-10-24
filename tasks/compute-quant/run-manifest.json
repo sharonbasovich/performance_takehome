@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "task": "compute-quant",
-  "generated_at": "2026-10-24T09:08:57Z",
+  "generated_at": "2026-10-24T09:09:26Z",
   "generated_at_source": "SOURCE_DATE_EPOCH",
   "code": {
     "package": "tasks/compute-quant/research",
     "version": "1.0.0",
-    "source_sha256": "c2162a6d494ec94840c5c598984d76fdb49ebd98897c7b46c7f43acec8cc36d0",
-    "git_commit": "123ce9f39737b12a42c48b2e6bd282c1c474c045",
+    "source_sha256": "eee437f160eef6543afc3f392e530df3c634b3a7aff882d38f60f45e2b4bace7",
+    "git_commit": "f8d36fc3f83836426cdb776f5427d92d7e959bb3",
     "git_commit_note": "HEAD when the manifest was generated; the commit that adds the manifest necessarily comes after it, so compare git_tree_research instead",
-    "git_tree_research": "f8e78c83bfa4c0b576b50a7dbe769abb05681931"
+    "git_tree_research": "5bede768c8a39c1dba2940de2f9492418e254896"
   },
   "python": {
     "version": "3.11.17",
@@ -178,6 +178,7 @@
   "outputs": [
     "curve.csv",
     "valuation.json",
-    "run-manifest.json"
+    "run-manifest.json",
+    "normalization.csv"
   ]
 }
