@@ -286,7 +286,7 @@ Valuation assumptions:
 | Input pack | `data/demo-case.json`, `demo-quotes.csv`, `demo-performance.csv`, `data/README.md` (synthetic) | — | frozen, licensed, dated evidence pack with source documents |
 | Input schema | `schema_version` 1 fields in `data/README.md` | optional `fee_usd_per_gpu_hour`, `one_time_fee_usd` columns and `fx_rates_to_usd` (documented in `research/README.md`) | organizer confirmation of extensions; frozen validation commands |
 | Input-pack digest | placeholder in `submission.example.json` | deterministic sha256 over per-file digests (`loader.py`) | organizer definition |
-| Output schema | artifact names only | `curve.csv` columns, `valuation.json`/`run-manifest.json` with `schema_version` | organizer schema, if any |
+| Output schema | artifact names only | `curve.csv` columns, `valuation.json`/`run-manifest.json`/`normalization.csv` with `schema_version` | organizer schema, if any |
 | Model parameters | economic assumptions in the case | `research/config/default.json` (declared, versioned) | calibration data |
 | Held-out perturbations | described in the rubric | `standins/perturbations/` fixtures exercised by the tests | the organizer's actual perturbations |
 | Starter tag | commit only, no `takehome-start` tag | integrity check run against the commit SHA | the tag |
@@ -306,7 +306,7 @@ python tasks/compute-quant/research/run.py \
   --case tasks/compute-quant/data/demo-case.json \
   --out tasks/compute-quant/outputs/ \
   --report tasks/compute-quant/outputs/REPORT.md
-cp tasks/compute-quant/outputs/{curve.csv,valuation.json,run-manifest.json,REPORT.md} tasks/compute-quant/
+cp tasks/compute-quant/outputs/{curve.csv,valuation.json,run-manifest.json,normalization.csv,REPORT.md} tasks/compute-quant/
 python -m unittest discover -s tasks/compute-quant/tests -t tasks/compute-quant -v
 python -B -m tools.check_integrity --base 81aead87d78ed468c4c374fb42921471b44c3f80
 ```
