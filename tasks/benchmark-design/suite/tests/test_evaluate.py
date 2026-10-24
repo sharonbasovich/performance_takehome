@@ -93,6 +93,25 @@ class StatusTests(unittest.TestCase):
         self.assertEqual(
             (unit["planned"], unit["offered"], unit["not_offered"]), (self.n + 5, self.n, 5)
         )
+        self.assertEqual(report["status"], "inconclusive")
+        self.assertTrue(
+            any("incomplete population evidence" in r for r in report["inconclusive_reasons"])
+        )
+
+    def test_entire_planned_cell_missing_is_inconclusive_despite_other_complete_cells(self) -> None:
+        records = clean_cell(self.plan, "chat_short_open", self.n)
+        missing = [
+            r for r in clean_cell(self.plan, "generation_long_open", self.n)
+            if r["phase"] == "measure"
+        ]
+        all_records = records + missing
+        run = make_run(all_records)
+        kept = [r for r in all_records if r["cell_id"] != "generation_long_open"]
+        report, _, _ = run_eval(self.plan, kept, run=run)
+        self.assertEqual(report["status"], "inconclusive")
+        unit = report["population"]["units"][missing[0]["unit_id"]]
+        self.assertEqual(unit["offered"], 0)
+        self.assertEqual(unit["not_offered"], self.n)
 
 
 class StartupTests(unittest.TestCase):

@@ -54,6 +54,23 @@ class PlanValidationTests(unittest.TestCase):
 
 
 class BudgetArithmeticTests(unittest.TestCase):
+    def test_submission_costs_match_the_current_plan(self) -> None:
+        submission = json.loads(
+            (PLAN_PATH.parents[1] / "submission.json").read_text(encoding="utf-8")
+        )
+        plan = load_plan(PLAN_PATH)
+        for mode in ("quick", "full"):
+            with self.subTest(mode=mode):
+                estimate = estimate_mode(plan, mode)
+                self.assertEqual(
+                    submission["suite"]["planned_wall_minutes"][mode],
+                    estimate["planned_wall_minutes"],
+                )
+                self.assertEqual(
+                    submission["suite"]["planned_gpu_hours"][mode],
+                    estimate["planned_gpu_hours"],
+                )
+
     def test_full_mode_fits_three_hours_and_quick_is_cheaper(self) -> None:
         plan = load_plan(PLAN_PATH)
         quick, full = estimate_mode(plan, "quick"), estimate_mode(plan, "full")

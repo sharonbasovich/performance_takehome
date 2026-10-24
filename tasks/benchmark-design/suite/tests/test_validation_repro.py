@@ -1,6 +1,7 @@
 """The committed validation artifacts are reproduced by one documented command (round-2 F8/nit)."""
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -22,11 +23,20 @@ class ValidationReproducibilityTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 timeout=600,
-                env={"PATH": "", "BENCHMARK_DESIGN_HELDOUT_KEY": str(Path(tmp) / "no-key")},
+                env={
+                    **(
+                        {"SYSTEMROOT": os.environ["SYSTEMROOT"]}
+                        if "SYSTEMROOT" in os.environ else {}
+                    ),
+                    "PATH": "",
+                    "USERPROFILE": str(Path(tmp)),
+                    "BENCHMARK_DESIGN_HELDOUT_KEY": str(Path(tmp) / "no-key"),
+                },
             )
             self.assertIn(proc.returncode, (0, 1), proc.stderr[-800:])
             for name in COMPARED:
                 with self.subTest(file=name):
+                    self.assertTrue((Path(tmp) / name).is_file(), proc.stderr[-1500:])
                     fresh = json.loads((Path(tmp) / name).read_text(encoding="utf-8"))
                     committed = json.loads((TASK / "validation" / name).read_text(encoding="utf-8"))
                     self.assertEqual(fresh, committed)

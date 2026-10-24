@@ -185,6 +185,11 @@ class Evaluator:
             row[self.verdicts[rec.request_id].category] += 1
         for unit_id, row in table.items():
             row["not_offered"] = max(0, row["planned"] - row["offered"])
+            if row["not_offered"]:
+                self.inconclusive.append(
+                    f"unit {unit_id} has incomplete population evidence: "
+                    f"{row['offered']} offered < {row['planned']} planned"
+                )
             if row["offered"] > row["planned"] > 0:
                 self.reasons.append(
                     f"unit {unit_id} offered {row['offered']} > planned {row['planned']}"

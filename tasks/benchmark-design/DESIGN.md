@@ -119,6 +119,7 @@ the band and changes the resolution flag to `token` — nothing else changes.
 | HTTP ≠ 200, protocol violation (bad JSON, data after `[DONE]` or after the usage chunk, chunks from more than one completion id, multiple choices, non-`text/event-stream` response), empty output, text fails expected properties, `finish_reason` not allowed, usage outside band | request `failed` (scored as failure, fluidity 0) | server |
 | no `[DONE]`, no `finish_reason`, connection drop, timeout | request `unfinished` (scored as failure) | server |
 | run-level: status ≠ completed, event-loop lag > 50 ms in a measurement window, lag not measured, engine identity missing, A/A controls confidently different, claimed-valid startup probe fails gates | **run invalid** | evidence |
+| any planned measurement unit has fewer offered request records than planned, including a completely absent cell | **run inconclusive** (incomplete population evidence) | sufficiency |
 | fewer than `min_requests_per_cell` trustworthy requests in a cell, no cold launch, no launch reached a valid generation, no cell with enough evidence | **run inconclusive** | sufficiency |
 
 The report's `status` is `invalid` if any evidence gate fired, else `inconclusive` if any

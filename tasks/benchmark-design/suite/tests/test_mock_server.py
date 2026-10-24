@@ -3,6 +3,7 @@
 import asyncio
 import json
 import tempfile
+import time
 import unittest
 from argparse import Namespace
 from pathlib import Path
@@ -102,9 +103,13 @@ class LoopbackTests(unittest.TestCase):
                     )
                     runner._requests_fh = (Path(tmp) / "requests.jsonl").open("w", encoding="utf-8")
                     async with httpx.AsyncClient(timeout=10.0) as client:
+                        # Client/TLS initialization can exceed the scaled fault window,
+                        # particularly on Windows. Start the simulated boot after it.
+                        server.started_mono = time.monotonic()
                         await runner.startup(client, 0)
                     runner._requests_fh.close()
-                    probes = sum(1 for _ in (Path(tmp) / "requests.jsonl").open(encoding="utf-8"))
+                    with (Path(tmp) / "requests.jsonl").open(encoding="utf-8") as captured:
+                        probes = sum(1 for _ in captured)
                 return runner.startups[0], probes
             finally:
                 await server.close()

@@ -4,12 +4,16 @@ import contextlib
 import gzip
 import io
 import json
-import resource
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+try:
+    import resource
+except ImportError:  # Windows has no POSIX resource module.
+    resource = None
 
 import evaluate as ev_mod
 from bench.records import MAX_RECORD_BYTES, EvidenceError, load_events
@@ -80,6 +84,9 @@ class BoundedReaderTests(unittest.TestCase):
             report = ev_mod.evaluate(the_plan, Path(tmp), "native")[0]
             self.assertEqual(report["status"], "invalid")
 
+    @unittest.skipUnless(
+        sys.platform.startswith("linux"), "requires Linux resource limits/RSS units"
+    )
     def test_single_line_gzip_bomb_fails_fast_under_memory_cap(self) -> None:
         """A 600 MB single line (0.6 MB gzip) must raise with < 512 MB address space."""
         with tempfile.TemporaryDirectory() as tmp:

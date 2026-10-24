@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 import evaluate as ev_mod
-from bench.plan import load_plan
+from bench.plan import load_plan, plan_digest
 from fixtures.expectations import run_checks
 from fixtures.generate import DEFAULT_KEY_PATH
 
@@ -47,6 +47,15 @@ class PublicFixtureTests(unittest.TestCase):
                 self.assertEqual(
                     report["status"], self.label(name)["expected"]["status"], report.get("reasons")
                 )
+
+    def test_shipped_fixture_workload_bytes_match_recorded_digest(self) -> None:
+        digest = plan_digest(MOCK_PLAN_PATH)
+        for directory in sorted(PUBLIC.iterdir()):
+            run_path = directory / "run.json"
+            if run_path.is_file():
+                with self.subTest(fixture=directory.name):
+                    run = json.loads(run_path.read_text(encoding="utf-8"))
+                    self.assertEqual(run["plan"]["digest"], digest)
 
     def test_controls_have_no_rejections_and_stable_aa(self) -> None:
         for name in ("clean", "noisy"):
