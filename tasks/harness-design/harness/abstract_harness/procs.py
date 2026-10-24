@@ -1,0 +1,107 @@
+"""Subprocess helpers: every child runs in its own process group and is killed on timeout."""
+
+from __future__ import annotations
+
+import os
+import signal
+import subprocess
+import time
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from pathlib import Path
+
+
+@dataclass(frozen=True)
+class RunResult:
+    """Outcome of :func:`run`. ``timed_out`` means the whole group was killed."""
+
+    args: tuple[str, ...]
+    returncode: int | None
+    stdout: str
+    stderr: str
+    duration_s: float
+    timed_out: bool
+
+    @property
+    def ok(self) -> bool:
+        """True when the process exited 0 within the timeout."""
+        return self.returncode == 0 and not self.timed_out
+
+
+def kill_process_group(proc: subprocess.Popen[str], grace_s: float = 3.0) -> None:
+    """SIGTERM the child's process group, then SIGKILL anything still alive."""
+    if proc.poll() is not None:
+        return
+    try:
+        pgid = os.getpgid(proc.pid)
+    except ProcessLookupError:
+        return
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(pgid, sig)
+        except ProcessLookupError:
+            return
+        deadline = time.monotonic() + grace_s
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                return
+            time.sleep(0.05)
+
+
+def run(
+    args: Sequence[str],
+    *,
+    timeout_s: float,
+    cwd: Path | None = None,
+    env: Mapping[str, str] | None = None,
+    stdin_text: str | None = None,
+    log_path: Path | None = None,
+) -> RunResult:
+    """Run ``args`` in a new session; kill the process group if ``timeout_s`` elapses.
+
+    ``log_path`` receives combined stdout+stderr as the process runs so a hung
+    build still leaves a partial log behind.
+    """
+    start = time.monotonic()
+    log_fh = None
+    if log_path is not None:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_fh = log_path.open("w", encoding="utf-8")
+    try:
+        proc = subprocess.Popen(
+            list(args),
+            cwd=str(cwd) if cwd else None,
+            env=dict(env) if env is not None else None,
+            stdin=subprocess.PIPE if stdin_text is not None else subprocess.DEVNULL,
+            stdout=log_fh if log_fh else subprocess.PIPE,
+            stderr=subprocess.STDOUT if log_fh else subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+    except OSError as exc:
+        if log_fh:
+            log_fh.write(f"failed to start: {exc}\n")
+            log_fh.close()
+        return RunResult(tuple(args), None, "", str(exc), time.monotonic() - start, False)
+    timed_out = False
+    try:
+        stdout, stderr = proc.communicate(input=stdin_text, timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        kill_process_group(proc)
+        try:
+            stdout, stderr = proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            stdout, stderr = "", ""
+    except BaseException:
+        # e.g. the harness's SIGTERM handler raised: never leave the child running
+        kill_process_group(proc)
+        raise
+    finally:
+        if log_fh:
+            log_fh.close()
+    duration = time.monotonic() - start
+    if log_fh is not None:
+        stdout = log_path.read_text(encoding="utf-8", errors="replace") if log_path else ""
+        stderr = ""
+    return RunResult(tuple(args), proc.returncode, stdout or "", stderr or "", duration, timed_out)
