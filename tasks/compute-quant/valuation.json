@@ -65,664 +65,685 @@
       "cancellation"
     ],
     "excluded_quote_ids_by_flag": [],
-    "unknown_case_keys": []
+    "unknown_case_keys": [],
+    "unknown_nested_case_keys": [],
+    "unknown_config_keys": []
   },
-  "quotes": [
-    {
-      "id": "q01",
-      "provider": "synthetic-a",
-      "kind": "current_on_demand",
-      "side": "ask",
-      "observed_at": "2026-09-30T00:00:00Z",
-      "valid_until": "2026-10-03T00:00:00Z",
-      "raw": {
-        "price": 5.2,
-        "currency": "USD",
-        "unit": "gpu_hour",
-        "gpu_count": 1
+  "quotes": {
+    "count": 11,
+    "rows": [
+      {
+        "id": "q01",
+        "provider": "synthetic-a",
+        "kind": "current_on_demand",
+        "side": "ask",
+        "observed_at": "2026-09-30T00:00:00Z",
+        "valid_until": "2026-10-03T00:00:00Z",
+        "raw": {
+          "price": 5.2,
+          "currency": "USD",
+          "unit": "gpu_hour",
+          "gpu_count": 1
+        },
+        "as_of_status": "valid",
+        "tier": "comparable",
+        "contract_class": "flexible_on_demand",
+        "delivery_months": [],
+        "tenor_months": [],
+        "curve_eligible": false,
+        "usd_per_gpu_hour": 5.2,
+        "single_gpu_equivalent_usd_per_gpu_hour": 5.2,
+        "excluded_reason": null,
+        "steps": [
+          {
+            "step": "currency",
+            "before": 5.2,
+            "after": 5.2,
+            "note": "USD; no conversion"
+          },
+          {
+            "step": "unit",
+            "before": 5.2,
+            "after": 5.2,
+            "note": "already per GPU-hour"
+          },
+          {
+            "step": "fees",
+            "before": 5.2,
+            "after": 5.2,
+            "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
+          },
+          {
+            "step": "payment_timing",
+            "before": 5.2,
+            "after": 5.2,
+            "note": "arrears matches the reference convention"
+          }
+        ],
+        "reasons": [
+          "observed on/before as-of and not expired",
+          "cancellable ('anytime') hourly usage without guaranteed future capacity"
+        ],
+        "unknown_columns": {}
       },
-      "as_of_status": "valid",
-      "tier": "comparable",
-      "contract_class": "flexible_on_demand",
-      "delivery_months": [],
-      "tenor_months": [],
-      "curve_eligible": false,
-      "usd_per_gpu_hour": 5.2,
-      "single_gpu_equivalent_usd_per_gpu_hour": 5.2,
-      "excluded_reason": null,
-      "steps": [
-        {
-          "step": "currency",
-          "before": 5.2,
-          "after": 5.2,
-          "note": "USD; no conversion"
+      {
+        "id": "q02",
+        "provider": "synthetic-b",
+        "kind": "current_on_demand",
+        "side": "ask",
+        "observed_at": "2026-09-29T00:00:00Z",
+        "valid_until": "2026-10-04T00:00:00Z",
+        "raw": {
+          "price": 36.0,
+          "currency": "USD",
+          "unit": "node_hour",
+          "gpu_count": 8
         },
-        {
-          "step": "unit",
-          "before": 5.2,
-          "after": 5.2,
-          "note": "already per GPU-hour"
-        },
-        {
-          "step": "fees",
-          "before": 5.2,
-          "after": 5.2,
-          "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
-        },
-        {
-          "step": "payment_timing",
-          "before": 5.2,
-          "after": 5.2,
-          "note": "arrears matches the reference convention"
-        }
-      ],
-      "reasons": [
-        "observed on/before as-of and not expired",
-        "cancellable ('anytime') hourly usage without guaranteed future capacity"
-      ],
-      "unknown_columns": {}
-    },
-    {
-      "id": "q02",
-      "provider": "synthetic-b",
-      "kind": "current_on_demand",
-      "side": "ask",
-      "observed_at": "2026-09-29T00:00:00Z",
-      "valid_until": "2026-10-04T00:00:00Z",
-      "raw": {
-        "price": 36.0,
-        "currency": "USD",
-        "unit": "node_hour",
-        "gpu_count": 8
+        "as_of_status": "valid",
+        "tier": "comparable",
+        "contract_class": "flexible_on_demand",
+        "delivery_months": [],
+        "tenor_months": [],
+        "curve_eligible": false,
+        "usd_per_gpu_hour": 4.5,
+        "single_gpu_equivalent_usd_per_gpu_hour": 5.199998,
+        "excluded_reason": null,
+        "steps": [
+          {
+            "step": "currency",
+            "before": 36.0,
+            "after": 36.0,
+            "note": "USD; no conversion"
+          },
+          {
+            "step": "unit",
+            "before": 36.0,
+            "after": 4.5,
+            "note": "node_hour / 8 GPUs"
+          },
+          {
+            "step": "fees",
+            "before": 4.5,
+            "after": 4.5,
+            "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
+          },
+          {
+            "step": "payment_timing",
+            "before": 4.5,
+            "after": 4.5,
+            "note": "arrears matches the reference convention"
+          },
+          {
+            "step": "quantity",
+            "before": 4.5,
+            "after": 5.199998,
+            "note": "gpu_count 8 != reference 1; divided by quantity factor 0.865385"
+          }
+        ],
+        "reasons": [
+          "observed on/before as-of and not expired",
+          "cancellable ('anytime') hourly usage without guaranteed future capacity"
+        ],
+        "unknown_columns": {}
       },
-      "as_of_status": "valid",
-      "tier": "comparable",
-      "contract_class": "flexible_on_demand",
-      "delivery_months": [],
-      "tenor_months": [],
-      "curve_eligible": false,
-      "usd_per_gpu_hour": 4.5,
-      "single_gpu_equivalent_usd_per_gpu_hour": 5.199998,
-      "excluded_reason": null,
-      "steps": [
-        {
-          "step": "currency",
-          "before": 36.0,
-          "after": 36.0,
-          "note": "USD; no conversion"
+      {
+        "id": "q03",
+        "provider": "synthetic-a",
+        "kind": "usage_commitment",
+        "side": "ask",
+        "observed_at": "2026-09-28T00:00:00Z",
+        "valid_until": "2026-10-05T00:00:00Z",
+        "raw": {
+          "price": 3.4,
+          "currency": "USD",
+          "unit": "gpu_hour",
+          "gpu_count": 1
         },
-        {
-          "step": "unit",
-          "before": 36.0,
-          "after": 4.5,
-          "note": "node_hour / 8 GPUs"
-        },
-        {
-          "step": "fees",
-          "before": 4.5,
-          "after": 4.5,
-          "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
-        },
-        {
-          "step": "payment_timing",
-          "before": 4.5,
-          "after": 4.5,
-          "note": "arrears matches the reference convention"
-        },
-        {
-          "step": "quantity",
-          "before": 4.5,
-          "after": 5.199998,
-          "note": "gpu_count 8 != reference 1; divided by quantity factor 0.865385"
-        }
-      ],
-      "reasons": [
-        "observed on/before as-of and not expired",
-        "cancellable ('anytime') hourly usage without guaranteed future capacity"
-      ],
-      "unknown_columns": {}
-    },
-    {
-      "id": "q03",
-      "provider": "synthetic-a",
-      "kind": "usage_commitment",
-      "side": "ask",
-      "observed_at": "2026-09-28T00:00:00Z",
-      "valid_until": "2026-10-05T00:00:00Z",
-      "raw": {
-        "price": 3.4,
-        "currency": "USD",
-        "unit": "gpu_hour",
-        "gpu_count": 1
+        "as_of_status": "valid",
+        "tier": "comparable",
+        "contract_class": "usage_commitment",
+        "delivery_months": [],
+        "tenor_months": [],
+        "curve_eligible": false,
+        "usd_per_gpu_hour": 3.4,
+        "single_gpu_equivalent_usd_per_gpu_hour": 3.4,
+        "excluded_reason": null,
+        "steps": [
+          {
+            "step": "currency",
+            "before": 3.4,
+            "after": 3.4,
+            "note": "USD; no conversion"
+          },
+          {
+            "step": "unit",
+            "before": 3.4,
+            "after": 3.4,
+            "note": "already per GPU-hour"
+          },
+          {
+            "step": "fees",
+            "before": 3.4,
+            "after": 3.4,
+            "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
+          },
+          {
+            "step": "payment_timing",
+            "before": 3.4,
+            "after": 3.4,
+            "note": "arrears matches the reference convention"
+          }
+        ],
+        "reasons": [
+          "observed on/before as-of and not expired",
+          "spend commitment on current usage without a delivery window or guaranteed capacity: a discount on today's usage, not a forward"
+        ],
+        "unknown_columns": {}
       },
-      "as_of_status": "valid",
-      "tier": "comparable",
-      "contract_class": "usage_commitment",
-      "delivery_months": [],
-      "tenor_months": [],
-      "curve_eligible": false,
-      "usd_per_gpu_hour": 3.4,
-      "single_gpu_equivalent_usd_per_gpu_hour": 3.4,
-      "excluded_reason": null,
-      "steps": [
-        {
-          "step": "currency",
-          "before": 3.4,
-          "after": 3.4,
-          "note": "USD; no conversion"
+      {
+        "id": "q04",
+        "provider": "synthetic-c",
+        "kind": "firm_forward",
+        "side": "ask",
+        "observed_at": "2026-09-30T00:00:00Z",
+        "valid_until": "2026-10-10T00:00:00Z",
+        "raw": {
+          "price": 4.9,
+          "currency": "USD",
+          "unit": "gpu_hour",
+          "gpu_count": 1
         },
-        {
-          "step": "unit",
-          "before": 3.4,
-          "after": 3.4,
-          "note": "already per GPU-hour"
-        },
-        {
-          "step": "fees",
-          "before": 3.4,
-          "after": 3.4,
-          "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
-        },
-        {
-          "step": "payment_timing",
-          "before": 3.4,
-          "after": 3.4,
-          "note": "arrears matches the reference convention"
-        }
-      ],
-      "reasons": [
-        "observed on/before as-of and not expired",
-        "spend commitment on current usage without a delivery window or guaranteed capacity: a discount on today's usage, not a forward"
-      ],
-      "unknown_columns": {}
-    },
-    {
-      "id": "q04",
-      "provider": "synthetic-c",
-      "kind": "firm_forward",
-      "side": "ask",
-      "observed_at": "2026-09-30T00:00:00Z",
-      "valid_until": "2026-10-10T00:00:00Z",
-      "raw": {
-        "price": 4.9,
-        "currency": "USD",
-        "unit": "gpu_hour",
-        "gpu_count": 1
+        "as_of_status": "valid",
+        "tier": "comparable",
+        "contract_class": "reserved_capacity",
+        "delivery_months": [
+          "2026-11"
+        ],
+        "tenor_months": [
+          1
+        ],
+        "curve_eligible": true,
+        "usd_per_gpu_hour": 4.9,
+        "single_gpu_equivalent_usd_per_gpu_hour": 4.9,
+        "excluded_reason": null,
+        "steps": [
+          {
+            "step": "currency",
+            "before": 4.9,
+            "after": 4.9,
+            "note": "USD; no conversion"
+          },
+          {
+            "step": "unit",
+            "before": 4.9,
+            "after": 4.9,
+            "note": "already per GPU-hour"
+          },
+          {
+            "step": "fees",
+            "before": 4.9,
+            "after": 4.9,
+            "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
+          },
+          {
+            "step": "payment_timing",
+            "before": 4.9,
+            "after": 4.9,
+            "note": "arrears matches the reference convention"
+          }
+        ],
+        "reasons": [
+          "observed on/before as-of and not expired",
+          "guaranteed capacity for a stated window, not cancellable"
+        ],
+        "unknown_columns": {}
       },
-      "as_of_status": "valid",
-      "tier": "comparable",
-      "contract_class": "reserved_capacity",
-      "delivery_months": [
-        "2026-11"
-      ],
-      "tenor_months": [
-        1
-      ],
-      "curve_eligible": true,
-      "usd_per_gpu_hour": 4.9,
-      "single_gpu_equivalent_usd_per_gpu_hour": 4.9,
-      "excluded_reason": null,
-      "steps": [
-        {
-          "step": "currency",
-          "before": 4.9,
-          "after": 4.9,
-          "note": "USD; no conversion"
+      {
+        "id": "q05",
+        "provider": "synthetic-c",
+        "kind": "firm_forward",
+        "side": "ask",
+        "observed_at": "2026-09-30T00:00:00Z",
+        "valid_until": "2026-10-10T00:00:00Z",
+        "raw": {
+          "price": 4.5,
+          "currency": "USD",
+          "unit": "gpu_hour",
+          "gpu_count": 1
         },
-        {
-          "step": "unit",
-          "before": 4.9,
-          "after": 4.9,
-          "note": "already per GPU-hour"
-        },
-        {
-          "step": "fees",
-          "before": 4.9,
-          "after": 4.9,
-          "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
-        },
-        {
-          "step": "payment_timing",
-          "before": 4.9,
-          "after": 4.9,
-          "note": "arrears matches the reference convention"
-        }
-      ],
-      "reasons": [
-        "observed on/before as-of and not expired",
-        "guaranteed capacity for a stated window, not cancellable"
-      ],
-      "unknown_columns": {}
-    },
-    {
-      "id": "q05",
-      "provider": "synthetic-c",
-      "kind": "firm_forward",
-      "side": "ask",
-      "observed_at": "2026-09-30T00:00:00Z",
-      "valid_until": "2026-10-10T00:00:00Z",
-      "raw": {
-        "price": 4.5,
-        "currency": "USD",
-        "unit": "gpu_hour",
-        "gpu_count": 1
+        "as_of_status": "valid",
+        "tier": "comparable",
+        "contract_class": "reserved_capacity",
+        "delivery_months": [
+          "2027-01"
+        ],
+        "tenor_months": [
+          3
+        ],
+        "curve_eligible": true,
+        "usd_per_gpu_hour": 4.5,
+        "single_gpu_equivalent_usd_per_gpu_hour": 4.5,
+        "excluded_reason": null,
+        "steps": [
+          {
+            "step": "currency",
+            "before": 4.5,
+            "after": 4.5,
+            "note": "USD; no conversion"
+          },
+          {
+            "step": "unit",
+            "before": 4.5,
+            "after": 4.5,
+            "note": "already per GPU-hour"
+          },
+          {
+            "step": "fees",
+            "before": 4.5,
+            "after": 4.5,
+            "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
+          },
+          {
+            "step": "payment_timing",
+            "before": 4.5,
+            "after": 4.5,
+            "note": "arrears matches the reference convention"
+          }
+        ],
+        "reasons": [
+          "observed on/before as-of and not expired",
+          "guaranteed capacity for a stated window, not cancellable"
+        ],
+        "unknown_columns": {}
       },
-      "as_of_status": "valid",
-      "tier": "comparable",
-      "contract_class": "reserved_capacity",
-      "delivery_months": [
-        "2027-01"
-      ],
-      "tenor_months": [
-        3
-      ],
-      "curve_eligible": true,
-      "usd_per_gpu_hour": 4.5,
-      "single_gpu_equivalent_usd_per_gpu_hour": 4.5,
-      "excluded_reason": null,
-      "steps": [
-        {
-          "step": "currency",
-          "before": 4.5,
-          "after": 4.5,
-          "note": "USD; no conversion"
+      {
+        "id": "q06",
+        "provider": "synthetic-buyer",
+        "kind": "firm_forward",
+        "side": "bid",
+        "observed_at": "2026-09-30T00:00:00Z",
+        "valid_until": "2026-10-08T00:00:00Z",
+        "raw": {
+          "price": 4.0,
+          "currency": "USD",
+          "unit": "gpu_hour",
+          "gpu_count": 1
         },
-        {
-          "step": "unit",
-          "before": 4.5,
-          "after": 4.5,
-          "note": "already per GPU-hour"
-        },
-        {
-          "step": "fees",
-          "before": 4.5,
-          "after": 4.5,
-          "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
-        },
-        {
-          "step": "payment_timing",
-          "before": 4.5,
-          "after": 4.5,
-          "note": "arrears matches the reference convention"
-        }
-      ],
-      "reasons": [
-        "observed on/before as-of and not expired",
-        "guaranteed capacity for a stated window, not cancellable"
-      ],
-      "unknown_columns": {}
-    },
-    {
-      "id": "q06",
-      "provider": "synthetic-buyer",
-      "kind": "firm_forward",
-      "side": "bid",
-      "observed_at": "2026-09-30T00:00:00Z",
-      "valid_until": "2026-10-08T00:00:00Z",
-      "raw": {
-        "price": 4.0,
-        "currency": "USD",
-        "unit": "gpu_hour",
-        "gpu_count": 1
+        "as_of_status": "valid",
+        "tier": "comparable",
+        "contract_class": "reserved_capacity",
+        "delivery_months": [
+          "2027-01"
+        ],
+        "tenor_months": [
+          3
+        ],
+        "curve_eligible": true,
+        "usd_per_gpu_hour": 4.0,
+        "single_gpu_equivalent_usd_per_gpu_hour": 4.0,
+        "excluded_reason": null,
+        "steps": [
+          {
+            "step": "currency",
+            "before": 4.0,
+            "after": 4.0,
+            "note": "USD; no conversion"
+          },
+          {
+            "step": "unit",
+            "before": 4.0,
+            "after": 4.0,
+            "note": "already per GPU-hour"
+          },
+          {
+            "step": "fees",
+            "before": 4.0,
+            "after": 4.0,
+            "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
+          },
+          {
+            "step": "payment_timing",
+            "before": 4.0,
+            "after": 4.0,
+            "note": "arrears matches the reference convention"
+          }
+        ],
+        "reasons": [
+          "observed on/before as-of and not expired",
+          "guaranteed capacity for a stated window, not cancellable"
+        ],
+        "unknown_columns": {}
       },
-      "as_of_status": "valid",
-      "tier": "comparable",
-      "contract_class": "reserved_capacity",
-      "delivery_months": [
-        "2027-01"
-      ],
-      "tenor_months": [
-        3
-      ],
-      "curve_eligible": true,
-      "usd_per_gpu_hour": 4.0,
-      "single_gpu_equivalent_usd_per_gpu_hour": 4.0,
-      "excluded_reason": null,
-      "steps": [
-        {
-          "step": "currency",
-          "before": 4.0,
-          "after": 4.0,
-          "note": "USD; no conversion"
+      {
+        "id": "q07",
+        "provider": "synthetic-b",
+        "kind": "current_on_demand",
+        "side": "ask",
+        "observed_at": "2026-09-30T00:00:00Z",
+        "valid_until": "2026-10-02T00:00:00Z",
+        "raw": {
+          "price": 24000.0,
+          "currency": "USD",
+          "unit": "node_month",
+          "gpu_count": 8
         },
-        {
-          "step": "unit",
-          "before": 4.0,
-          "after": 4.0,
-          "note": "already per GPU-hour"
-        },
-        {
-          "step": "fees",
-          "before": 4.0,
-          "after": 4.0,
-          "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
-        },
-        {
-          "step": "payment_timing",
-          "before": 4.0,
-          "after": 4.0,
-          "note": "arrears matches the reference convention"
-        }
-      ],
-      "reasons": [
-        "observed on/before as-of and not expired",
-        "guaranteed capacity for a stated window, not cancellable"
-      ],
-      "unknown_columns": {}
-    },
-    {
-      "id": "q07",
-      "provider": "synthetic-b",
-      "kind": "current_on_demand",
-      "side": "ask",
-      "observed_at": "2026-09-30T00:00:00Z",
-      "valid_until": "2026-10-02T00:00:00Z",
-      "raw": {
-        "price": 24000.0,
-        "currency": "USD",
-        "unit": "node_month",
-        "gpu_count": 8
+        "as_of_status": "valid",
+        "tier": "comparable",
+        "contract_class": "reserved_capacity",
+        "delivery_months": [
+          "2026-10"
+        ],
+        "tenor_months": [
+          0
+        ],
+        "curve_eligible": true,
+        "usd_per_gpu_hour": 4.049002,
+        "single_gpu_equivalent_usd_per_gpu_hour": 4.678845,
+        "excluded_reason": null,
+        "steps": [
+          {
+            "step": "currency",
+            "before": 24000.0,
+            "after": 24000.0,
+            "note": "USD; no conversion"
+          },
+          {
+            "step": "unit",
+            "before": 24000.0,
+            "after": 4.03225806,
+            "note": "node_month / (8 GPUs x 744 actual hours 2026-10-01..2026-11-01)"
+          },
+          {
+            "step": "fees",
+            "before": 4.03225806,
+            "after": 4.03225806,
+            "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
+          },
+          {
+            "step": "payment_timing",
+            "before": 4.03225806,
+            "after": 4.04900169,
+            "note": "advance payment compounded 744 h at buyer rate 0.05 (stated delivery window); factor 1.004152"
+          },
+          {
+            "step": "quantity",
+            "before": 4.049002,
+            "after": 4.678845,
+            "note": "gpu_count 8 != reference 1; divided by quantity factor 0.865385"
+          }
+        ],
+        "reasons": [
+          "observed on/before as-of and not expired",
+          "guaranteed capacity for a stated window, not cancellable"
+        ],
+        "unknown_columns": {}
       },
-      "as_of_status": "valid",
-      "tier": "comparable",
-      "contract_class": "reserved_capacity",
-      "delivery_months": [
-        "2026-10"
-      ],
-      "tenor_months": [
-        0
-      ],
-      "curve_eligible": true,
-      "usd_per_gpu_hour": 4.049002,
-      "single_gpu_equivalent_usd_per_gpu_hour": 4.678845,
-      "excluded_reason": null,
-      "steps": [
-        {
-          "step": "currency",
-          "before": 24000.0,
-          "after": 24000.0,
-          "note": "USD; no conversion"
+      {
+        "id": "q08",
+        "provider": "synthetic-d",
+        "kind": "current_on_demand",
+        "side": "ask",
+        "observed_at": "2026-09-30T00:00:00Z",
+        "valid_until": "2026-10-03T00:00:00Z",
+        "raw": {
+          "price": 3.3,
+          "currency": "USD",
+          "unit": "gpu_hour",
+          "gpu_count": 1
         },
-        {
-          "step": "unit",
-          "before": 24000.0,
-          "after": 4.03225806,
-          "note": "node_month / (8 GPUs x 744 actual hours 2026-10-01..2026-11-01)"
-        },
-        {
-          "step": "fees",
-          "before": 4.03225806,
-          "after": 4.03225806,
-          "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
-        },
-        {
-          "step": "payment_timing",
-          "before": 4.03225806,
-          "after": 4.04900169,
-          "note": "advance payment compounded 744 h at buyer rate 0.05 (stated delivery window); factor 1.004152"
-        },
-        {
-          "step": "quantity",
-          "before": 4.049002,
-          "after": 4.678845,
-          "note": "gpu_count 8 != reference 1; divided by quantity factor 0.865385"
-        }
-      ],
-      "reasons": [
-        "observed on/before as-of and not expired",
-        "guaranteed capacity for a stated window, not cancellable"
-      ],
-      "unknown_columns": {}
-    },
-    {
-      "id": "q08",
-      "provider": "synthetic-d",
-      "kind": "current_on_demand",
-      "side": "ask",
-      "observed_at": "2026-09-30T00:00:00Z",
-      "valid_until": "2026-10-03T00:00:00Z",
-      "raw": {
-        "price": 3.3,
-        "currency": "USD",
-        "unit": "gpu_hour",
-        "gpu_count": 1
+        "as_of_status": "valid",
+        "tier": "different_product",
+        "contract_class": "flexible_on_demand",
+        "delivery_months": [],
+        "tenor_months": [],
+        "curve_eligible": false,
+        "usd_per_gpu_hour": 3.3,
+        "single_gpu_equivalent_usd_per_gpu_hour": 3.3,
+        "excluded_reason": null,
+        "steps": [
+          {
+            "step": "currency",
+            "before": 3.3,
+            "after": 3.3,
+            "note": "USD; no conversion"
+          },
+          {
+            "step": "unit",
+            "before": 3.3,
+            "after": 3.3,
+            "note": "already per GPU-hour"
+          },
+          {
+            "step": "fees",
+            "before": 3.3,
+            "after": 3.3,
+            "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
+          },
+          {
+            "step": "payment_timing",
+            "before": 3.3,
+            "after": 3.3,
+            "note": "arrears matches the reference convention"
+          }
+        ],
+        "reasons": [
+          "observed on/before as-of and not expired",
+          "cancellable ('anytime') hourly usage without guaranteed future capacity",
+          "product differs: gpu 'H200' != 'MI355X'; memory_gib 141 != 288"
+        ],
+        "unknown_columns": {}
       },
-      "as_of_status": "valid",
-      "tier": "different_product",
-      "contract_class": "flexible_on_demand",
-      "delivery_months": [],
-      "tenor_months": [],
-      "curve_eligible": false,
-      "usd_per_gpu_hour": 3.3,
-      "single_gpu_equivalent_usd_per_gpu_hour": 3.3,
-      "excluded_reason": null,
-      "steps": [
-        {
-          "step": "currency",
-          "before": 3.3,
-          "after": 3.3,
-          "note": "USD; no conversion"
+      {
+        "id": "q09",
+        "provider": "synthetic-e",
+        "kind": "spot_current",
+        "side": "ask",
+        "observed_at": "2026-09-30T00:00:00Z",
+        "valid_until": "2026-10-02T00:00:00Z",
+        "raw": {
+          "price": 1.8,
+          "currency": "USD",
+          "unit": "gpu_hour",
+          "gpu_count": 1
         },
-        {
-          "step": "unit",
-          "before": 3.3,
-          "after": 3.3,
-          "note": "already per GPU-hour"
-        },
-        {
-          "step": "fees",
-          "before": 3.3,
-          "after": 3.3,
-          "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
-        },
-        {
-          "step": "payment_timing",
-          "before": 3.3,
-          "after": 3.3,
-          "note": "arrears matches the reference convention"
-        }
-      ],
-      "reasons": [
-        "observed on/before as-of and not expired",
-        "cancellable ('anytime') hourly usage without guaranteed future capacity",
-        "product differs: gpu 'H200' != 'MI355X'; memory_gib 141 != 288"
-      ],
-      "unknown_columns": {}
-    },
-    {
-      "id": "q09",
-      "provider": "synthetic-e",
-      "kind": "spot_current",
-      "side": "ask",
-      "observed_at": "2026-09-30T00:00:00Z",
-      "valid_until": "2026-10-02T00:00:00Z",
-      "raw": {
-        "price": 1.8,
-        "currency": "USD",
-        "unit": "gpu_hour",
-        "gpu_count": 1
+        "as_of_status": "valid",
+        "tier": "different_product",
+        "contract_class": "spot",
+        "delivery_months": [],
+        "tenor_months": [],
+        "curve_eligible": false,
+        "usd_per_gpu_hour": 1.8,
+        "single_gpu_equivalent_usd_per_gpu_hour": 1.8,
+        "excluded_reason": null,
+        "steps": [
+          {
+            "step": "currency",
+            "before": 1.8,
+            "after": 1.8,
+            "note": "USD; no conversion"
+          },
+          {
+            "step": "unit",
+            "before": 1.8,
+            "after": 1.8,
+            "note": "already per GPU-hour"
+          },
+          {
+            "step": "fees",
+            "before": 1.8,
+            "after": 1.8,
+            "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
+          },
+          {
+            "step": "payment_timing",
+            "before": 1.8,
+            "after": 1.8,
+            "note": "arrears matches the reference convention"
+          }
+        ],
+        "reasons": [
+          "observed on/before as-of and not expired",
+          "preemptible/spot capacity: provider can withdraw it",
+          "product differs: isolation 'shared' != 'dedicated'; preemptible True != False; sla_pct 0.0 below reference 99.9"
+        ],
+        "unknown_columns": {}
       },
-      "as_of_status": "valid",
-      "tier": "different_product",
-      "contract_class": "spot",
-      "delivery_months": [],
-      "tenor_months": [],
-      "curve_eligible": false,
-      "usd_per_gpu_hour": 1.8,
-      "single_gpu_equivalent_usd_per_gpu_hour": 1.8,
-      "excluded_reason": null,
-      "steps": [
-        {
-          "step": "currency",
-          "before": 1.8,
-          "after": 1.8,
-          "note": "USD; no conversion"
+      {
+        "id": "q10",
+        "provider": "synthetic-a",
+        "kind": "current_on_demand",
+        "side": "ask",
+        "observed_at": "2026-08-01T00:00:00Z",
+        "valid_until": "2026-09-01T00:00:00Z",
+        "raw": {
+          "price": 4.6,
+          "currency": "USD",
+          "unit": "gpu_hour",
+          "gpu_count": 1
         },
-        {
-          "step": "unit",
-          "before": 1.8,
-          "after": 1.8,
-          "note": "already per GPU-hour"
-        },
-        {
-          "step": "fees",
-          "before": 1.8,
-          "after": 1.8,
-          "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
-        },
-        {
-          "step": "payment_timing",
-          "before": 1.8,
-          "after": 1.8,
-          "note": "arrears matches the reference convention"
-        }
-      ],
-      "reasons": [
-        "observed on/before as-of and not expired",
-        "preemptible/spot capacity: provider can withdraw it",
-        "product differs: isolation 'shared' != 'dedicated'; preemptible True != False; sla_pct 0.0 below reference 99.9"
-      ],
-      "unknown_columns": {}
-    },
-    {
-      "id": "q10",
-      "provider": "synthetic-a",
-      "kind": "current_on_demand",
-      "side": "ask",
-      "observed_at": "2026-08-01T00:00:00Z",
-      "valid_until": "2026-09-01T00:00:00Z",
-      "raw": {
-        "price": 4.6,
-        "currency": "USD",
-        "unit": "gpu_hour",
-        "gpu_count": 1
+        "as_of_status": "expired",
+        "tier": "comparable",
+        "contract_class": "flexible_on_demand",
+        "delivery_months": [],
+        "tenor_months": [],
+        "curve_eligible": false,
+        "usd_per_gpu_hour": 4.6,
+        "single_gpu_equivalent_usd_per_gpu_hour": 4.6,
+        "excluded_reason": null,
+        "steps": [
+          {
+            "step": "currency",
+            "before": 4.6,
+            "after": 4.6,
+            "note": "USD; no conversion"
+          },
+          {
+            "step": "unit",
+            "before": 4.6,
+            "after": 4.6,
+            "note": "already per GPU-hour"
+          },
+          {
+            "step": "fees",
+            "before": 4.6,
+            "after": 4.6,
+            "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
+          },
+          {
+            "step": "payment_timing",
+            "before": 4.6,
+            "after": 4.6,
+            "note": "arrears matches the reference convention"
+          }
+        ],
+        "reasons": [
+          "valid_until 2026-09-01T00:00:00+00:00 is on/before as-of 2026-10-01T00:00:00+00:00 (expired; historical context only)",
+          "cancellable ('anytime') hourly usage without guaranteed future capacity"
+        ],
+        "unknown_columns": {}
       },
-      "as_of_status": "expired",
-      "tier": "comparable",
-      "contract_class": "flexible_on_demand",
-      "delivery_months": [],
-      "tenor_months": [],
-      "curve_eligible": false,
-      "usd_per_gpu_hour": 4.6,
-      "single_gpu_equivalent_usd_per_gpu_hour": 4.6,
-      "excluded_reason": null,
-      "steps": [
-        {
-          "step": "currency",
-          "before": 4.6,
-          "after": 4.6,
-          "note": "USD; no conversion"
+      {
+        "id": "q11",
+        "provider": "synthetic-a",
+        "kind": "current_on_demand",
+        "side": "ask",
+        "observed_at": "2026-10-02T00:00:00Z",
+        "valid_until": "2026-10-05T00:00:00Z",
+        "raw": {
+          "price": 4.0,
+          "currency": "USD",
+          "unit": "gpu_hour",
+          "gpu_count": 1
         },
-        {
-          "step": "unit",
-          "before": 4.6,
-          "after": 4.6,
-          "note": "already per GPU-hour"
-        },
-        {
-          "step": "fees",
-          "before": 4.6,
-          "after": 4.6,
-          "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
-        },
-        {
-          "step": "payment_timing",
-          "before": 4.6,
-          "after": 4.6,
-          "note": "arrears matches the reference convention"
-        }
-      ],
-      "reasons": [
-        "valid_until 2026-09-01T00:00:00+00:00 is on/before as-of 2026-10-01T00:00:00+00:00 (expired; historical context only)",
-        "cancellable ('anytime') hourly usage without guaranteed future capacity"
-      ],
-      "unknown_columns": {}
+        "as_of_status": "post_as_of",
+        "tier": "comparable",
+        "contract_class": "flexible_on_demand",
+        "delivery_months": [],
+        "tenor_months": [],
+        "curve_eligible": false,
+        "usd_per_gpu_hour": 4.0,
+        "single_gpu_equivalent_usd_per_gpu_hour": 4.0,
+        "excluded_reason": null,
+        "steps": [
+          {
+            "step": "currency",
+            "before": 4.0,
+            "after": 4.0,
+            "note": "USD; no conversion"
+          },
+          {
+            "step": "unit",
+            "before": 4.0,
+            "after": 4.0,
+            "note": "already per GPU-hour"
+          },
+          {
+            "step": "fees",
+            "before": 4.0,
+            "after": 4.0,
+            "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
+          },
+          {
+            "step": "payment_timing",
+            "before": 4.0,
+            "after": 4.0,
+            "note": "arrears matches the reference convention"
+          }
+        ],
+        "reasons": [
+          "observed_at 2026-10-02T00:00:00+00:00 is after as-of 2026-10-01T00:00:00+00:00 (look-ahead; excluded from the primary view)",
+          "cancellable ('anytime') hourly usage without guaranteed future capacity"
+        ],
+        "unknown_columns": {}
+      }
+    ],
+    "row_limit": 200,
+    "truncated": 0,
+    "full_table": "normalization.csv (one row per quote, written next to valuation.json)"
+  },
+  "exclusions": {
+    "count": 7,
+    "by_reason": {
+      "cancellable ('anytime') hourly usage without guaranteed future capacity": 2,
+      "cancellable ('anytime') hourly usage without guaranteed future capacity; product differs: gpu 'H200' != 'MI355X'; memory_gib 141 != 288": 1,
+      "observed_at 2026-10-02T00:00:00+00:00 is after as-of 2026-10-01T00:00:00+00:00 (look-ahead; excluded from the primary view); cancellable ('anytime') hourly usage without guaranteed future capacity": 1,
+      "preemptible/spot capacity: provider can withdraw it; product differs: isolation 'shared' != 'dedicated'; preemptible True != False; sla_pct 0.0 below reference 99.9": 1,
+      "spend commitment on current usage without a delivery window or guaranteed capacity: a discount on today's usage, not a forward": 1,
+      "valid_until 2026-09-01T00:00:00+00:00 is on/before as-of 2026-10-01T00:00:00+00:00 (expired; historical context only); cancellable ('anytime') hourly usage without guaranteed future capacity": 1
     },
-    {
-      "id": "q11",
-      "provider": "synthetic-a",
-      "kind": "current_on_demand",
-      "side": "ask",
-      "observed_at": "2026-10-02T00:00:00Z",
-      "valid_until": "2026-10-05T00:00:00Z",
-      "raw": {
-        "price": 4.0,
-        "currency": "USD",
-        "unit": "gpu_hour",
-        "gpu_count": 1
+    "rows": [
+      {
+        "id": "q01",
+        "reason": "cancellable ('anytime') hourly usage without guaranteed future capacity"
       },
-      "as_of_status": "post_as_of",
-      "tier": "comparable",
-      "contract_class": "flexible_on_demand",
-      "delivery_months": [],
-      "tenor_months": [],
-      "curve_eligible": false,
-      "usd_per_gpu_hour": 4.0,
-      "single_gpu_equivalent_usd_per_gpu_hour": 4.0,
-      "excluded_reason": null,
-      "steps": [
-        {
-          "step": "currency",
-          "before": 4.0,
-          "after": 4.0,
-          "note": "USD; no conversion"
-        },
-        {
-          "step": "unit",
-          "before": 4.0,
-          "after": 4.0,
-          "note": "already per GPU-hour"
-        },
-        {
-          "step": "fees",
-          "before": 4.0,
-          "after": 4.0,
-          "note": "no fee evidence in the quote; taxes/egress excluded per common terms"
-        },
-        {
-          "step": "payment_timing",
-          "before": 4.0,
-          "after": 4.0,
-          "note": "arrears matches the reference convention"
-        }
-      ],
-      "reasons": [
-        "observed_at 2026-10-02T00:00:00+00:00 is after as-of 2026-10-01T00:00:00+00:00 (look-ahead; excluded from the primary view)",
-        "cancellable ('anytime') hourly usage without guaranteed future capacity"
-      ],
-      "unknown_columns": {}
-    }
-  ],
-  "exclusions": [
-    {
-      "id": "q01",
-      "reason": "cancellable ('anytime') hourly usage without guaranteed future capacity"
-    },
-    {
-      "id": "q02",
-      "reason": "cancellable ('anytime') hourly usage without guaranteed future capacity"
-    },
-    {
-      "id": "q03",
-      "reason": "spend commitment on current usage without a delivery window or guaranteed capacity: a discount on today's usage, not a forward"
-    },
-    {
-      "id": "q08",
-      "reason": "cancellable ('anytime') hourly usage without guaranteed future capacity; product differs: gpu 'H200' != 'MI355X'; memory_gib 141 != 288"
-    },
-    {
-      "id": "q09",
-      "reason": "preemptible/spot capacity: provider can withdraw it; product differs: isolation 'shared' != 'dedicated'; preemptible True != False; sla_pct 0.0 below reference 99.9"
-    },
-    {
-      "id": "q10",
-      "reason": "valid_until 2026-09-01T00:00:00+00:00 is on/before as-of 2026-10-01T00:00:00+00:00 (expired; historical context only); cancellable ('anytime') hourly usage without guaranteed future capacity"
-    },
-    {
-      "id": "q11",
-      "reason": "observed_at 2026-10-02T00:00:00+00:00 is after as-of 2026-10-01T00:00:00+00:00 (look-ahead; excluded from the primary view); cancellable ('anytime') hourly usage without guaranteed future capacity"
-    }
-  ],
+      {
+        "id": "q02",
+        "reason": "cancellable ('anytime') hourly usage without guaranteed future capacity"
+      },
+      {
+        "id": "q03",
+        "reason": "spend commitment on current usage without a delivery window or guaranteed capacity: a discount on today's usage, not a forward"
+      },
+      {
+        "id": "q08",
+        "reason": "cancellable ('anytime') hourly usage without guaranteed future capacity; product differs: gpu 'H200' != 'MI355X'; memory_gib 141 != 288"
+      },
+      {
+        "id": "q09",
+        "reason": "preemptible/spot capacity: provider can withdraw it; product differs: isolation 'shared' != 'dedicated'; preemptible True != False; sla_pct 0.0 below reference 99.9"
+      },
+      {
+        "id": "q10",
+        "reason": "valid_until 2026-09-01T00:00:00+00:00 is on/before as-of 2026-10-01T00:00:00+00:00 (expired; historical context only); cancellable ('anytime') hourly usage without guaranteed future capacity"
+      },
+      {
+        "id": "q11",
+        "reason": "observed_at 2026-10-02T00:00:00+00:00 is after as-of 2026-10-01T00:00:00+00:00 (look-ahead; excluded from the primary view); cancellable ('anytime') hourly usage without guaranteed future capacity"
+      }
+    ],
+    "row_limit": 200,
+    "truncated": 0
+  },
   "quantity_adjustment": {
     "factor": 0.865385,
     "note": "median per-GPU price of multi-GPU on-demand asks / median single-GPU asks = 0.865385 (from q01, q02; providers differ, so this also carries provider effects)"
@@ -795,10 +816,8 @@
         "bid": null,
         "ask": null,
         "evidence_ids": [
-          "q04",
           "q05",
-          "q06",
-          "q07"
+          "q06"
         ],
         "uncertainty_type": "model-band+scenario-union",
         "scenarios": {
@@ -824,10 +843,8 @@
         "bid": null,
         "ask": null,
         "evidence_ids": [
-          "q04",
           "q05",
-          "q06",
-          "q07"
+          "q06"
         ],
         "uncertainty_type": "judgmental-band+scenario-union",
         "scenarios": {
@@ -1070,50 +1087,90 @@
     ]
   },
   "cross_checks": {
-    "performance_translation": [
-      {
-        "quote_id": "q08",
-        "gpu": "H200",
-        "contract_class": "flexible_on_demand",
-        "normalized_usd_per_gpu_hour": 3.3,
-        "status": "cross-check-only",
-        "performance_ids": [
-          "p01",
-          "p02"
-        ],
-        "workload": "dense-decode",
-        "throughput_ratio_reference_over_quote_gpu": 1.25,
-        "ratio_relative_uncertainty": 0.14142136,
-        "equivalent_usd_per_reference_gpu_hour": 4.125,
-        "equivalent_low": 3.54163691,
-        "equivalent_high": 4.70836309,
-        "comparable_same_class_prices": [
-          5.199998,
-          5.2
-        ],
-        "note": "throughput parity on one synthetic dense-decode workload; ignores memory (141 vs 288 GiB), software and demand mix"
+    "performance_translation": {
+      "count": 1,
+      "examples": [
+        {
+          "quote_id": "q08",
+          "gpu": "H200",
+          "contract_class": "flexible_on_demand",
+          "normalized_usd_per_gpu_hour": 3.3,
+          "status": "cross-check-only",
+          "performance_ids": [
+            "p01",
+            "p02"
+          ],
+          "workload": "dense-decode",
+          "throughput_ratio_reference_over_quote_gpu": 1.25,
+          "ratio_relative_uncertainty": 0.14142136,
+          "equivalent_usd_per_reference_gpu_hour": 4.125,
+          "equivalent_low": 3.54163691,
+          "equivalent_high": 4.70836309,
+          "comparable_same_class_summary_key": "flexible_on_demand/ask",
+          "note": "throughput parity on one synthetic dense-decode workload; ignores memory (141 vs 288 GiB), software and demand mix"
+        }
+      ],
+      "example_limit": 10,
+      "truncated": 0,
+      "translated": 1,
+      "comparable_same_class_summary": {
+        "flexible_on_demand/ask": {
+          "count": 2,
+          "min": 5.199998,
+          "median": 5.199999,
+          "max": 5.2
+        },
+        "reserved_capacity/ask": {
+          "count": 3,
+          "min": 4.5,
+          "median": 4.678845,
+          "max": 4.9
+        },
+        "reserved_capacity/bid": {
+          "count": 1,
+          "min": 4.0,
+          "median": 4.0,
+          "max": 4.0
+        },
+        "usage_commitment/ask": {
+          "count": 1,
+          "min": 3.4,
+          "median": 3.4,
+          "max": 3.4
+        }
       }
-    ],
-    "usage_commitments": [
-      {
-        "quote_id": "q03",
-        "normalized_usd_per_gpu_hour": 3.4,
-        "commitment_months": 12,
-        "capacity_guaranteed": false,
-        "delivery_window": null,
-        "minimum_monthly_gpu_hours_per_common_terms": 600,
-        "treatment": "NOT a forward: no delivery window, no guaranteed capacity, postpaid spend commitment; shown as the provider's willingness to discount predictable current usage, and as a soft long-run cross-check only"
-      }
-    ],
-    "spot": [
-      {
-        "quote_id": "q09",
-        "normalized_usd_per_gpu_hour": 1.8,
-        "sla_pct": 0.0,
-        "discount_vs_cheapest_flexible_on_demand_ask_per_gpu_hour": 0.6,
-        "treatment": "context only: preemptible with no SLA is not comparable to reserved capacity"
-      }
-    ],
+    },
+    "usage_commitments": {
+      "count": 1,
+      "examples": [
+        {
+          "quote_id": "q03",
+          "normalized_usd_per_gpu_hour": 3.4,
+          "commitment_months": 12,
+          "capacity_guaranteed": false,
+          "delivery_window": null,
+          "minimum_monthly_gpu_hours_per_common_terms": 600,
+          "treatment": "NOT a forward: no delivery window, no guaranteed capacity, postpaid spend commitment; shown as the provider's willingness to discount predictable current usage, and as a soft long-run cross-check only"
+        }
+      ],
+      "example_limit": 10,
+      "truncated": 0
+    },
+    "spot": {
+      "count": 1,
+      "examples": [
+        {
+          "quote_id": "q09",
+          "normalized_usd_per_gpu_hour": 1.8,
+          "sla_pct": 0.0,
+          "discount_vs_cheapest_flexible_on_demand_ask_per_gpu_hour": 0.6,
+          "treatment": "context only: preemptible with no SLA is not comparable to reserved capacity"
+        }
+      ],
+      "example_limit": 10,
+      "truncated": 0,
+      "cheapest_flexible_on_demand_ask_usd_per_gpu_hour": 4.5
+    },
     "flexibility_premium": {
       "reserved_quote_id": "q07",
       "flexible_quote_id": "q02",
@@ -1147,7 +1204,7 @@
         }
       ],
       "example_limit": 5,
-      "treatment": "expired prices are never current levels; each expired quote is paired with the nearest current quote of the same provider/kind/side/size only to inform the declared horizon-widening parameter; a handful of pairs cannot estimate volatility reliably"
+      "treatment": "expired prices are never current levels; each expired quote is paired with the nearest-dated valid quote of the same provider/kind/side/size only to inform the declared horizon-widening parameter; a handful of pairs cannot estimate volatility reliably"
     }
   },
   "reservation": {

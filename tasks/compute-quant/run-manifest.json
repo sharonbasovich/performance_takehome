@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "task": "compute-quant",
-  "generated_at": "2026-10-24T08:46:30Z",
+  "generated_at": "2026-10-24T09:07:19Z",
   "generated_at_source": "SOURCE_DATE_EPOCH",
   "code": {
     "package": "tasks/compute-quant/research",
     "version": "1.0.0",
-    "source_sha256": "35d9d104891e739f15647626eedfa78ba6f3545eadbe2b77278347c88e105506",
-    "git_commit": "e69dd4a726dd5e2c76e3022696d5d919e4c7ae09",
+    "source_sha256": "dd82fc20f5bfe40885039d65e2c92011c8e3a506a999c8ce7ee7b40fd32caa6b",
+    "git_commit": "37a37f7ca5eca51162d218314a97eea0b84d948e",
     "git_commit_note": "HEAD when the manifest was generated; the commit that adds the manifest necessarily comes after it, so compare git_tree_research instead",
-    "git_tree_research": "42a69ec41646ad7e169916f5d3d57b800eec8777"
+    "git_tree_research": "ebeb6dcbc9ca6b3fa0256835738ad8abc731520b"
   },
   "python": {
     "version": "3.11.17",
@@ -76,7 +76,9 @@
       "cancellation"
     ],
     "excluded_quote_ids_by_flag": [],
-    "unknown_case_keys": []
+    "unknown_case_keys": [],
+    "unknown_nested_case_keys": [],
+    "unknown_config_keys": []
   },
   "as_of": "2026-10-01T00:00:00Z",
   "parameters": {
