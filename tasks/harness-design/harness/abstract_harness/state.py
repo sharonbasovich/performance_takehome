@@ -50,6 +50,7 @@ class HarnessState:
     engine: str = ""
     source_commit: str = ""
     lease_start_ts: float = 0.0
+    lease_deadline_ts: float = 0.0
     attempt_index: int = 0
     api_usd_cumulative: float = 0.0
     last_good: ImageRef | None = None

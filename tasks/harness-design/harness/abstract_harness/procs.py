@@ -96,6 +96,7 @@ def run(
             if stdin_text is not None and proc.stdin is not None:
                 proc.stdin.write(stdin_text)
                 proc.stdin.close()
+                proc.stdin = None
             deadline = start + timeout_s
             while True:
                 try:

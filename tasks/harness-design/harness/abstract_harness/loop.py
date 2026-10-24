@@ -20,10 +20,11 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import time
 import traceback
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -115,11 +116,29 @@ class Harness:
         self._results_lock = procs.acquire_lock(procs.results_lock_path(config.results_path))
         self._attempt_deadline: float | None = None
         self.benchmark = measure_mod.load_benchmark(config.benchmark_path)
-        self.state = load_state(self.state_path, on_warning=log) or HarnessState(
+        prior_state = load_state(self.state_path, on_warning=log)
+        self.state = prior_state or HarnessState(
             engine=engine.name,
             source_commit=config.source_commit,
             lease_start_ts=config.budget.lease_start_ts,
+            lease_deadline_ts=config.budget.lease_deadline_ts,
         )
+        if prior_state is not None:
+            # A restart resumes the same allocation; it must not grant fresh GPU-hours
+            # or move the lease window forward. Older checkpoints did not carry the
+            # deadline, so reconstruct it from their original start and the requested
+            # duration. A shorter newly supplied deadline is still respected.
+            prior_deadline = prior_state.lease_deadline_ts or (
+                prior_state.lease_start_ts
+                + config.budget.lease_deadline_ts
+                - config.budget.lease_start_ts
+            )
+            config.budget = replace(
+                config.budget,
+                lease_start_ts=prior_state.lease_start_ts,
+                lease_deadline_ts=min(prior_deadline, config.budget.lease_deadline_ts),
+            )
+            self.state.lease_deadline_ts = config.budget.lease_deadline_ts
         self._stop_requested = False
         self._stop_signal = ""
         self._active_container: str | None = None
@@ -183,7 +202,35 @@ class Harness:
     def _stage_timeout(self, configured_s: float) -> float:
         if self._attempt_deadline is None:
             return configured_s
-        return budget_mod.stage_timeout(configured_s, self._attempt_deadline)
+        remaining = budget_mod.stage_timeout(configured_s, self._attempt_deadline, floor_s=0.0)
+        if remaining <= 0:
+            raise TimeoutError("allocation deadline reached; no new stage may start")
+        return remaining
+
+    def _set_allocation_deadline(self, usable_seconds: float, gpu_hours_remaining: float) -> None:
+        if self.config.budget.gpus_allocated:
+            usable_seconds = min(
+                usable_seconds,
+                gpu_hours_remaining * 3600 / self.config.budget.gpus_allocated,
+            )
+        self._attempt_deadline = time.monotonic() + max(0.0, usable_seconds)
+
+    def _measurement_worker(self, operation: str, payload: dict[str, Any], timeout_s: float) -> Any:
+        """Run blocking HTTP measurement in a killable process with an absolute stage cap."""
+        result = procs.run(
+            [sys.executable, str(Path(measure_mod.__file__).with_name("measurement_worker.py"))],
+            stdin_text=json.dumps({"operation": operation, **payload}),
+            timeout_s=self._stage_timeout(timeout_s),
+            should_abort=self._should_abort,
+        )
+        self._checkpoint()
+        if result.timed_out:
+            raise measure_mod.MeasurementError(f"{operation} exceeded its time budget")
+        if not result.ok:
+            raise measure_mod.MeasurementError(
+                f"{operation} failed: {(result.stderr or result.stdout)[-1500:]}"
+            )
+        return json.loads(result.stdout)
 
     def _gpu_hours(self) -> float:
         return budget_mod.gpu_hours_used(self.config.budget, self.now())
@@ -262,7 +309,8 @@ class Harness:
             log_path=log_path,
             timeout_s=self._stage_timeout(self.config.timeouts.build_s),
             platform=self.engine.spec.platform,
-            dockerfile=context_dir / self.engine.spec.dockerfile.name,
+            dockerfile=context_dir
+            / self.engine.spec.dockerfile.relative_to(self.engine.spec.build_context),
             no_cache=self.config.no_cache,
             should_abort=self._should_abort,
         )
@@ -272,7 +320,10 @@ class Harness:
     ) -> tuple[measure_mod.Measurement, dict[str, Any]]:
         """Start a container from ``image``, measure startup + benchmark, always stop it."""
         container = f"{self.config.container_prefix}-{label}-{int(self.clock()) % 100000}"
-        quiet = procs.wait_for_quiet_host(should_abort=self._should_abort)
+        quiet = procs.wait_for_quiet_host(
+            should_abort=self._should_abort, max_wait_s=self._stage_timeout(120.0)
+        )
+        self._checkpoint()
         if quiet["quiet"] is None:
             self.log(f"[harness] host idle unknown before {label}: {quiet.get('reason')}")
         elif not quiet["quiet"]:
@@ -296,7 +347,7 @@ class Harness:
         try:
             docker.run_detached(command)
             ip = None
-            deadline = time.monotonic() + 30
+            deadline = time.monotonic() + self._stage_timeout(30.0)
             while ip is None and time.monotonic() < deadline:
                 self._checkpoint()
                 ip = docker.container_ip(container, self.config.network_name)
@@ -314,29 +365,34 @@ class Harness:
             base_url = f"http://{ip}:{CONTAINER_PORT}"
             info["base_url"] = base_url
             info["host_quiet_before_start"] = quiet
-            startup_s, model_id = measure_mod.wait_for_first_valid_generation(
-                base_url,
-                started,
-                self.benchmark,
-                timeout_s=self._stage_timeout(self.config.timeouts.startup_s),
-                is_alive=self._is_alive(container),
+            startup_s, model_id = self._measurement_worker(
+                "startup",
+                {
+                    "base_url": base_url,
+                    "started_at": started,
+                    "benchmark": self.benchmark,
+                    "timeout_s": self._stage_timeout(self.config.timeouts.startup_s),
+                },
+                self.config.timeouts.startup_s,
             )
             self._checkpoint()
             if self.state.in_progress:
                 self.state.in_progress.stage = "measuring"
                 self._save()
-            measurement = measure_mod.run_benchmark(
-                base_url,
-                model_id,
-                self.benchmark,
-                golden=golden,
-                startup_s=startup_s,
-                is_alive=self._is_alive(container),
+            data = self._measurement_worker(
+                "benchmark",
+                {
+                    "base_url": base_url,
+                    "model_id": model_id,
+                    "benchmark": self.benchmark,
+                    "golden": golden,
+                    "startup_s": startup_s,
+                },
+                self.config.timeouts.measure_s,
             )
-            if time.monotonic() - started > self._stage_timeout(
-                self.config.timeouts.startup_s + self.config.timeouts.measure_s
-            ):
-                raise measure_mod.MeasurementError("measurement exceeded its time budget")
+            data["traces"] = [measure_mod.RequestTrace(**trace) for trace in data["traces"]]
+            data["gates"] = [measure_mod.GateResult(**gate) for gate in data["gates"]]
+            measurement = measure_mod.Measurement(**data)
             return measurement, info
         finally:
             info["container_log_tail"] = docker.container_logs(container, 60)[-4000:]
@@ -719,6 +775,18 @@ class Harness:
                 )
                 self.finalize("already finished")
                 return 0
+            verdict = budget_mod.check_before_attempt(
+                self.config.budget,
+                api_usd_cumulative=self.state.api_usd_cumulative,
+                now_ts=self.now(),
+                estimated_attempt_s=0.0,
+            )
+            if not verdict.ok or verdict.usable_seconds_remaining <= 0:
+                self.finalize(f"budget guard before baseline: {verdict.reason}")
+                return 0
+            self._set_allocation_deadline(
+                verdict.usable_seconds_remaining, verdict.gpu_hours_remaining
+            )
             self.establish_baseline()
             attempts = 0
             while True:
@@ -746,8 +814,9 @@ class Harness:
                 )
                 # Hard bound: no stage may run past the lease's usable window, even if the
                 # configured timeouts (worst case = worst_case_s) would allow it.
-                self._attempt_deadline = time.monotonic() + max(
-                    0.0, min(worst_case_s, verdict.usable_seconds_remaining)
+                self._set_allocation_deadline(
+                    min(worst_case_s, verdict.usable_seconds_remaining),
+                    verdict.gpu_hours_remaining,
                 )
                 self.log(
                     f"[harness] budget check: {verdict.reason} "
@@ -818,6 +887,9 @@ class Harness:
             work_dir=work,
             engine=self.engine.name,
             budget_summary=summary,
+            timeout_s=self._stage_timeout(self.config.timeouts.propose_s),
+            should_abort=self._should_abort,
+            deadline_monotonic=self._attempt_deadline,
         )
 
     # ------------------------------------------------------------------ finalize

@@ -136,13 +136,18 @@ metadata fixes; the rows were not touched).
 Real target (MI355X host + coding-model key; **not executed in this draft**):
 
 ```sh
-export HARNESS_LLM_API_KEY=...            # never passed on the command line, never logged
+export ANTHROPIC_API_KEY=...             # never passed on the command line, never logged
 uv run --frozen python tasks/harness-design/harness/run.py run \
   --engine llmd --model-dir /path/to/model-repo \
-  --proposer pi --pi-bin /opt/pi/node_modules/.bin/pi --api-key-env HARNESS_LLM_API_KEY \
+  --proposer pi --pi-bin /opt/pi/node_modules/.bin/pi \
+  --pi-provider anthropic --api-key-env ANTHROPIC_API_KEY \
   --state-dir /var/tmp/harness-state --out /var/tmp/harness-state/submission.json \
   --budget-minutes 1380 --api-spend-limit-usd 40 --gpus 1 --gpu-hours 24
 ```
+
+The key variable must have the provider's native name: `ANTHROPIC_API_KEY` for Anthropic,
+or `OPENAI_API_KEY` with `--pi-provider openai`. `--api-key-env` selects the variable to
+forward; it does not rename an arbitrary alias into a provider credential.
 
 Send `SIGTERM` at any time: the loop finishes the current step boundary, logs the attempt
 as `interrupted`, keeps the last-good image, writes the manifest and exits 3. Re-running the

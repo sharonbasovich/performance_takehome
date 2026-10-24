@@ -235,6 +235,26 @@ derived manifest files were regenerated with `--manifest-only`.
 * GPU-hours are allocation x elapsed; API spend is only known when the proposer reports cost.
 * One `interrupted` experiment (`007`) was not retried; the queue continued past it by design.
 
+## Independent local audit after the recorded stand-in run
+
+The recorded evidence above is preserved. A later CPU-only review found and fixed three
+execution issues that were not exercised by those evidence rows:
+
+* Resume now preserves the original allocation start and deadline. Previously, restarting the
+  CLI reset GPU-hour accounting and moved the usable lease window forward.
+* The LLMD build now preserves `tasks/harness-design/Dockerfile` relative to its repository-root
+  build context, including scratch copies. Previously it looked for a nonexistent root Dockerfile.
+* The baseline now checks its allocation window before building; the proposer receives the
+  remaining deadline and signal-abort callback; blocking HTTP startup and benchmark stages run
+  in child processes that the parent can terminate at the stage/allocation deadline. The GPU-hour
+  remainder also caps that deadline. Process/container cleanup may use its bounded grace period.
+
+The real-target runbook below writes fresh evidence outside the checkout. These fixes are covered
+by offline regression tests, including a stalled HTTP test server and the fake Pi executable.
+They do not constitute a new GPU run, image build, or performance result. The old reports and
+manifest still identify the source that produced the old evidence; regenerate them after running
+the corrected harness on the actual target.
+
 ## Runbook when an MI355X host and a coding-model key exist
 
 ```sh
@@ -247,16 +267,15 @@ docker run --rm --network none --entrypoint /llmd/llmd llmd-candidate:probe --he
 # 2. Pi distribution (exact pin from agent-harness/profiles.json)
 mkdir -p /opt/pi && cd /opt/pi && npm init -y >/dev/null && npm install @earendil-works/pi-coding-agent@1.0.0 && ./node_modules/.bin/pi --version && cd -
 # 3. run (the key is read from the named env var only)
-export HARNESS_LLM_API_KEY=...
+export ANTHROPIC_API_KEY=...
 uv run --frozen python tasks/harness-design/harness/run.py run --engine llmd \
   --model-dir /path/to/model-repo --render-device /dev/dri/renderD128 \
-  --proposer pi --pi-bin /opt/pi/node_modules/.bin/pi --api-key-env HARNESS_LLM_API_KEY \
-  --experiments tasks/harness-design/harness/experiments/standin-queue.json \
-  --state-dir /var/tmp/harness-state --out tasks/harness-design/submission.json \
-  --results tasks/harness-design/harness/results.tsv \
+  --proposer pi --pi-bin /opt/pi/node_modules/.bin/pi \
+  --pi-provider anthropic --api-key-env ANTHROPIC_API_KEY \
+  --state-dir /var/tmp/harness-state --out /var/tmp/harness-state/submission.json \
   --budget-minutes 1380 --api-spend-limit-usd 40 --gpus 1 --gpu-hours 24
 # 4. verify
-uv run --frozen python tasks/harness-design/harness/run.py validate-results --results tasks/harness-design/harness/results.tsv
+uv run --frozen python tasks/harness-design/harness/run.py validate-results --results /var/tmp/harness-state/results.tsv
 python -B -m tools.check_integrity --base 81aead87d78ed468c4c374fb42921471b44c3f80
 ```
 First experiments to run on the real target are ranked in `harness/program.md` (startup:

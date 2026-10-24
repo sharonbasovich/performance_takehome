@@ -21,7 +21,8 @@ import os
 import re
 import shutil
 import tempfile
-from collections.abc import Iterator, Mapping, Sequence
+import time
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -80,6 +81,9 @@ class ProposerContext:
     work_dir: Path
     engine: str
     budget_summary: str = ""
+    timeout_s: float | None = None
+    should_abort: Callable[[], bool] | None = None
+    deadline_monotonic: float | None = None
 
 
 class Proposer:
@@ -491,12 +495,18 @@ class PiProposer(Proposer):
         session_dir = attempt_dir / "sessions"
         session_dir.mkdir()
         transcript = attempt_dir / "pi-events.jsonl"
+        timeout_s = min(self.config.timeout_s, context.timeout_s or self.config.timeout_s)
+        if context.deadline_monotonic is not None:
+            timeout_s = min(timeout_s, context.deadline_monotonic - time.monotonic())
+        if timeout_s <= 0:
+            raise ProposerError("allocation deadline reached before Pi launch")
         result = procs.run(
             self.build_command(prompt_path, session_dir),
-            timeout_s=self.config.timeout_s,
+            timeout_s=timeout_s,
             cwd=scratch,
             env=self.build_env(),
             log_path=transcript,
+            should_abort=context.should_abort,
         )
         api_usd = self._cost_from_events(transcript)
         if api_usd is not None:
@@ -504,7 +514,7 @@ class PiProposer(Proposer):
         model_error = self._error_from_events(transcript)
         if result.timed_out:
             raise ProposerError(
-                f"pi timed out after {self.config.timeout_s:.0f}s (transcript {transcript})",
+                f"pi timed out after {timeout_s:.2f}s (transcript {transcript})",
                 api_usd=api_usd,
             )
         if model_error is not None:
