@@ -4,9 +4,12 @@
   "status": "candidate-submission-draft-repo-cpu-validated-only",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "branch": "submission/benchmark-design",
-    "commit": "bd9fd1b9b50d71d5fb6ac75ae37ae945a793d131",
-    "commit_note": "commit containing the suite, fixtures and validation evidence; submission.json itself is committed immediately after it on the same branch"
+    "branch": "codex/abstract-benchmark-audit",
+    "commit": "cfd3b2d9bc1df0b9b30c0d9417c38eb219161fff",
+    "commit_note": "Code commit for the independent audit fixes; historical CPU mock evidence remains at evidence_commit. This metadata-only commit does not change the suite tree. No GPU result or organizer submission is claimed.",
+    "evidence_commit": "bd9fd1b9b50d71d5fb6ac75ae37ae945a793d131",
+    "suite_tree_sha": "965f10488ffbc0d6999f96e400d15451a91c8cf5",
+    "reviewed_devin_head": "f1b823f1d15a08c0bc5c5a82c8e29a300fae10f3"
   },
   "suite": {
     "entrypoint": "tasks/benchmark-design/suite/evaluate.py",
