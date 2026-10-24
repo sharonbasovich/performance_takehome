@@ -99,7 +99,7 @@ ANCHOR_KINDS = {"supply_cost_breakeven", "max_valid_same_hardware_ask", "fixed"}
 SUPPORTED_VALUATION = {
     "day_count": {"ACT/365"},
     "compounding": {"annual-effective"},
-    "default_timing": {"uniform-hazard-from-as-of-to-delivery-end"},
+    "default_timing": {"uniform-default-time-from-as-of-to-delivery-end"},
     "sla_downtime_assumption": {"provider-delivers-exactly-at-sla-floor"},
 }
 KNOWN_CONFIG_KEYS = {
@@ -190,7 +190,7 @@ def validate_config(config: object, where: str = "config") -> None:
         if key not in curve:
             raise InputError(f"{where}: curve.{key} is required")
         value = curve[key]
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
+        if isinstance(value, bool) or not isinstance(value, int | float):
             raise InputError(f"{where}: curve.{key} must be a number")
         if kind is int and int(value) != value:
             raise InputError(f"{where}: curve.{key} must be an integer")
@@ -200,7 +200,7 @@ def validate_config(config: object, where: str = "config") -> None:
     if (
         not isinstance(band, list)
         or len(band) != 2
-        or not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in band)
+        or not all(isinstance(v, int | float) and not isinstance(v, bool) for v in band)
         or not 0 <= band[0] <= band[1] <= 10
     ):
         raise InputError(
@@ -212,14 +212,14 @@ def validate_config(config: object, where: str = "config") -> None:
         if spec["kind"] == "supply_cost_breakeven":
             for field in ("utilization", "financing"):
                 value = spec.get(field, "case")
-                if value != "case" and not (isinstance(value, (int, float)) and value >= 0):
+                if value != "case" and not (isinstance(value, int | float) and value >= 0):
                     raise InputError(
                         f"{where}: anchors.{name}.{field} must be 'case' or a number >= 0"
                     )
             util = spec.get("utilization", "case")
             if util != "case" and not 0 < util <= 1:
                 raise InputError(f"{where}: anchors.{name}.utilization must be in (0, 1]")
-        if spec["kind"] == "fixed" and not isinstance(spec.get("usd_per_gpu_hour"), (int, float)):
+        if spec["kind"] == "fixed" and not isinstance(spec.get("usd_per_gpu_hour"), int | float):
             raise InputError(f"{where}: anchors.{name}.usd_per_gpu_hour must be a number")
     scenarios = config["scenarios"]
     if "base" not in scenarios:
@@ -235,7 +235,7 @@ def validate_config(config: object, where: str = "config") -> None:
         if (
             not isinstance(values, list)
             or not values
-            or not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in values)
+            or not all(isinstance(v, int | float) and not isinstance(v, bool) for v in values)
         ):
             raise InputError(f"{where}: sensitivities.{key} must be a non-empty list of numbers")
     for key in (
@@ -293,6 +293,18 @@ def git_commit(repo: Path) -> str | None:
     except (OSError, subprocess.SubprocessError):
         return None
     return out.stdout.strip() if out.returncode == 0 and out.stdout.strip() else None
+
+
+def research_working_tree_dirty(repo: Path) -> bool | None:
+    """Whether the actual model differs from its recorded HEAD tree; unknown without Git."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), "status", "--porcelain", "--", "tasks/compute-quant/research"],
+            capture_output=True, text=True, check=False, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return bool(out.stdout.strip()) if out.returncode == 0 else None
 
 
 def _fmt(value: float | None) -> str:
@@ -698,9 +710,11 @@ def build_manifest(
             "version": __version__,
             "source_sha256": code_digest(),
             "git_commit": git_commit(repo_root),
-            "git_commit_note": "HEAD when the manifest was generated; the commit that adds the "
-            "manifest necessarily comes after it, so compare git_tree_research instead",
+            "git_commit_note": "HEAD when generated; git_tree_research is the committed HEAD "
+            "tree only. If research_working_tree_dirty is true, source_sha256 identifies the "
+            "actual uncommitted code and the HEAD tree is not its source identity.",
             "git_tree_research": git_tree(repo_root, "tasks/compute-quant/research"),
+            "research_working_tree_dirty": research_working_tree_dirty(repo_root),
         },
         "python": {
             "version": platform.python_version(),

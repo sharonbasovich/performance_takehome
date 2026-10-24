@@ -237,6 +237,11 @@ def apply_quantity_adjustment(
                     f"{ref_count}; no paired evidence, not adjusted",
                 )
             )
+            if item.classification.curve_eligible:
+                item.excluded_reason = (
+                    f"gpu_count {item.quote.gpu_count} differs from reference {ref_count}; "
+                    "no paired quantity evidence supports a comparable capacity price"
+                )
             continue
         adjusted = quantize(item.usd_per_gpu_hour / factor)
         item.quantity_adjusted_usd_per_gpu_hour = adjusted

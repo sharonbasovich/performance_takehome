@@ -128,7 +128,8 @@ class SchemaPerturbationTests(unittest.TestCase):
         self.assertIsNone(row["valid_until"])
         self.assertIsNone(row["provider"])
         self.assertEqual(row["as_of_status"], "valid")
-        self.assertTrue(row["curve_eligible"])
+        self.assertFalse(row["curve_eligible"])
+        self.assertEqual(row["tier"], "different_product")
 
     def test_missing_required_field_is_explicit_error(self):
         with self.assertRaises(InputError) as ctx:

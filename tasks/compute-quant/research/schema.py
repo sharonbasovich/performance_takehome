@@ -608,6 +608,23 @@ def case_from_mapping(raw: dict[str, object]) -> Case:
             f"reservation.payment {reservation.payment!r} unsupported; "
             "only monthly arrears at month end is modeled"
         )
+    if product.payment != "monthly-in-arrears-at-delivery-month-end":
+        raise InputError("reference_product.payment: only monthly arrears at month end is modeled")
+    for label, cancellation in (
+        ("reference_product", product.cancellation), ("reservation", reservation.cancellation)
+    ):
+        if cancellation.strip().lower() not in {"none", "no", "non-cancellable", "noncancellable"}:
+            raise InputError(
+                f"{label}.cancellation {cancellation!r} unsupported; optionality is not modeled"
+            )
+    supported_credit_policy = (
+        "pro-rata-fee-credit-for-unavailable-hours-no-additional-consequential-damages"
+    )
+    if reservation.service_credit_policy != supported_credit_policy:
+        raise InputError(
+            "reservation.service_credit_policy must specify the supported pro-rata fee credit; "
+            "unknown or different remedies cannot be valued as identical"
+        )
     fx_raw = raw.get("fx_rates_to_usd") or {}
     if not isinstance(fx_raw, dict):
         raise InputError("case.fx_rates_to_usd must be an object mapping currency -> USD per unit")

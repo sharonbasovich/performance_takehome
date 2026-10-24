@@ -402,8 +402,12 @@ def render_report(results: dict[str, Any]) -> str:
         f"{cfg['horizon_vol_per_sqrt_month']}·√(months)·(anchor "
         "high). The band depends only on anchor "
         "intervals and declared parameters, never on "
-        "the fitted κ, so **removing evidence can only "
-        f"widen it** (tested for every forward quote individually and jointly).\n"
+        "the fitted κ. The demo's individual forward-quote removals widen these bands, "
+        "but this is **not a universal removal invariant**: removing quantity-pair evidence "
+        "or the last anchor can change the price scale, scenarios, and node identification. "
+        "Widths can then narrow despite weaker evidence; these judgmental scenario ranges "
+        "are not statistical confidence intervals. A node-sized quote with no supported "
+        "quantity translation is excluded rather than promoted to direct evidence.\n"
         f"5. **Labels.** OBSERVED / IMPLIED / MODELED / FORECAST / UNIDENTIFIED are carried into "
         "`curve.csv`; the 6- and 12-month tenors have no "
         "firm quote and are never labelled observed.\n"
@@ -742,8 +746,8 @@ def render_report(results: dict[str, Any]) -> str:
                     [
                         "After default risk",
                         _usd(bm["default_and_sla_adjusted_usd"]),
-                        "× uniform-hazard survival; 0% recovery; "
-                        "undelivered months neither paid nor received",
+                        "linear cumulative default probability; positive-claim recovery "
+                        "as declared below; undelivered months neither paid nor received",
                     ],
                     [
                         "**Buyer's mark**",
@@ -946,7 +950,8 @@ def render_report(results: dict[str, Any]) -> str:
         "providers, so it carries provider effects.\n"
         "- The H200 translation uses one synthetic throughput "
         "measurement and ignores memory, software and demand mix.\n"
-        "- Default treatment assumes a uniform hazard and release "
+        "- Default treatment assumes uniform default timing (linear cumulative probability), "
+        "not a constant hazard, and release "
         "of both sides on default; operational disruption "
         "costs beyond fee credits are not quantified. SLA attainment is assumed at the floor.\n"
         "- Energy is charged per allocated hour at full draw; "

@@ -8,7 +8,7 @@ for all of them; expected usage never reduces the bill). For each month ``m``:
 where ``FV_m`` is the curve's fair value for that delivery month, ``K`` the contract price,
 ``DF`` the buyer's discount factor (annual-effective, ACT/365) to the month-end payment date,
 unavailability is the SLA floor (pro-rata fee credit, no consequential damages), and
-``survival_m`` spreads the provider's default probability uniformly from as-of to delivery
+``survival_m`` assumes default timing conditional on default is uniform from as-of to delivery
 end (on default the buyer neither pays nor receives the undelivered months; recovery applies
 to any positive claim). The mark is the sum; the fair fixed price ``K*`` sets it to zero.
 """
@@ -84,12 +84,43 @@ def discount_factor(rate: float, start: datetime, end: datetime) -> float:
 def survival_probability(
     p_default: float, as_of: datetime, when: datetime, deal_end: datetime
 ) -> float:
-    """Uniform-hazard survival to ``when`` for a deal-level default probability."""
+    """Survival under a linear cumulative default probability over the stated window.
+
+    Conditional on default, its time is uniform. This is not constant-hazard survival.
+    """
     total = (deal_end - as_of).total_seconds()
     if total <= 0:
         return 1 - p_default
     frac = min(1.0, max(0.0, (when - as_of).total_seconds() / total))
     return 1 - p_default * frac
+
+
+def _credit_mark(spread: float, weight: float, survival: float, recovery: float) -> float:
+    """Value one signed claim; recovery applies only to a positive buyer claim."""
+    return spread * weight * (survival + (1 - survival) * recovery * (spread > 0))
+
+
+def _fair_fixed_price(levels: list[float], rows: list[MonthRow], recovery: float) -> float:
+    """Solve the piecewise-linear zero-mark price, including sign-dependent recovery."""
+    def mark(price: float) -> float:
+        return sum(
+            _credit_mark(level - price, row.hours * row.discount_factor * row.availability,
+                         row.survival, recovery)
+            for level, row in zip(levels, rows, strict=True)
+        )
+
+    if not any(row.availability * row.survival > 0 for row in rows):
+        raise InputError(
+            "reservation: no surviving service/payment exposure identifies a fair price"
+        )
+    low, high = min(levels), max(levels)
+    for _ in range(80):
+        mid = (low + high) / 2
+        if mark(mid) > 0:
+            low = mid
+        else:
+            high = mid
+    return (low + high) / 2
 
 
 def value_reservation(
@@ -110,7 +141,7 @@ def value_reservation(
     k = float(res.fixed_usd_per_gpu_hour)
     rows: list[MonthRow] = []
     scenario_values = {name: 0.0 for name in model.config["scenarios"]}
-    scenario_weights = {name: 0.0 for name in model.config["scenarios"]}
+    scenario_levels: dict[str, list[float]] = {name: [] for name in model.config["scenarios"]}
     try:
         months = months_between(res.delivery_start, res.delivery_end)
     except ValueError as exc:
@@ -133,9 +164,8 @@ def value_reservation(
         fee = k * hours
         v0 = (node.mid - k) * hours
         v1 = v0 * df
-        v_sla = v1 * avail
-        v_adj = v_sla * surv + v_sla * (1 - surv) * recovery * (1 if v_sla > 0 else 0)
-        factor = df * avail * (surv + (1 - surv) * recovery * (1 if v_sla > 0 else 0))
+        exposure = hours * df * avail
+        v_adj = _credit_mark(node.mid - k, exposure, surv, recovery)
         rows.append(
             MonthRow(
                 month,
@@ -153,36 +183,24 @@ def value_reservation(
                 v0,
                 v1,
                 v_adj,
-                (node.low - k) * hours * factor,
-                (node.high - k) * hours * factor,
+                _credit_mark(node.low - k, exposure, surv, recovery),
+                _credit_mark(node.high - k, exposure, surv, recovery),
             )
         )
         for name in scenario_values:
             level = node.scenarios[name]
             if level is not None:
-                scenario_values[name] += (level - k) * hours * factor
-                scenario_weights[name] += hours * factor
+                scenario_values[name] += _credit_mark(level - k, exposure, surv, recovery)
+                scenario_levels[name].append(level)
     hours_total = sum(r.hours for r in rows)
-    weight = sum(r.hours * r.discount_factor * r.availability * r.survival for r in rows)
-    weighted_fv = sum(
-        r.fv_mid * r.hours * r.discount_factor * r.availability * r.survival for r in rows
-    )
-    fair = weighted_fv / weight
-    fair_low = (
-        sum(r.fv_low * r.hours * r.discount_factor * r.availability * r.survival for r in rows)
-        / weight
-    )
-    fair_high = (
-        sum(r.fv_high * r.hours * r.discount_factor * r.availability * r.survival for r in rows)
-        / weight
-    )
+    fair = _fair_fixed_price([r.fv_mid for r in rows], rows, recovery)
+    fair_low = _fair_fixed_price([r.fv_low for r in rows], rows, recovery)
+    fair_high = _fair_fixed_price([r.fv_high for r in rows], rows, recovery)
     mark_adj = sum(r.value_adjusted for r in rows)
     mark_low = sum(r.value_low for r in rows)
     mark_high = sum(r.value_high for r in rows)
     scenario_fair = {
-        name: (scenario_values[name] / scenario_weights[name] + k)
-        if scenario_weights[name]
-        else float("nan")
+        name: _fair_fixed_price(scenario_levels[name], rows, recovery)
         for name in scenario_values
     }
     if mark_low > 0:

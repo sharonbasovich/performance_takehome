@@ -16,7 +16,8 @@ The model: ``F(t) = A + (F_L - A) * exp(-kappa * (t - t_L))`` where ``F_L`` is t
 ``A`` the scenario's long-run anchor and ``kappa`` is fitted by least squares on the log
 deviations of observed forward nodes from the base anchor (falling back to the declared
 default when the shape cannot identify it). Intervals widen with the square root of the
-horizon and are unioned with the scenario band, so removing evidence can only widen them.
+horizon and are unioned with the scenario band. Bands are conditional on retained anchors
+and scenarios; evidence removal can change those and has no universal width guarantee.
 """
 
 from __future__ import annotations
@@ -215,7 +216,7 @@ class CurveModel:
         The union contains the flat extension of the anchor interval (kappa = 0) and the fast
         reversion to every scenario anchor (upper kappa), so it depends only on the anchor
         interval and declared parameters, never on the fitted kappa. Removing evidence can
-        therefore only widen it.
+        change those anchors or scenario levels, so interval width need not be monotone.
         """
         k_lo, k_hi = (float(k) for k in self.config["curve"]["reversion_band_per_month"])
         values: list[float] = []

@@ -83,12 +83,10 @@ def product_differences(quote: Quote, case: Case) -> tuple[str, ...]:
     diffs: list[str] = []
     if quote.gpu != ref.gpu:
         diffs.append(f"gpu {quote.gpu!r} != {ref.gpu!r}")
-    if (
-        ref.memory_gib is not None
-        and quote.memory_gib is not None
-        and quote.memory_gib != ref.memory_gib
-    ):
-        diffs.append(f"memory_gib {quote.memory_gib} != {ref.memory_gib}")
+    if ref.memory_gib is not None and quote.memory_gib != ref.memory_gib:
+        diffs.append("memory_gib unknown; missing evidence is not proof of the same product"
+                     if quote.memory_gib is None else
+                     f"memory_gib {quote.memory_gib} != {ref.memory_gib}")
     if quote.region != ref.region:
         diffs.append(f"region {quote.region!r} != {ref.region!r}")
     if quote.isolation != ref.isolation:
