@@ -17,8 +17,15 @@ python tasks/harness-design/harness/run.py run \
   --api-spend-limit-usd 200 \
   --state-dir /var/tmp/harness-state \
   --out tasks/harness-design/submission.json \
-  --results tasks/harness-design/harness/results.tsv
+  --results tasks/harness-design/harness/results.tsv \
+  --reports-dir tasks/harness-design/harness/reports \
+  --patches-dir tasks/harness-design/harness/patches \
+  --overwrite-evidence
 ```
+
+(`--out`/`--results`/`--reports-dir`/`--patches-dir` default to files under `--state-dir`;
+pointing any of them at git-tracked files is refused with exit 2 unless `--overwrite-evidence`
+is given, so a casual run can never overwrite the committed evidence.)
 
 You define the local measurement configuration/schema and implement its invocation.
 No organizer benchmark manifest, grader binary, or score endpoint is supplied.
@@ -111,10 +118,20 @@ uv run --frozen python tasks/harness-design/harness/run.py fetch-standin-model -
 uv run --frozen python tasks/harness-design/harness/run.py run \
   --engine standin --model-dir /tmp/standin-model \
   --experiments tasks/harness-design/harness/experiments/standin-queue.json \
-  --state-dir /tmp/harness-state --out tasks/harness-design/submission.json \
-  --results tasks/harness-design/harness/results.tsv \
+  --state-dir /tmp/harness-state --out /tmp/harness-state/submission.json \
   --budget-minutes 120 --api-spend-limit-usd 0 --gpus 0 --standin-cpus 8
 ```
+
+Everything this writes (`results.tsv`, `reports/`, `patches/`, `submission.json`, `state.json`)
+lands under `/tmp/harness-state`; the checkout stays clean (`git status --short` is empty
+afterwards). To *replace* the committed evidence instead, add `--results
+tasks/harness-design/harness/results.tsv --reports-dir tasks/harness-design/harness/reports
+--patches-dir tasks/harness-design/harness/patches --out tasks/harness-design/submission.json
+--overwrite-evidence` (and `--no-cache` for real builds). `--manifest-only` rewrites
+`submission.json` + `reports/build-provenance.json` + `reports/agent-provenance.json` from an
+existing state directory without running attempts, keeping the state's `source_commit` and
+`harness_tree_sha256` (that is how the committed manifest was regenerated after the Round-4
+metadata fixes; the rows were not touched).
 
 Real target (MI355X host + coding-model key; **not executed in this draft**):
 
@@ -123,8 +140,7 @@ export HARNESS_LLM_API_KEY=...            # never passed on the command line, ne
 uv run --frozen python tasks/harness-design/harness/run.py run \
   --engine llmd --model-dir /path/to/model-repo \
   --proposer pi --pi-bin /opt/pi/node_modules/.bin/pi --api-key-env HARNESS_LLM_API_KEY \
-  --state-dir /var/tmp/harness-state --out tasks/harness-design/submission.json \
-  --results tasks/harness-design/harness/results.tsv \
+  --state-dir /var/tmp/harness-state --out /var/tmp/harness-state/submission.json \
   --budget-minutes 1380 --api-spend-limit-usd 40 --gpus 1 --gpu-hours 24
 ```
 

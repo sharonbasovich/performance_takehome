@@ -134,8 +134,13 @@ next invocation resumed from `state.json` and continued the queue.
     attempts than in others (threads-8 FTGR median 13.9 vs 4.4 vs 7.4): BuildKit's post-build
     export/GC after each `--no-cache` compile was still running when the first measurement arm
     started. Fixed by `procs.wait_for_quiet_host()` (bounded wait for >= 85% idle over 3 samples,
-    recorded as `host_quiet_before_start` in every container record); the committed set shows
-    consistent last-good medians (12.7-13.7 tok/s) across attempts.
+    recorded as `host_quiet_before_start` in every container record; when `/proc/stat` cannot
+    be read it records `quiet: null` plus a `reason`, never `true`). Re-derived from the
+    committed reports (`baseline_measurement.ftgr_samples` medians, tok/s): the last-good arm
+    measured 9.64 in attempt 001 (the thread-4 baseline image, vs 8.24 in the baseline row
+    itself), then 12.01-15.43 across attempts 002-013 (12.69-15.43 if the `error` row 006, whose
+    candidate never served, is excluded). That is still +-13% drift on a shared host, which is
+    why only the paired A/B ratio inside one attempt is used for decisions.
 
 ## Pi test double (what `PiProposer` was actually tested against)
 
@@ -172,7 +177,7 @@ Every finding below was reproduced, fixed and covered by a test in `harness/test
 | Startup regression guard was dead code (1 sample vs `min_samples=3`) | `decision.startup_hard_gate()`: single-sample hard gate at 1.5x (`--startup-regression-limit`), evaluated before the primary metrics; docs now say exactly this | `StartupHardGateTest` (100x slower startup + TTFT win -> `regressed`) |
 | `kill -9` between row append and state save duplicated the row and overwrote the report | `InProgress` carries `attempt_index`/`report_path`/`row_written`; `_append_row` is idempotent on experiment id; recovery clears the marker without a row when the row exists, never overwrites an existing report (`.recovered.json`), and `_reconcile_attempt_index()` never reuses a number already in `results.tsv` (also covers a `.bak` rewind); `validate-results` rejects duplicate ids | `CrashBetweenWritesTest` (report-only, row-without-save, `.bak` rewind, duplicate id) |
 | Documented `fetch-standin-model --model-dir` did not run | README fixed (`--dest`); organizer example rewritten to the real CLI | `test_docs.py` parses every documented `run.py` line with the real parser |
-| `source_commit` named a commit without the code | `_git_describe()` records HEAD and refuses to run on a dirty `tasks/harness-design` (code paths only; evidence outputs are ignored) unless `--allow-dirty` (then `-dirty` suffix); `harness_tree_sha256` of the code + inputs stored in state and manifest; **all evidence rows were regenerated from the committed tree** | `ProvenanceTest` |
+| `source_commit` named a commit without the code | `_git_describe()` records HEAD and refuses to run on a dirty `tasks/harness-design` unless `--allow-dirty` (then `-dirty` suffix); only the files this run is configured to write (`--results`, `--reports-dir`, `--patches-dir`, `--out`) are exempt from the dirty check (Round 4; before that `reports/` and `patches/` were always exempt); `harness_tree_sha256` of the code + inputs stored in `state.json`, `submission.json` (`source.harness_tree_sha256`) and `reports/build-provenance.json` (Round 4; before that state only); **all evidence rows were regenerated from the committed tree** | `ProvenanceTest` |
 | Budget guard could not bound an attempt | estimate = max(configured, p90 of observed attempt durations); proposer USD estimate passed; every stage timeout is clamped to a per-attempt deadline = min(worst case from timeouts, usable lease window) | `BudgetBoundTest` |
 | `results.validate()` gaps | rejects `improved` rows without a speedup > 1 (none below 0.95), NaN/inf/non-numeric numbers (named error), non-hex digests, malformed timestamps; file-level: duplicate ids, duplicate rows, non-monotonic timestamps | `ResultsValidationTest` |
 | `load_benchmark()` gaps | `BenchmarkError` for non-positive/non-int repetitions and token counts, non-positive timeouts, prompts without `id`/`prompt`, bad `startup_probe` | `BenchmarkValidationTest` |
@@ -187,7 +192,8 @@ Every finding below was reproduced, fixed and covered by a test in `harness/test
 **What the "digest" is.** With `docker buildx build --load` the only locally resolvable identity
 is the image *config ID* (`docker image inspect --format {{.Id}}`); that is what `image_digest`
 holds and why it equals `image_id` in every report. A registry manifest digest exists only after
-a push (`manifest.json` says which kind it recorded).
+a push. `submission.json` (`source.image_identity_kind`) and `reports/build-provenance.json`
+(`image_identity_kind`) record the kind explicitly: `docker-image-config-id`.
 
 **Pi sandboxing (known limitation).** The organizer contract requires plain Pi 1.0.0 with the
 stock `bash` tool, so `PiProposer` runs it as a host process. Mitigations in place: cwd is the
@@ -196,6 +202,27 @@ key, `PI_CODING_AGENT_DIR` points at a task-scoped directory, the resulting tree
 patch is containment-checked before use. Not in place: a container or `bwrap` jail; on a shared
 host that is a real risk and is called out in the PR. `--no-approve` in 1.0.0 means "ignore
 project-local files" (`dist/cli/args.js` L219, `projectTrustOverride`), not approval skipping.
+
+## Round-4 review fixes (independent re-review of 430a443)
+
+The reviewer confirmed the six Round-3 majors and found one new major, two regressions
+introduced by Round 3, and documentation drift. All fixed at this head; the evidence rows were
+not touched (their `source_commit` 45fc163 is still the code that produced them); only the
+derived manifest files were regenerated with `--manifest-only`.
+
+| Finding | Fix | Test / artifact |
+| --- | --- | --- |
+| The documented reproduction command overwrote `reports/000-baseline.json` and `build-provenance.json` in the checkout, and the dirty check ignored `reports/` | `--results`/`--reports-dir`/`--patches-dir` default to files under `--state-dir`; `run` refuses (exit 2, before touching disk) when any output path is a git-tracked file unless `--overwrite-evidence`; the dirty check exempts only the paths this run is configured to write; README/PR commands write under `/tmp/harness-state`; the README command was run verbatim in a clean clone and `git status --short` stayed empty | `test_tracked_evidence_is_detected_and_defaults_avoid_it`, `test_run_refuses_to_overwrite_committed_evidence`, `test_dirty_detection_ignores_evidence_outputs_but_not_code` |
+| `_release_locks()` unlinked `<results>.lock` (unlink race: two holders) | Lock files are never unlinked; the results lock now lives outside the repo (`procs.results_lock_path()`: `$TMPDIR/abstract-harness-locks/<sha256(path)>.lock`) so it cannot litter the checkout either | `test_lock_files_survive_release_and_block_another_process` (second process holds the flock -> `LockError`; file survives release) |
+| `manifest._pi_pins` read `integrity` but `profiles.json` uses `artifact_integrity` (empty `pi_integrity`) | Reads `artifact_integrity` + `node_requirement`; raises when any pin is empty; `agent-provenance.json` regenerated | `test_pi_pins_come_from_profiles_json_and_are_nonempty`, `test_committed_agent_provenance_carries_the_pi_pins` |
+| `harness_tree_sha256` only in `state.json` | In `submission.json` `source` and `reports/build-provenance.json`; the test re-derives it from `git archive <source.commit>` | `test_committed_manifest_tree_hash_matches_its_source_commit`, `test_manifest_records_tree_hash_and_image_identity_kind` |
+| "manifest says which digest kind" was not true | Explicit `image_identity_kind: "docker-image-config-id"` in both files | same tests |
+| Quiet gate recorded `quiet: true` when `/proc/stat` was unreadable | `quiet: null` + `reason`; the loop logs "host idle unknown" | `test_unavailable_sampler_does_not_block` |
+| NOTES "12.7-13.7 tok/s" | Re-derived above from the reports (9.64 / 12.01-15.43) | `harness/reports/*.json` |
+| PR body outcome counts stale (013 is `improved`) | Recounted from `results.tsv`: baseline 1, improved 2 (001 threads-8, 013 OpenMP-off; both kept), regressed 1, no_change 5, gate_failed 2, error 2, interrupted 1 | `validate-results` output in the PR |
+| Minor: startup hard gate silently passed a candidate with no finite startup sample | Candidate without a finite startup sample fails the gate | `test_missing_or_nan_candidate_startup_fails_the_gate` |
+| Minor: patches could create symlinks inside the context | Any symlink created by a patch is rejected | `test_apply_patch_rejects_symlink_creation_inside_context` |
+| Nit: CRLF `results.tsv` accepted | Rejected (`results.tsv is LF-only`) | `test_crlf_results_file_is_rejected` |
 
 ## Limitations (honest)
 
