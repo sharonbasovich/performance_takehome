@@ -222,7 +222,10 @@ def validate_plan(plan: dict[str, Any]) -> None:
     )
     _require(0 < stats.get("confidence", 0) < 1, "statistics.confidence must be in (0, 1)")
     _require(
-        isinstance(stats.get("min_requests_per_cell"), int), "statistics.min_requests_per_cell"
+        isinstance(stats.get("min_requests_per_cell"), int)
+        and not isinstance(stats.get("min_requests_per_cell"), bool)
+        and stats["min_requests_per_cell"] > 0,
+        "statistics.min_requests_per_cell must be a positive integer",
     )
     _positive(plan["client_integrity"].get("max_event_loop_lag_s"), "max_event_loop_lag_s")
     _positive(plan["startup"].get("max_wait_s"), "startup.max_wait_s")
@@ -246,6 +249,9 @@ def resolve_mode(plan: dict[str, Any], mode_name: str) -> list[ScheduledCell]:
     _require(mode_name in plan["modes"], f"unknown mode {mode_name!r}")
     mode = plan["modes"][mode_name]
     scale = float(mode.get("requests_scale", 1.0))
+    # Scaling never takes a load point below the per-cell minimum the evaluator needs, so
+    # every mode can in principle reach a *valid* verdict (round-2 review F7).
+    floor = int(plan["statistics"]["min_requests_per_cell"])
     warmup = int(plan["warmup"]["requests_per_cell"])
     base_seed = int(plan["seeds"]["arrival_seed"])
     per_rep: list[list[ScheduledCell]] = [[] for _ in range(mode["repetitions"])]
@@ -264,7 +270,7 @@ def resolve_mode(plan: dict[str, Any], mode_name: str) -> list[ScheduledCell]:
         offset = int(arrival.get("arrival_seed_offset", 0))
         for repetition in range(mode["repetitions"]):
             for load_index, (load, count) in enumerate(loads):
-                requests = max(1, int(round(count * scale)))
+                requests = max(floor, int(round(count * scale)))
                 seed_material = f"{base_seed}:{cid}:{load}:{repetition}:{offset}"
                 seed = int(hashlib.sha256(seed_material.encode()).hexdigest()[:12], 16)
                 grid = cell.get("prompt_token_grid")

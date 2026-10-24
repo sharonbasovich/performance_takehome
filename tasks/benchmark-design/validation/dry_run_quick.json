@@ -2,17 +2,17 @@
   "status": "planning-arithmetic-unmeasured",
   "mode": "quick",
   "units": 8,
-  "offered_requests": 190,
+  "offered_requests": 242,
   "warmup_requests": 28,
   "startup_launches": 1,
-  "arrival_and_drain_s": 1016.8,
+  "arrival_and_drain_s": 1302.8,
   "startup_s": 540,
   "teardown_s": 60,
-  "raw_total_minutes": 26.9,
+  "raw_total_minutes": 31.7,
   "safety_margin": 1.25,
-  "planned_wall_minutes": 33.7,
-  "planned_gpu_hours": 0.56,
-  "planned_wall_minutes_max": 40,
+  "planned_wall_minutes": 39.6,
+  "planned_gpu_hours": 0.66,
+  "planned_wall_minutes_max": 45,
   "fits_cap": true,
   "suite_wall_budget_minutes": 180.0,
   "fits_suite_budget": true,
@@ -40,19 +40,19 @@
     },
     {
       "unit": "rag_long_open|rate=0.25rps|rep0",
-      "requests": 15,
-      "busy_s": 95.3,
+      "requests": 30,
+      "busy_s": 155.3,
       "warmup_s": 16.7,
       "setup_s": 15,
-      "total_s": 127.0
+      "total_s": 187.0
     },
     {
       "unit": "generation_long_open|rate=0.2rps|rep0",
-      "requests": 15,
-      "busy_s": 139.2,
+      "requests": 30,
+      "busy_s": 214.2,
       "warmup_s": 109.3,
       "setup_s": 15,
-      "total_s": 263.5
+      "total_s": 338.5
     },
     {
       "unit": "mixed_open|rate=1rps|rep0",
@@ -64,11 +64,11 @@
     },
     {
       "unit": "closed_loop_sweep|conc=1|rep0",
-      "requests": 8,
-      "busy_s": 63.5,
+      "requests": 30,
+      "busy_s": 214.6,
       "warmup_s": 27.5,
       "setup_s": 15,
-      "total_s": 106.0
+      "total_s": 257.1
     },
     {
       "unit": "closed_loop_sweep|conc=16|rep0",

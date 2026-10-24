@@ -141,7 +141,22 @@ sufficiency gate fired, else `valid`. A valid run can still describe a terrible 
   against degenerate bootstrap CIs on tiny samples). Confidence is Bonferroni-adjusted
   across compared cells. Runs that are not both valid cannot be compared (`invalid`).
 
-## 4. Validation matrix
+## 4. Validation matrix (CPU mock fixtures — not GPU, not llm-d)
+
+**How "detected" is decided (round-2 review F5/F6).** `validation/build_validation.py` marks a
+fixture detected only when (i) the top-level status equals the expected one **and** (ii) every
+machine-checkable predicate listed for that profile in `suite/fixtures/expectations.py`
+passes — a named gate with a minimum count, a metric ratio against the clean control, a
+startup field, or a reason string. Generic "something moved vs clean" is no longer enough.
+Weak signals are not relied on: `slow_startup` must show `first_ready_probe_s` > 3× clean
+*and* startup-to-first-valid > 2× clean; `misleading_readiness` must show a readiness probe
+as fast as clean (< 2×) *plus* ≥ 1 failed generation probe before the first valid one *plus*
+readiness lead > 1 s — which is what separates it from `stall`, whose readiness lead is also
+long but whose probes complete slowly without failing. The held-out set has mixed expected
+outcomes (valid / invalid / inconclusive) with specific checks; its key is kept outside the
+public tree (`~/.benchmark-design/heldout_key.json`, sha256 committed as
+`suite/fixtures/heldout/COMMITMENT.sha256`), so "held-out" means *not labelled in this
+tree* — the author generated it and knows the answers; it is not blind to the author.
 
 Fixtures are produced by the CPU mock (`suite/mock_server`, 18 profiles) through the real
 runner with a real cold launch per fixture, at the mock's native injected timings
@@ -204,24 +219,22 @@ of `max_tokens` produced.
 
 | Mode | Units | Offered requests (+warmup) | Launches | Raw minutes | ×1.25 planned minutes | Cap | GPU-hours (1 GPU) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| quick | 8 | 190 (+28) | 1 | 26.9 | **33.7** | 40 | 0.56 |
-| full | 45 | 2 454 (+96) | 2 | 120.0 | **150.1** | 180 | 2.5 |
+| quick | 8 | 242 (+28) | 1 | 31.7 | **39.6** | 45 | 0.66 |
+| full | 45 | 2541 (+96) | 2 | 128.0 | **160.0** | 180 | 2.67 |
 
 Full mode therefore fits the 3-hour suite ceiling (`docs/BUDGETS.md`) and the proposed
-4 GPU-hour grading allowance (`budgets.toml`), with ~30 minutes of head-room for the pilot
+4 GPU-hour grading allowance (`budgets.toml`), with ~20 minutes of head-room for the pilot
 to be slower than assumed. The first real quick run replaces every assumption with a
 measurement and the arithmetic is re-run before the full run is scheduled.
 
-### Measured CPU/mock cost (this host; `validation/timing.md`)
+### Measured CPU/mock cost
 
-| What | Measured on this host |
-| --- | --- |
-| fixture generation: runner + cold-started mock, 18 public fixtures (`fixture` mode, 80 offered + 5 warmup requests each) | 721.8 s total, 24.49–74.6 s per fixture |
-| `evaluate.py` over 30 fixtures (public + held-out) | 12.84 s total, 0.27–0.68 s each |
-| candidate unittest suite (OK; Ran 77 tests in 34.595s) | 34.75 s |
-| quick mode of the mock plan (`fixtures/workload.mock.json`, 228 requests) at `--time-scale 0.25` | ≈ 25 s (observed during development, not a committed artifact) |
-
-Host: `Linux-6.8.0-1061-aws-x86_64-with-glibc2.35`, Python 3.11.17, `time_scale = 1.0`.
+The single source of truth is `validation/timing.md` / `validation/timing.json`, written by
+`validation/build_validation.py` on every run (fixture-generation wall time from
+`fixtures/manifest.json`, `evaluate.py` wall time over every fixture, and the candidate
+unittest wall time and result line). Numbers are deliberately not retyped here so they
+cannot drift from the artifact. `validation/quick_mock_run/` holds the one end-to-end
+execution of the shipped `workload.json` quick mode against the CPU mock (§6).
 
 These measure the candidate tooling only.
 
@@ -290,7 +303,7 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
 
 ## 9. Effort and resource use
 
-* Active engineering time: one autonomous agent session (≈ 3 wall-clock hours of work).
+* Active engineering time: one autonomous agent session; wall-clock effort was not instrumented and is not claimed.
 * GPU-hours allocated: **0**. GPU-hours used: **0**. Paid API charges: **0**.
 * CPU use: fixture generation and validation on one VM (`validation/timing.md`).
 * Cuts: no real-engine pilot (no GPU); no model-judged quality metric; no multi-turn or

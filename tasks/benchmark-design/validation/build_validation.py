@@ -14,7 +14,9 @@ Writes, under ``validation/``:
 Everything here is produced by running the committed code; nothing is typed in by hand.
 """
 
+import hashlib
 import json
+import os
 import platform
 import subprocess
 import sys
@@ -28,6 +30,8 @@ sys.path.insert(0, str(SUITE))
 
 import evaluate as ev_mod  # noqa: E402
 from bench.plan import load_plan  # noqa: E402
+from fixtures.expectations import EXPECTED, run_checks  # noqa: E402
+from fixtures.generate import DEFAULT_KEY_PATH  # noqa: E402
 
 VALIDATION = TASK / "validation"
 PUBLIC = SUITE / "fixtures" / "public"
@@ -102,13 +106,14 @@ def _evaluate_dir(plan: dict[str, Any], d: Path, timing: dict[str, Any]) -> dict
 def discrimination_rows(
     reports: dict[str, dict[str, Any]], labels: dict[str, dict[str, Any]]
 ) -> list[dict[str, Any]]:
+    """One row per fixture; ``detected`` requires the expected status AND every named check."""
     clean = reports.get("clean")
     rows = []
     for name, report in reports.items():
-        expected = labels[name]["expected"]
-        signals = observed_signals(report, clean if name != "clean" else None)
+        profile = labels[name].get("profile", name)
+        expected = EXPECTED[profile]
+        checks = run_checks(report, clean if name != "clean" else None, expected["checks"])
         status_ok = report["status"] == expected["status"]
-        detected = status_ok and (name in ("clean", "noisy") or bool(signals))
         rows.append(
             {
                 "fixture": name,
@@ -116,8 +121,9 @@ def discrimination_rows(
                 "expected_status": expected["status"],
                 "observed_status": report["status"],
                 "expected_signal": expected["signal"],
-                "observed_signals": signals,
-                "detected": detected,
+                "checks": checks,
+                "observed_signals": observed_signals(report, clean if name != "clean" else None),
+                "detected": status_ok and all(c["passed"] for c in checks),
             }
         )
     return rows
@@ -143,7 +149,21 @@ def control_rows(controls: list[tuple[str, dict[str, Any]]]) -> list[dict[str, A
     return rows
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    """Rebuild every validation artifact; ``--out`` redirects the output tree (used by tests)."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--out", type=Path, default=None, help="output directory (default: validation/)"
+    )
+    args = parser.parse_args(argv)
+    global VALIDATION
+    if args.out is not None:
+        VALIDATION = args.out
+        VALIDATION.mkdir(parents=True, exist_ok=True)
+        (VALIDATION / "reports" / "public").mkdir(parents=True, exist_ok=True)
+        (VALIDATION / "reports" / "heldout").mkdir(parents=True, exist_ok=True)
     plan = load_plan(PLAN)
     host = {
         "platform": platform.platform(),
@@ -152,8 +172,25 @@ def main() -> int:
         "time_scale. NOT GPU.",
     }
     manifest = json.loads((SUITE / "fixtures" / "manifest.json").read_text(encoding="utf-8"))
+    quick_run = VALIDATION / "quick_mock_run" / "run.json"
+    quick_wall: dict[str, Any] | None = None
+    if quick_run.is_file():
+        run = json.loads(quick_run.read_text(encoding="utf-8"))
+        phases = run.get("phases") or []
+        if phases:
+            start = min(p["start"] for p in phases)
+            end = max(p["end"] for p in phases if p.get("end") is not None)
+            quick_wall = {
+                "run_id": run.get("run_id"),
+                "mode": run.get("mode"),
+                "wall_s_cpu_mock": round(end - start, 1),
+                "phases": len(phases),
+                "note": "shipped workload.json quick mode executed once end-to-end against the "
+                "CPU mock (clean profile, time_scale 1.0); NOT a GPU measurement",
+            }
     timing: dict[str, Any] = {
         "host": host,
+        "quick_mock_run": quick_wall,
         "time_scale": manifest["time_scale"],
         "evaluate_s": {},
         "generation_s_from_manifest": {
@@ -183,19 +220,30 @@ def main() -> int:
         "nothing hand-edited.",
         "",
         "| fixture | family | expected status | observed status | expected signal "
-        "| observed signals (machine-derived) | detected |",
+        "| machine-checked results | detected |",
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for r in rows:
         md.append(
             f"| {r['fixture']} | {r['family']} | {r['expected_status']} | {r['observed_status']} | "
-            f"{r['expected_signal']} | {'<br>'.join(r['observed_signals']) or '-'} | "
-            f"{'yes' if r['detected'] else 'NO'} |"
+            f"{r['expected_signal']} | "
+            + "<br>".join(
+                f"{'PASS' if c['passed'] else 'FAIL'}: {c['observed']}" for c in r["checks"]
+            )
+            + f" | {'yes' if r['detected'] else 'NO'} |"
         )
 
-    heldout_key = json.loads((VALIDATION / "heldout_key.json").read_text(encoding="utf-8"))
+    key_path = Path(os.environ.get("BENCHMARK_DESIGN_HELDOUT_KEY", DEFAULT_KEY_PATH))
+    heldout_key: dict[str, Any] = {}
+    key_status = "absent"
+    if key_path.is_file():
+        key_text = key_path.read_text(encoding="utf-8")
+        digest = hashlib.sha256(key_text.encode("utf-8")).hexdigest()
+        committed = (HELDOUT / "COMMITMENT.sha256").read_text(encoding="utf-8").split()[0]
+        key_status = "matches commitment" if digest == committed else "DOES NOT MATCH commitment"
+        heldout_key = {k: v for k, v in json.loads(key_text).items() if k != "_salt"}
     heldout_reports: dict[str, dict[str, Any]] = {}
-    for d in sorted(HELDOUT.iterdir()):
+    for d in sorted(x for x in HELDOUT.iterdir() if x.is_dir()):
         heldout_reports[d.name] = _evaluate_dir(plan, d, timing)
         _write(
             VALIDATION / "reports" / "heldout" / f"{d.name}.report.json", heldout_reports[d.name]
@@ -231,32 +279,54 @@ def main() -> int:
             f"{r['aa_decision']} | {'YES' if r['false_positive'] else 'no'} |"
         )
 
+    # In-tree held-out results carry NO truth: only what the evaluator observed per opaque
+    # fixture plus, when the (out-of-tree) key is present, whether its specific checks passed.
+    clean_pub = reports.get("clean")
     held_rows = []
-    for name, truth in heldout_key.items():
-        rep = heldout_reports[name]
-        totals = rep["population"]["totals"]
-        held_rows.append(
-            {
-                "fixture": name,
-                "profile": truth["profile"],
-                "expected_status": truth["expected"]["status"],
-                "observed_status": rep["status"],
-                "match": rep["status"] == truth["expected"]["status"],
-                "rejections": totals["failed"] + totals["unfinished"],
-            }
-        )
-    _write(VALIDATION / "heldout_results.json", held_rows)
+    matched = 0
+    for name, rep in heldout_reports.items():
+        totals = rep.get("population", {}).get("totals", {})
+        row: dict[str, Any] = {
+            "fixture": name,
+            "observed_status": rep["status"],
+            "rejections": sum(
+                totals.get(k, 0) for k in ("failed", "unfinished", "evidence_invalid")
+            ),
+            "gates": sorted(
+                {k for c in rep.get("cells", {}).values() for k in c.get("rejection_reasons", {})}
+            ),
+        }
+        if name in heldout_key:
+            truth = heldout_key[name]
+            checks = run_checks(rep, clean_pub, truth["expected"]["checks"])
+            row["checks_passed"] = rep["status"] == truth["expected"]["status"] and all(
+                c["passed"] for c in checks
+            )
+            matched += row["checks_passed"]
+        held_rows.append(row)
+    held_summary = {
+        "fixtures": len(held_rows),
+        "key": key_status,
+        "checks_passed": matched if heldout_key else None,
+        "note": "expected outcomes are mixed (valid / invalid / inconclusive); the key is kept "
+        "outside the public tree and only its sha256 is committed, so held-out means "
+        "'not labelled in the tree', not 'unknown to the author'",
+    }
+    _write(VALIDATION / "heldout_results.json", {"summary": held_summary, "rows": held_rows})
     md += [
         "",
-        "## Held-out fixtures (opaque names; key only consulted here, after evaluation)",
+        "## Held-out fixtures (opaque names; no truth in this tree)",
         "",
-        "| fixture | true profile | expected | observed | rejections | match |",
-        "| --- | --- | --- | --- | --- | --- |",
+        f"Key: {key_status}. Checks passed: "
+        f"{matched if heldout_key else 'n/a (key absent)'}/{len(held_rows)}.",
+        "",
+        "| fixture | observed status | rejections | gates fired | key checks passed |",
+        "| --- | --- | --- | --- | --- |",
     ]
     for r in held_rows:
         md.append(
-            f"| {r['fixture']} | {r['profile']} | {r['expected_status']} | "
-            f"{r['observed_status']} | {r['rejections']} | {'yes' if r['match'] else 'NO'} |"
+            f"| {r['fixture']} | {r['observed_status']} | {r['rejections']} | "
+            f"{','.join(r['gates']) or '-'} | {r.get('checks_passed', 'n/a')} |"
         )
     (VALIDATION / "discrimination.md").write_text("\n".join(md) + "\n", encoding="utf-8")
 
@@ -268,17 +338,23 @@ def main() -> int:
             ev_mod.compare_runs(plan, base, other),
         )
 
-    t0 = time.perf_counter()
-    proc = subprocess.run(
-        [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
-        cwd=SUITE,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    timing["unittest_s"] = round(time.perf_counter() - t0, 2)
-    timing["unittest_tail"] = proc.stderr.strip().splitlines()[-3:]
-    timing["unittest_returncode"] = proc.returncode
+    if args.out is not None:
+        # Redirected output means "called from a test": do not recurse into the test suite.
+        timing["unittest_s"] = None
+        timing["unittest_tail"] = ["skipped (--out)"]
+        timing["unittest_returncode"] = None
+    else:
+        t0 = time.perf_counter()
+        proc = subprocess.run(
+            [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
+            cwd=SUITE,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        timing["unittest_s"] = round(time.perf_counter() - t0, 2)
+        timing["unittest_tail"] = proc.stderr.strip().splitlines()[-3:]
+        timing["unittest_returncode"] = proc.returncode
     timing["fixture_generation_total_s"] = round(
         sum(timing["generation_s_from_manifest"].values()), 1
     )
@@ -299,13 +375,22 @@ def main() -> int:
         f"{timing['evaluate_total_s']} s total",
         f"- unittest suite: {timing['unittest_s']} s (exit {timing['unittest_returncode']}; "
         f"last line: `{last_line}`)",
+        (
+            f"- shipped `workload.json` quick mode, end-to-end against the CPU mock "
+            f"(`validation/quick_mock_run/`): {quick_wall['wall_s_cpu_mock']} s wall "
+            f"({quick_wall['phases']} phases, run {quick_wall['run_id']})"
+            if quick_wall
+            else "- shipped `workload.json` quick mode: not executed (no validation/quick_mock_run)"
+        ),
         "",
         "These numbers measure the candidate tooling on a CPU; they say nothing about llm-d "
         "or MI355X.",
     ]
     (VALIDATION / "timing.md").write_text("\n".join(tmd) + "\n", encoding="utf-8")
     print("\n".join(md))
-    ok = all(r["detected"] for r in rows) and all(r["match"] for r in held_rows)
+    ok = all(r["detected"] for r in rows) and (
+        not heldout_key or all(r.get("checks_passed") for r in held_rows)
+    )
     return 0 if ok else 1
 
 

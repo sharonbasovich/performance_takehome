@@ -239,7 +239,19 @@ def judge(record: dict[str, Any], plan: dict[str, Any], schema_errors: list[str]
         if not content_text:
             reasons.append("empty_output")
         reasons.extend(f"invalid_output:{f}" for f in check_expected(content_text, expected))
-        if usage and isinstance(usage.get("completion_tokens"), int):
+        if (
+            usage
+            and "completion_tokens" in usage
+            and (
+                isinstance(usage["completion_tokens"], bool)
+                or not isinstance(usage["completion_tokens"], int)
+            )
+        ):
+            reasons.append(
+                "usage_discrepancy:completion_tokens is not an integer "
+                f"({usage['completion_tokens']!r})"
+            )
+        elif usage and isinstance(usage.get("completion_tokens"), int):
             verdict.usage_completion_tokens = usage["completion_tokens"]
             independent = verdict.content_tokens + verdict.reasoning_tokens
             lo, hi = plan["token_accounting"]["usage_ratio_band"]

@@ -2,16 +2,16 @@
   "status": "planning-arithmetic-unmeasured",
   "mode": "full",
   "units": 45,
-  "offered_requests": 2454,
+  "offered_requests": 2541,
   "warmup_requests": 96,
   "startup_launches": 2,
-  "arrival_and_drain_s": 6062.7,
+  "arrival_and_drain_s": 6539.3,
   "startup_s": 1080,
   "teardown_s": 60,
-  "raw_total_minutes": 120.0,
+  "raw_total_minutes": 128.0,
   "safety_margin": 1.25,
-  "planned_wall_minutes": 150.1,
-  "planned_gpu_hours": 2.5,
+  "planned_wall_minutes": 160.0,
+  "planned_gpu_hours": 2.67,
   "planned_wall_minutes_max": 180,
   "fits_cap": true,
   "suite_wall_budget_minutes": 180.0,
@@ -96,11 +96,11 @@
     },
     {
       "unit": "closed_loop_sweep|conc=1|rep0",
-      "requests": 16,
-      "busy_s": 118.5,
+      "requests": 30,
+      "busy_s": 214.6,
       "warmup_s": 27.5,
       "setup_s": 15,
-      "total_s": 160.9
+      "total_s": 257.1
     },
     {
       "unit": "closed_loop_sweep|conc=4|rep0",
@@ -128,11 +128,11 @@
     },
     {
       "unit": "prefill_calibration|conc=1|rep0",
-      "requests": 15,
-      "busy_s": 68.0,
+      "requests": 30,
+      "busy_s": 130.7,
       "warmup_s": 16.7,
       "setup_s": 15,
-      "total_s": 99.7
+      "total_s": 162.5
     },
     {
       "unit": "aa_control_a|rate=1rps|rep0",
@@ -216,11 +216,11 @@
     },
     {
       "unit": "closed_loop_sweep|conc=1|rep1",
-      "requests": 16,
-      "busy_s": 118.5,
+      "requests": 30,
+      "busy_s": 214.6,
       "warmup_s": 27.5,
       "setup_s": 15,
-      "total_s": 160.9
+      "total_s": 257.1
     },
     {
       "unit": "closed_loop_sweep|conc=4|rep1",
@@ -248,11 +248,11 @@
     },
     {
       "unit": "prefill_calibration|conc=1|rep1",
-      "requests": 15,
-      "busy_s": 68.0,
+      "requests": 30,
+      "busy_s": 130.7,
       "warmup_s": 16.7,
       "setup_s": 15,
-      "total_s": 99.7
+      "total_s": 162.5
     },
     {
       "unit": "aa_control_a|rate=1rps|rep1",
@@ -336,11 +336,11 @@
     },
     {
       "unit": "closed_loop_sweep|conc=1|rep2",
-      "requests": 16,
-      "busy_s": 118.5,
+      "requests": 30,
+      "busy_s": 214.6,
       "warmup_s": 27.5,
       "setup_s": 15,
-      "total_s": 160.9
+      "total_s": 257.1
     },
     {
       "unit": "closed_loop_sweep|conc=4|rep2",
@@ -368,11 +368,11 @@
     },
     {
       "unit": "prefill_calibration|conc=1|rep2",
-      "requests": 15,
-      "busy_s": 68.0,
+      "requests": 30,
+      "busy_s": 130.7,
       "warmup_s": 16.7,
       "setup_s": 15,
-      "total_s": 99.7
+      "total_s": 162.5
     },
     {
       "unit": "aa_control_a|rate=1rps|rep2",

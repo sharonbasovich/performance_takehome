@@ -1,82 +1,115 @@
-[
-  {
-    "expected_status": "valid",
-    "fixture": "hx-09169a6f2386",
-    "match": true,
-    "observed_status": "valid",
-    "profile": "clean",
-    "rejections": 0
-  },
-  {
-    "expected_status": "valid",
-    "fixture": "hx-bdc8c9170fad",
-    "match": true,
-    "observed_status": "valid",
-    "profile": "noisy",
-    "rejections": 0
-  },
-  {
-    "expected_status": "valid",
-    "fixture": "hx-ec6ac0af8116",
-    "match": true,
-    "observed_status": "valid",
-    "profile": "stall",
-    "rejections": 0
-  },
-  {
-    "expected_status": "valid",
-    "fixture": "hx-8f88736a2396",
-    "match": true,
-    "observed_status": "valid",
-    "profile": "burst",
-    "rejections": 0
-  },
-  {
-    "expected_status": "valid",
-    "fixture": "hx-064edce923bc",
-    "match": true,
-    "observed_status": "valid",
-    "profile": "missing_done",
-    "rejections": 79
-  },
-  {
-    "expected_status": "valid",
-    "fixture": "hx-fc077754065e",
-    "match": true,
-    "observed_status": "valid",
-    "profile": "wrong_text",
-    "rejections": 79
-  },
-  {
-    "expected_status": "valid",
-    "fixture": "hx-5378c2beb99b",
-    "match": true,
-    "observed_status": "valid",
-    "profile": "false_usage",
-    "rejections": 63
-  },
-  {
-    "expected_status": "valid",
-    "fixture": "hx-d7a1bc67f01f",
-    "match": true,
-    "observed_status": "valid",
-    "profile": "drop",
-    "rejections": 26
-  },
-  {
-    "expected_status": "valid",
-    "fixture": "hx-4efea4204d29",
-    "match": true,
-    "observed_status": "valid",
-    "profile": "late_first_token",
-    "rejections": 0
-  },
-  {
-    "expected_status": "valid",
-    "fixture": "hx-cbde13ada41a",
-    "match": true,
-    "observed_status": "valid",
-    "profile": "truncated_text",
-    "rejections": 16
+{
+  "rows": [
+    {
+      "checks_passed": true,
+      "fixture": "hx-1e9a36719984",
+      "gates": [],
+      "observed_status": "valid",
+      "rejections": 0
+    },
+    {
+      "checks_passed": true,
+      "fixture": "hx-2a7f2449cc8b",
+      "gates": [],
+      "observed_status": "valid",
+      "rejections": 0
+    },
+    {
+      "checks_passed": true,
+      "fixture": "hx-4d3cf0b86f97",
+      "gates": [
+        "invalid_output"
+      ],
+      "observed_status": "valid",
+      "rejections": 79
+    },
+    {
+      "checks_passed": true,
+      "fixture": "hx-56ef280cb358",
+      "gates": [],
+      "observed_status": "valid",
+      "rejections": 0
+    },
+    {
+      "checks_passed": true,
+      "fixture": "hx-5c94ea3ef690",
+      "gates": [],
+      "observed_status": "valid",
+      "rejections": 0
+    },
+    {
+      "checks_passed": true,
+      "fixture": "hx-66ed396121e1",
+      "gates": [],
+      "observed_status": "inconclusive",
+      "rejections": 0
+    },
+    {
+      "checks_passed": true,
+      "fixture": "hx-8132647faae5",
+      "gates": [],
+      "observed_status": "invalid",
+      "rejections": 0
+    },
+    {
+      "checks_passed": true,
+      "fixture": "hx-96372a3d1f15",
+      "gates": [
+        "invalid_timing"
+      ],
+      "observed_status": "invalid",
+      "rejections": 7
+    },
+    {
+      "checks_passed": true,
+      "fixture": "hx-a2014f268b90",
+      "gates": [
+        "invalid_output"
+      ],
+      "observed_status": "valid",
+      "rejections": 16
+    },
+    {
+      "checks_passed": true,
+      "fixture": "hx-b8699b2ac973",
+      "gates": [
+        "invalid_output",
+        "missing_done",
+        "missing_finish_reason"
+      ],
+      "observed_status": "valid",
+      "rejections": 26
+    },
+    {
+      "checks_passed": true,
+      "fixture": "hx-b86cb1899245",
+      "gates": [
+        "missing_done"
+      ],
+      "observed_status": "valid",
+      "rejections": 79
+    },
+    {
+      "checks_passed": true,
+      "fixture": "hx-c2665cc9d16f",
+      "gates": [],
+      "observed_status": "valid",
+      "rejections": 0
+    },
+    {
+      "checks_passed": true,
+      "fixture": "hx-d5ffebf8316c",
+      "gates": [
+        "usage_discrepancy"
+      ],
+      "observed_status": "valid",
+      "rejections": 63
+    }
+  ],
+  "summary": {
+    "checks_passed": 13,
+    "fixtures": 13,
+    "key": "matches commitment",
+    "note": "expected outcomes are mixed (valid / invalid / inconclusive); the key is kept outside the public tree and only its sha256 is committed, so held-out means 'not labelled in the tree', not 'unknown to the author'"
   }
-]
+}

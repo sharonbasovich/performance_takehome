@@ -2,7 +2,9 @@
 
 import copy
 import gzip
+import hashlib
 import json
+import os
 import random
 import shutil
 import tempfile
@@ -11,6 +13,8 @@ from pathlib import Path
 
 import evaluate as ev_mod
 from bench.plan import load_plan
+from fixtures.expectations import run_checks
+from fixtures.generate import DEFAULT_KEY_PATH
 
 from tests.helpers import MOCK_PLAN_PATH, SUITE
 
@@ -130,7 +134,7 @@ class FixtureIdentityIndependenceTests(unittest.TestCase):
     def test_rename_and_permute_gives_identical_report(self) -> None:
         plan = load_plan(MOCK_PLAN_PATH)
         rng = random.Random(1234)
-        for d in sorted(HELDOUT.iterdir())[:4]:
+        for d in sorted(x for x in HELDOUT.iterdir() if x.is_dir())[:4]:
             original = strip_identity(ev_mod.evaluate(plan, d, "native")[0])
             with tempfile.TemporaryDirectory() as tmp:
                 renamed = Path(tmp) / f"zz-{rng.randrange(10**9)}"
@@ -149,17 +153,28 @@ class FixtureIdentityIndependenceTests(unittest.TestCase):
             )
 
     def test_heldout_key_matches_evaluator(self) -> None:
-        key_path = SUITE.parent / "validation" / "heldout_key.json"
+        """Needs the out-of-tree key (~/.benchmark-design/ or $BENCHMARK_DESIGN_HELDOUT_KEY)."""
+        key_path = Path(os.environ.get("BENCHMARK_DESIGN_HELDOUT_KEY", DEFAULT_KEY_PATH))
         if not key_path.is_file():
-            self.skipTest("held-out key missing")
-        key = json.loads(key_path.read_text(encoding="utf-8"))
+            self.skipTest("held-out key not available on this machine (kept outside the tree)")
+        key_text = key_path.read_text(encoding="utf-8")
+        committed = (HELDOUT / "COMMITMENT.sha256").read_text(encoding="utf-8").split()[0]
+        self.assertEqual(hashlib.sha256(key_text.encode("utf-8")).hexdigest(), committed)
+        key = {k: v for k, v in json.loads(key_text).items() if k != "_salt"}
         plan = load_plan(MOCK_PLAN_PATH)
+        statuses = set()
+        clean_name = next(n for n, v in key.items() if v["profile"] == "clean")
+        clean = ev_mod.evaluate(plan, HELDOUT / clean_name, "native")[0]
         for name, truth in key.items():
             report = ev_mod.evaluate(plan, HELDOUT / name, "native")[0]
+            statuses.add(truth["expected"]["status"])
             with self.subTest(fixture=name):
                 self.assertEqual(
                     report["status"], truth["expected"]["status"], report.get("reasons")
                 )
+                results = run_checks(report, clean, truth["expected"]["checks"])
+                self.assertTrue(all(r["passed"] for r in results), [r["observed"] for r in results])
+        self.assertEqual(statuses, {"valid", "invalid", "inconclusive"})
 
 
 if __name__ == "__main__":

@@ -8,7 +8,8 @@ stores ``run.json`` + ``requests.jsonl.gz`` + the mock's ``oracle.json`` + ``lab
 Two families that no server can produce (invalid timing, client lag) are derived from the
 clean capture by mutating the recorded evidence. Held-out fixtures reuse a subset of
 profiles with fresh seeds under opaque directory names; the key is written to
-``validation/heldout_key.json`` and is never read by ``evaluate.py``.
+``~/.benchmark-design/heldout_key.json`` (outside the tree; sha256 committed as
+``fixtures/heldout/COMMITMENT.sha256``) and is never read by ``evaluate.py``.
 """
 
 import argparse
@@ -16,6 +17,7 @@ import gzip
 import hashlib
 import json
 import random
+import secrets
 import shutil
 import socket
 import subprocess
@@ -33,7 +35,11 @@ from mock_server.faults import PROFILES  # noqa: E402
 FIXTURE_DIR = SUITE / "fixtures"
 PUBLIC_DIR = FIXTURE_DIR / "public"
 HELDOUT_DIR = FIXTURE_DIR / "heldout"
-KEY_PATH = SUITE.parent / "validation" / "heldout_key.json"
+# The held-out key lives OUTSIDE the public tree (revealed after review); only its sha256
+# commitment is committed next to the fixtures.
+DEFAULT_KEY_PATH = Path.home() / ".benchmark-design" / "heldout_key.json"
+COMMITMENT_PATH = HELDOUT_DIR / "COMMITMENT.sha256"
+HELDOUT_MUTATIONS = ("timing_invalid", "client_lag", "underpowered")
 MOCK_PLAN = FIXTURE_DIR / "workload.mock.json"
 MUTATIONS = {
     "timing_invalid": "events in 10% of measured requests re-ordered: non-monotonic timestamps",
@@ -54,79 +60,7 @@ HELDOUT_PROFILES = (
 
 # What the evaluator is expected to conclude; checked by validation/build_validation.py and
 # the tests. "signal" names the gate/metric that must carry the detection.
-EXPECTED: dict[str, dict[str, Any]] = {
-    "clean": {"status": "valid", "signal": "none (control)"},
-    "noisy": {
-        "status": "valid",
-        "signal": "none (control); A/A must stay no_difference/inconclusive",
-    },
-    "burst": {
-        "status": "valid",
-        "signal": "token_evidence.multi_token_deltas flag (chunk != token); Etalon fluidity stays "
-        "1.0 by design: 8-token bursts at ~83 tok/s sit inside playback slack",
-    },
-    "stall": {
-        "status": "valid",
-        "signal": "fluidity index drops at every tier; min decode deadline p99 rises",
-    },
-    "late_first_token": {
-        "status": "valid",
-        "signal": "TTFT p50 rises; prefill_deadline_hit_rate falls",
-    },
-    "slow_decode": {
-        "status": "valid",
-        "signal": "strict fluidity SLO fails; MDD p99 rises; FTGR falls",
-    },
-    "reasoning_channel": {
-        "status": "valid",
-        "signal": "reasoning tokens counted separately; TTFT = first content token",
-    },
-    "unicode_split": {
-        "status": "valid",
-        "signal": "tokens counted once across split deltas; no replacement chars",
-    },
-    "missing_done": {"status": "valid", "signal": "gate missing_done -> unfinished"},
-    "missing_finish_reason": {
-        "status": "valid",
-        "signal": "gate missing_finish_reason -> unfinished",
-    },
-    "http_error": {"status": "valid", "signal": "gate http_error -> failed"},
-    "drop": {
-        "status": "valid",
-        "signal": "gate missing_done/missing_finish_reason -> unfinished (an EOF-terminated SSE "
-        "stream is a premature end, not a transport error)",
-    },
-    "wrong_text": {"status": "valid", "signal": "gate invalid_output (nonce/sequence) -> failed"},
-    "garbled_text": {
-        "status": "valid",
-        "signal": "gate invalid_output (replacement/garbled) -> failed",
-    },
-    "truncated_text": {
-        "status": "valid",
-        "signal": "gate invalid_output (too short / sequence) -> failed",
-    },
-    "false_usage": {
-        "status": "valid",
-        "signal": "gate usage_discrepancy -> failed on chat cells; masked on integer lists where "
-        "the regex-vs-mock tokenizer gap (2x) puts 3x usage inside the band (DESIGN.md 2)",
-    },
-    "misleading_readiness": {
-        "status": "valid",
-        "signal": "startup.readiness_lead_s > 0: ready probe long before first valid generation",
-    },
-    "slow_startup": {
-        "status": "valid",
-        "signal": "startup_to_first_valid_generation_s > readiness",
-    },
-    "timing_invalid": {
-        "status": "invalid",
-        "signal": "gate invalid_timing -> evidence_invalid -> run invalid",
-    },
-    "client_lag": {
-        "status": "invalid",
-        "signal": "run gate: event_loop_lag_max_s > max -> run invalid",
-    },
-}
+from fixtures.expectations import EXPECTED  # noqa: E402  (machine-checkable expectations)
 
 
 def free_port() -> int:
@@ -218,6 +152,19 @@ def mutate(clean_dir: Path, mutation: str, out: Path, seed: int) -> None:
                 record["events"][i + 1]["t"],
                 record["events"][i]["t"],
             )
+    elif mutation == "underpowered":
+        # Keep only the first 5 measure requests of every unit: no cell can reach
+        # min_requests_per_cell, so the only honest verdict is *inconclusive*.
+        kept: dict[str, int] = {}
+        survivors = []
+        for record in records:
+            if record["phase"] != "measure":
+                survivors.append(record)
+                continue
+            kept[record["unit_id"]] = kept.get(record["unit_id"], 0) + 1
+            if kept[record["unit_id"]] <= 5:
+                survivors.append(record)
+        records[:] = survivors
     elif mutation == "client_lag":
         window = next(p for p in run["phases"] if p["name"] == "measure")
         ci = run["client_integrity"]
@@ -245,7 +192,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--time-scale", type=float, default=1.0)
     parser.add_argument("--only", help="generate only this profile/mutation (public set)")
     parser.add_argument("--skip-heldout", action="store_true")
-    parser.add_argument("--heldout-salt", default="abstract-t1-heldout-v1")
+    parser.add_argument(
+        "--heldout-salt",
+        default=None,
+        help="salt for opaque names; default: fresh random hex, stored only in the key file",
+    )
+    parser.add_argument(
+        "--heldout-only", action="store_true", help="regenerate only the held-out set"
+    )
+    parser.add_argument(
+        "--key-out",
+        type=Path,
+        default=DEFAULT_KEY_PATH,
+        help="held-out key destination, outside the public tree (default ~/.benchmark-design/)",
+    )
     args = parser.parse_args(argv)
     manifest_path = FIXTURE_DIR / "manifest.json"
     manifest: dict[str, Any] = (
@@ -259,7 +219,8 @@ def main(argv: list[str] | None = None) -> int:
             "note": "CPU mock fixtures; injected timings, not GPU measurements.",
         }
     )
-    for index, profile in enumerate(PROFILES):
+    public_profiles = [] if args.heldout_only else list(PROFILES)
+    for index, profile in enumerate(public_profiles):
         if args.only and args.only != profile:
             continue
         seed = 100 + index
@@ -294,10 +255,11 @@ def main(argv: list[str] | None = None) -> int:
     if not args.skip_heldout and not args.only:
         if HELDOUT_DIR.exists():
             shutil.rmtree(HELDOUT_DIR)
-        key: dict[str, Any] = {}
+        salt = args.heldout_salt or secrets.token_hex(16)
+        key: dict[str, Any] = {"_salt": salt}
         for index, profile in enumerate(HELDOUT_PROFILES):
             seed = 500 + index
-            name = opaque_name(profile, seed, args.heldout_salt)
+            name = opaque_name(profile, seed, salt)
             with tempfile.TemporaryDirectory() as tmp:
                 info = run_fixture(
                     profile, seed, Path(tmp) / name, args.time_scale, keep_oracle=False
@@ -308,9 +270,32 @@ def main(argv: list[str] | None = None) -> int:
                 json.dumps({"heldout": name, "wall_s_cpu_mock": info["wall_s_cpu_mock"]}),
                 flush=True,
             )
-        KEY_PATH.parent.mkdir(parents=True, exist_ok=True)
-        KEY_PATH.write_text(json.dumps(key, indent=2), encoding="utf-8")
-        manifest["heldout_count"] = len(key)
+        clean_name = next(n for n, v in key.items() if n != "_salt" and v["profile"] == "clean")
+        for index, mutation in enumerate(HELDOUT_MUTATIONS):
+            seed = 900 + index
+            name = opaque_name(mutation, seed, salt)
+            mutate(HELDOUT_DIR / clean_name, mutation, HELDOUT_DIR / name, seed)
+            key[name] = {
+                "profile": mutation,
+                "seed": seed,
+                "derived_from": clean_name,
+                "family": "evidence_corruption" if mutation != "underpowered" else "power",
+                "expected": EXPECTED[mutation],
+            }
+            print(json.dumps({"heldout": name, "mutation": True}), flush=True)
+        key_text = json.dumps(key, indent=2, sort_keys=True)
+        args.key_out.parent.mkdir(parents=True, exist_ok=True)
+        args.key_out.write_text(key_text, encoding="utf-8")
+        COMMITMENT_PATH.write_text(
+            hashlib.sha256(key_text.encode("utf-8")).hexdigest() + "  heldout_key.json\n",
+            encoding="utf-8",
+        )
+        manifest["heldout_count"] = len(key) - 1
+        manifest["heldout_key_sha256"] = hashlib.sha256(key_text.encode("utf-8")).hexdigest()
+        manifest["heldout_key_location"] = (
+            "outside the public tree (revealed after review); "
+            "see fixtures/heldout/COMMITMENT.sha256"
+        )
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return 0
 

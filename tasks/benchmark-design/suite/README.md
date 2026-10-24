@@ -68,7 +68,32 @@ uv run --frozen python -m runner --plan workload.json --mode full --out <events_
 Exit codes: `evaluate.py` returns 0 for `valid`, 3 for `inconclusive`, 4 for `invalid`;
 `runner --dry-run` returns 2 when the mode does not fit its wall cap.
 
+## End-to-end execution of the shipped plan (CPU mock)
+
+`validation/quick_mock_run/` is one real execution of `workload.json` in `quick` mode
+against the cold-started CPU mock (clean profile, `--time-scale 1.0`), evaluated with the
+shipped plan (`report.json`, `summary.md`). Wall time is recorded by
+`validation/build_validation.py` into `validation/timing.md`. Reproduce with:
+
+```bash
+cd tasks/benchmark-design/suite
+PORT=18451; PY=$(uv run --frozen python -c 'import sys;print(sys.executable)')
+uv run --frozen python -m runner --plan workload.json --mode quick --out ../validation/quick_mock_run \
+  --base-url http://127.0.0.1:$PORT --time-scale 1.0 --assume-mock --stop-after-launch \
+  --launch-cmd "$PY -m mock_server --profile clean --seed 7 --port $PORT --time-scale 1.0" \
+  --run-id quick-mock-clean-7
+gzip -9 ../validation/quick_mock_run/requests.jsonl
+uv run --frozen python evaluate.py --events ../validation/quick_mock_run --workload workload.json \
+  --out ../validation/quick_mock_run/report.json --summary ../validation/quick_mock_run/summary.md
+```
+
 ## Fixture size and regeneration
+
+Held-out key: `fixtures/generate.py` writes it to `~/.benchmark-design/heldout_key.json`
+(override with `--key-out`), never into the tree; `fixtures/heldout/COMMITMENT.sha256` is
+its sha256. `validation/build_validation.py` reads the key from that path or from
+`$BENCHMARK_DESIGN_HELDOUT_KEY` and, without it, still rebuilds every observed column and
+says "key absent" instead of claiming a match.
 
 `fixtures/public` (20 dirs) + `fixtures/heldout` (10 dirs) total ≈ 7.8 MB, gzip-compressed
 (`requests.jsonl.gz`, `oracle.json.gz`; `run.json` and `label.json` plain). No committed

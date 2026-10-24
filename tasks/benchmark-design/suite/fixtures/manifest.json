@@ -14,8 +14,7 @@
       "wall_s_cpu_mock": 31.83
     },
     "client_lag": {
-      "profile": "client_lag",
-      "seed": 901
+      "derived_from": "clean"
     },
     "drop": {
       "profile": "drop",
@@ -96,8 +95,7 @@
       "wall_s_cpu_mock": 68.02
     },
     "timing_invalid": {
-      "profile": "timing_invalid",
-      "seed": 900
+      "derived_from": "clean"
     },
     "truncated_text": {
       "profile": "truncated_text",
@@ -118,6 +116,8 @@
       "wall_s_cpu_mock": 31.74
     }
   },
-  "heldout_count": 10,
-  "note": "CPU mock fixtures; injected timings, not GPU measurements."
+  "heldout_count": 13,
+  "note": "CPU mock fixtures; injected timings, not GPU measurements.",
+  "heldout_key_sha256": "1434d2f46e36ef14fc18dd8566fc2e30a2cdc98ef2d7bec2ae436a7c721c326d",
+  "heldout_key_location": "outside the public tree (revealed after review); see fixtures/heldout/COMMITMENT.sha256"
 }

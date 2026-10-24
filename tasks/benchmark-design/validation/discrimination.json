@@ -1,7 +1,26 @@
 [
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "token_evidence",
+          "name": "tokens_per_delta_mean",
+          "op": "gt",
+          "value": 4.0
+        },
+        "observed": "token_evidence.tokens_per_delta_mean observed=5.556 (need > 4.0)",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "no_rejections"
+        },
+        "observed": "rejected=0",
+        "passed": true
+      }
+    ],
     "detected": true,
-    "expected_signal": "token_evidence.multi_token_deltas flag (chunk != token); Etalon fluidity stays 1.0 by design: 8-token bursts at ~83 tok/s sit inside playback slack",
+    "expected_signal": "token_evidence.tokens_per_delta_mean > 4 (chunk != token); no request rejected; Etalon fluidity stays ~1.0 by design (8-token bursts at ~83 tok/s sit inside playback slack)",
     "expected_status": "valid",
     "family": "bursts",
     "fixture": "burst",
@@ -12,8 +31,28 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "no_rejections"
+        },
+        "observed": "rejected=0",
+        "passed": true
+      },
+      {
+        "check": {
+          "in": [
+            "no_difference",
+            "inconclusive"
+          ],
+          "kind": "aa"
+        },
+        "observed": "A/A decision=no_difference",
+        "passed": true
+      }
+    ],
     "detected": true,
-    "expected_signal": "none (control)",
+    "expected_signal": "none (control): no rejected request, A/A not confident",
     "expected_status": "valid",
     "family": "control",
     "fixture": "clean",
@@ -21,6 +60,16 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "contains": "event-loop lag",
+          "kind": "reason"
+        },
+        "observed": "client event-loop lag 0.400s exceeds 0.05s: timings are client-owned",
+        "passed": true
+      }
+    ],
     "detected": true,
     "expected_signal": "run gate: event_loop_lag_max_s > max -> run invalid",
     "expected_status": "invalid",
@@ -32,8 +81,28 @@
     "observed_status": "invalid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "gate",
+          "min": 1,
+          "name": "missing_done"
+        },
+        "observed": "gate missing_done fired on 29 request(s)",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "total",
+          "min": 1,
+          "name": "unfinished"
+        },
+        "observed": "unfinished=29",
+        "passed": true
+      }
+    ],
     "detected": true,
-    "expected_signal": "gate missing_done/missing_finish_reason -> unfinished (an EOF-terminated SSE stream is a premature end, not a transport error)",
+    "expected_signal": "gate missing_done -> unfinished (an EOF-terminated SSE stream is a premature end, not a transport error)",
     "expected_status": "valid",
     "family": "errors_and_drops",
     "fixture": "drop",
@@ -45,6 +114,17 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "gate",
+          "min": 1,
+          "name": "usage_discrepancy"
+        },
+        "observed": "gate usage_discrepancy fired on 63 request(s)",
+        "passed": true
+      }
+    ],
     "detected": true,
     "expected_signal": "gate usage_discrepancy -> failed on chat cells; masked on integer lists where the regex-vs-mock tokenizer gap (2x) puts 3x usage inside the band (DESIGN.md 2)",
     "expected_status": "valid",
@@ -58,6 +138,17 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "gate",
+          "min": 1,
+          "name": "invalid_output"
+        },
+        "observed": "gate invalid_output fired on 114 request(s)",
+        "passed": true
+      }
+    ],
     "detected": true,
     "expected_signal": "gate invalid_output (replacement/garbled) -> failed",
     "expected_status": "valid",
@@ -71,6 +162,26 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "gate",
+          "min": 1,
+          "name": "http_error"
+        },
+        "observed": "gate http_error fired on 25 request(s)",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "total",
+          "min": 1,
+          "name": "failed"
+        },
+        "observed": "failed=25",
+        "passed": true
+      }
+    ],
     "detected": true,
     "expected_signal": "gate http_error -> failed",
     "expected_status": "valid",
@@ -84,8 +195,20 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "metric",
+          "name": "ttft_p50",
+          "op": "ratio_gt",
+          "value": 3.0
+        },
+        "observed": "ttft_p50 observed=2.103 vs clean 0.09617 (x21.87, need > x3.0)",
+        "passed": true
+      }
+    ],
     "detected": true,
-    "expected_signal": "TTFT p50 rises; prefill_deadline_hit_rate falls",
+    "expected_signal": "TTFT p50 > 3x clean",
     "expected_status": "valid",
     "family": "late_first_tokens",
     "fixture": "late_first_token",
@@ -97,8 +220,40 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "startup",
+          "name": "first_ready_probe_s",
+          "op": "ratio_lt",
+          "value": 2.0
+        },
+        "observed": "startup.first_ready_probe_s observed=0.2161 vs clean 0.2182 (x0.99, need < x2.0)",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "startup",
+          "name": "failed_probes",
+          "op": "gt",
+          "value": 0
+        },
+        "observed": "startup.failed_probes observed=7 (need > 0)",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "startup",
+          "name": "readiness_lead_s",
+          "op": "gt",
+          "value": 1.0
+        },
+        "observed": "startup.readiness_lead_s observed=3.374 (need > 1.0)",
+        "passed": true
+      }
+    ],
     "detected": true,
-    "expected_signal": "startup.readiness_lead_s > 0: ready probe long before first valid generation",
+    "expected_signal": "readiness probe is as fast as clean (< 2x) while >= 1 generation probe FAILS before the first valid one and readiness_lead_s > 1 s; distinguishes it from stall, whose probes complete slowly without failing",
     "expected_status": "valid",
     "family": "misleading_readiness",
     "fixture": "misleading_readiness",
@@ -108,6 +263,26 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "gate",
+          "min": 1,
+          "name": "missing_done"
+        },
+        "observed": "gate missing_done fired on 79 request(s)",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "total",
+          "min": 1,
+          "name": "unfinished"
+        },
+        "observed": "unfinished=79",
+        "passed": true
+      }
+    ],
     "detected": true,
     "expected_signal": "gate missing_done -> unfinished",
     "expected_status": "valid",
@@ -121,6 +296,17 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "gate",
+          "min": 1,
+          "name": "missing_finish_reason"
+        },
+        "observed": "gate missing_finish_reason fired on 79 request(s)",
+        "passed": true
+      }
+    ],
     "detected": true,
     "expected_signal": "gate missing_finish_reason -> unfinished",
     "expected_status": "valid",
@@ -134,8 +320,28 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "no_rejections"
+        },
+        "observed": "rejected=0",
+        "passed": true
+      },
+      {
+        "check": {
+          "in": [
+            "no_difference",
+            "inconclusive"
+          ],
+          "kind": "aa"
+        },
+        "observed": "A/A decision=inconclusive",
+        "passed": true
+      }
+    ],
     "detected": true,
-    "expected_signal": "none (control); A/A must stay no_difference/inconclusive",
+    "expected_signal": "none (control): jitter alone must not reject requests or flip A/A",
     "expected_status": "valid",
     "family": "control",
     "fixture": "noisy",
@@ -143,8 +349,27 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "no_rejections"
+        },
+        "observed": "rejected=0",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "metric",
+          "name": "ttft_p50",
+          "op": "ratio_gt",
+          "value": 2.0
+        },
+        "observed": "ttft_p50 observed=0.7012 vs clean 0.09617 (x7.29, need > x2.0)",
+        "passed": true
+      }
+    ],
     "detected": true,
-    "expected_signal": "reasoning tokens counted separately; TTFT = first content token",
+    "expected_signal": "no rejection (reasoning deltas are not content) and TTFT p50 > 2x clean because TTFT is the first *content* token",
     "expected_status": "valid",
     "family": "reasoning_channels",
     "fixture": "reasoning_channel",
@@ -156,8 +381,30 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "metric",
+          "name": "fluidity_strict_mean",
+          "op": "lt",
+          "value": 0.5
+        },
+        "observed": "fluidity_strict_mean observed=0.1326 (need < 0.5)",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "metric",
+          "name": "mdd_p99",
+          "op": "ratio_gt",
+          "value": 2.0
+        },
+        "observed": "mdd_p99 observed=0.06693 vs clean 0.01776 (x3.77, need > x2.0)",
+        "passed": true
+      }
+    ],
     "detected": true,
-    "expected_signal": "strict fluidity SLO fails; MDD p99 rises; FTGR falls",
+    "expected_signal": "strict fluidity index < 0.5 and min decode deadline p99 > 2x clean",
     "expected_status": "valid",
     "family": "stalls",
     "fixture": "slow_decode",
@@ -169,8 +416,30 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "startup",
+          "name": "first_ready_probe_s",
+          "op": "ratio_gt",
+          "value": 3.0
+        },
+        "observed": "startup.first_ready_probe_s observed=2.24 vs clean 0.2182 (x10.27, need > x3.0)",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "startup",
+          "name": "startup_to_first_valid_generation_s",
+          "op": "ratio_gt",
+          "value": 2.0
+        },
+        "observed": "startup.startup_to_first_valid_generation_s observed=3.169 vs clean 0.7537 (x4.20, need > x2.0)",
+        "passed": true
+      }
+    ],
     "detected": true,
-    "expected_signal": "startup_to_first_valid_generation_s > readiness",
+    "expected_signal": "first_ready_probe_s > 3x clean and startup_to_first_valid_generation_s > 2x clean (the readiness lead alone is a weak signal and is NOT relied on)",
     "expected_status": "valid",
     "family": "startup",
     "fixture": "slow_startup",
@@ -180,8 +449,30 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "metric",
+          "name": "fluidity_strict_mean",
+          "op": "lt",
+          "value": 0.6
+        },
+        "observed": "fluidity_strict_mean observed=0.3292 (need < 0.6)",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "metric",
+          "name": "mdd_p99",
+          "op": "ratio_gt",
+          "value": 2.0
+        },
+        "observed": "mdd_p99 observed=0.09052 vs clean 0.01776 (x5.10, need > x2.0)",
+        "passed": true
+      }
+    ],
     "detected": true,
-    "expected_signal": "fluidity index drops at every tier; min decode deadline p99 rises",
+    "expected_signal": "strict fluidity index < 0.6 and min decode deadline p99 > 2x clean",
     "expected_status": "valid",
     "family": "stalls",
     "fixture": "stall",
@@ -193,6 +484,25 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "contains": "untrustworthy evidence",
+          "kind": "reason"
+        },
+        "observed": "7 request(s) with untrustworthy evidence, e.g. chat_short_open|rate=4rps|rep0/measure/6: ['invalid_timing:event[50]<event[49]']",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "total",
+          "min": 1,
+          "name": "evidence_invalid"
+        },
+        "observed": "evidence_invalid=7",
+        "passed": true
+      }
+    ],
     "detected": true,
     "expected_signal": "gate invalid_timing -> evidence_invalid -> run invalid",
     "expected_status": "invalid",
@@ -207,6 +517,17 @@
     "observed_status": "invalid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "gate",
+          "min": 1,
+          "name": "invalid_output"
+        },
+        "observed": "gate invalid_output fired on 16 request(s)",
+        "passed": true
+      }
+    ],
     "detected": true,
     "expected_signal": "gate invalid_output (too short / sequence) -> failed",
     "expected_status": "valid",
@@ -219,8 +540,26 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "gate",
+          "max": 0,
+          "name": "invalid_output"
+        },
+        "observed": "gate invalid_output fired on 0 request(s)",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "no_rejections"
+        },
+        "observed": "rejected=0",
+        "passed": true
+      }
+    ],
     "detected": true,
-    "expected_signal": "tokens counted once across split deltas; no replacement chars",
+    "expected_signal": "no invalid_output rejection: split multi-byte deltas reassemble without replacement characters and tokens are counted once",
     "expected_status": "valid",
     "family": "unicode_splits",
     "fixture": "unicode_split",
@@ -232,6 +571,26 @@
     "observed_status": "valid"
   },
   {
+    "checks": [
+      {
+        "check": {
+          "kind": "gate",
+          "min": 1,
+          "name": "invalid_output"
+        },
+        "observed": "gate invalid_output fired on 79 request(s)",
+        "passed": true
+      },
+      {
+        "check": {
+          "kind": "total",
+          "min": 1,
+          "name": "failed"
+        },
+        "observed": "failed=79",
+        "passed": true
+      }
+    ],
     "detected": true,
     "expected_signal": "gate invalid_output (nonce/sequence) -> failed",
     "expected_status": "valid",

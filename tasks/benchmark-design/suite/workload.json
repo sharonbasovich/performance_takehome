@@ -350,7 +350,7 @@
         "aa_control_a",
         "aa_control_b"
       ],
-      "planned_wall_minutes_max": 40
+      "planned_wall_minutes_max": 45
     },
     "full": {
       "description": "Decision-grade evidence: three interleaved repetitions of every cell and rate, two cold launches.",
