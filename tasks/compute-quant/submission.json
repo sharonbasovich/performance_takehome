@@ -1,14 +1,18 @@
 {
   "schema_version": 1,
   "task": "compute-quant",
-  "status": "draft-submission-synthetic-inputs",
+  "status": "draft-synthetic-inputs-verified-local",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "commit": "414121161623d610e7f4ad86fb248546d8854806",
-    "commit_note": "last content commit; the commit that adds this manifest and run-manifest.json necessarily follows it, so research_tree_sha (git rev-parse <commit>:tasks/compute-quant/research) is the stable identity of the model code",
-    "research_tree_sha": "e631c9d0fb44f06eb17cc8eb7bb4e8a8520d8ad0",
-    "branch": "submission/compute-quant",
-    "pull_request": "https://github.com/sharonbasovich/performance_takehome/pull/1"
+    "commit": "330e0ceb8dc9d68569002fda130bee9e2f061318",
+    "commit_note": "Verified committed source for the independent audit corrections. The later artifact-only commit does not change research_tree_sha. Local branch changes have not been pushed to the existing PR or officially submitted.",
+    "research_tree_sha": "4c3ec5acef926fbb11d90c519a632ce8ad5f9ec5",
+    "branch": "codex/abstract-quant-audit",
+    "pull_request": "https://github.com/sharonbasovich/performance_takehome/pull/1",
+    "source_sha256": "22dc610365d5a006f6cb2d919b3c9dc2caab36fce3a766ee46846ac5a68c59c9",
+    "source_bytes": "canonical LF checkout of the recorded Git commit",
+    "working_tree_dirty": false,
+    "verified_archive": "output/abstract-audit/quant-verified-lf.zip"
   },
   "inputs": {
     "case": "tasks/compute-quant/data/demo-case.json",
@@ -26,7 +30,8 @@
     "command": "python tasks/compute-quant/research/run.py --case tasks/compute-quant/data/demo-case.json --out tasks/compute-quant/outputs/ --report tasks/compute-quant/outputs/REPORT.md",
     "configuration": "tasks/compute-quant/research/config/default.json",
     "python": ">=3.11, stdlib only, no network",
-    "run_manifest": "tasks/compute-quant/run-manifest.json"
+    "run_manifest": "tasks/compute-quant/run-manifest.json",
+    "version": "1.0.0"
   },
   "evidence": {
     "report": "tasks/compute-quant/REPORT.md",

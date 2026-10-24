@@ -106,7 +106,7 @@ currency → unit (`gpu_hour` as is; `node_hour` ÷ GPUs; `node_month` ÷ GPUs �
 1. **Observed nodes.** A two-sided tenor uses the mid as the point and the bid–ask as the interval. A one-sided tenor keeps the quoted side as one interval edge and estimates the other with max(15% of the quote, widest observed two-sided spread = 0.5000). The firm Nov-2026 ask is therefore an interval edge, not a mid.
 2. **Implied nodes.** Linear interpolation between bracketing anchors, or anchors built only from quantity-adjusted / strip quotes (the current-month tenor 0 from `q07` is such a node).
 3. **Modeled / forecast nodes.** Beyond the last anchor the mid follows `F(t) = A + (F_L − A)·exp(−κ·(t − t_L))` toward the base anchor A = full-cost breakeven 2.9878 (supply-cost view below). κ = 0.1010/month, fitted-least-squares-log-deviation on observed forward tenors [1, 3]. Nodes within 6 months of the last anchor are MODELED; further out they are FORECAST (judgmental).
-4. **Bands.** The interval beyond the last anchor is the union over the three scenario anchors and κ ∈ [0.0, 0.3] (so it always contains the flat extension of the last anchor interval and the fast reversion to each anchor), plus a random-walk band of 0.08·√(months)·(anchor high). The band depends only on anchor intervals and declared parameters, never on the fitted κ, so **removing evidence can only widen it** (tested for every forward quote individually and jointly).
+4. **Bands.** The interval beyond the last anchor is the union over the three scenario anchors and κ ∈ [0.0, 0.3] (so it always contains the flat extension of the last anchor interval and the fast reversion to each anchor), plus a random-walk band of 0.08·√(months)·(anchor high). The band depends only on anchor intervals and declared parameters, never on the fitted κ. The demo's individual forward-quote removals widen these bands, but this is **not a universal removal invariant**: removing quantity-pair evidence or the last anchor can change the price scale, scenarios, and node identification. Widths can then narrow despite weaker evidence; these judgmental scenario ranges are not statistical confidence intervals. A node-sized quote with no supported quantity translation is excluded rather than promoted to direct evidence.
 5. **Labels.** OBSERVED / IMPLIED / MODELED / FORECAST / UNIDENTIFIED are carried into `curve.csv`; the 6- and 12-month tenors have no firm quote and are never labelled observed.
 
 Monthly base-mid path used by the valuation (tenor → USD/GPU-hour):
@@ -187,7 +187,7 @@ Reserved hours are contractual: GPU count × actual hours of each delivery month
 | Σ (FV − K) × hours | -$793.22 | fair value of the capacity minus the fixed fee, per month |
 | Discounted to as-of | -$776.60 | annual-effective ACT/365 at the buyer rate to each month-end payment |
 | After SLA credits | -$775.82 | × availability (SLA floor); pro-rata credit, no consequential damages |
-| After default risk | -$762.32 | × uniform-hazard survival; 0% recovery; undelivered months neither paid nor received |
+| After default risk | -$762.32 | linear cumulative default probability; positive-claim recovery as declared below; undelivered months neither paid nor received |
 | **Buyer's mark** | **-$762.32** | -0.3529 per reserved GPU-hour |
 | Interval | -$1,974.65 … $594.84 | -0.9142 … 0.2754 per GPU-hour |
 | Fair fixed price K\* | 4.1333 | interval 3.5503–4.7861; zeroes the adjusted mark (tested) |
@@ -275,7 +275,7 @@ Valuation assumptions:
 - κ is fitted from two observed forward tenors — the minimum possible; it is reported with its source.
 - The quantity factor pairs quotes from different providers, so it carries provider effects.
 - The H200 translation uses one synthetic throughput measurement and ignores memory, software and demand mix.
-- Default treatment assumes a uniform hazard and release of both sides on default; operational disruption costs beyond fee credits are not quantified. SLA attainment is assumed at the floor.
+- Default treatment assumes uniform default timing (linear cumulative probability), not a constant hazard, and release of both sides on default; operational disruption costs beyond fee credits are not quantified. SLA attainment is assumed at the floor.
 - Energy is charged per allocated hour at full draw; idle draw and the case's 'includes_energy' nuance for quoted prices are not modeled separately.
 - No bid exists for Nov-2026, so its mid is an estimate; no quotes exist beyond Jan-2027, so the 6- and 12-month nodes are modeled/forecast and the decision interval includes zero.
 

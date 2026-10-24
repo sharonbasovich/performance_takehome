@@ -1,27 +1,28 @@
 {
   "schema_version": 1,
   "task": "compute-quant",
-  "generated_at": "2026-10-24T09:21:46Z",
+  "generated_at": "2026-10-24T18:49:57Z",
   "generated_at_source": "SOURCE_DATE_EPOCH",
   "code": {
     "package": "tasks/compute-quant/research",
     "version": "1.0.0",
-    "source_sha256": "bd15b75d33fae733b3612e22694389b853d0b5b4170df466da24039157ad0446",
-    "git_commit": "414121161623d610e7f4ad86fb248546d8854806",
-    "git_commit_note": "HEAD when the manifest was generated; the commit that adds the manifest necessarily comes after it, so compare git_tree_research instead",
-    "git_tree_research": "e631c9d0fb44f06eb17cc8eb7bb4e8a8520d8ad0"
+    "source_sha256": "22dc610365d5a006f6cb2d919b3c9dc2caab36fce3a766ee46846ac5a68c59c9",
+    "git_commit": "330e0ceb8dc9d68569002fda130bee9e2f061318",
+    "git_commit_note": "HEAD when generated; git_tree_research is the committed HEAD tree only. If research_working_tree_dirty is true, source_sha256 identifies the actual uncommitted code and the HEAD tree is not its source identity.",
+    "git_tree_research": "4c3ec5acef926fbb11d90c519a632ce8ad5f9ec5",
+    "research_working_tree_dirty": false
   },
   "python": {
-    "version": "3.11.17",
+    "version": "3.14.4",
     "implementation": "CPython"
   },
   "command": [
     "--case",
     "tasks/compute-quant/data/demo-case.json",
     "--out",
-    "tasks/compute-quant/outputs/",
+    "tasks/compute-quant/",
     "--report",
-    "tasks/compute-quant/outputs/REPORT.md"
+    "tasks/compute-quant/REPORT.md"
   ],
   "case": "tasks/compute-quant/data/demo-case.json",
   "config": "research/config/default.json",
@@ -129,7 +130,7 @@
     "valuation": {
       "day_count": "ACT/365",
       "compounding": "annual-effective",
-      "default_timing": "uniform-hazard-from-as-of-to-delivery-end",
+      "default_timing": "uniform-default-time-from-as-of-to-delivery-end",
       "sla_downtime_assumption": "provider-delivers-exactly-at-sla-floor"
     },
     "sensitivities": {

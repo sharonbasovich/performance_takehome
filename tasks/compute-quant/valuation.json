@@ -1529,7 +1529,7 @@
     "valuation": {
       "day_count": "ACT/365",
       "compounding": "annual-effective",
-      "default_timing": "uniform-hazard-from-as-of-to-delivery-end",
+      "default_timing": "uniform-default-time-from-as-of-to-delivery-end",
       "sla_downtime_assumption": "provider-delivers-exactly-at-sla-floor"
     },
     "sensitivities": {
