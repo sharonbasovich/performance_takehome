@@ -120,7 +120,7 @@ class CurrencyTests(unittest.TestCase):
         self.assertIsNone(row["usd_per_gpu_hour"])
         self.assertIn("EUR", row["excluded_reason"])
         self.assertIn("fx_rates_to_usd", row["excluded_reason"])
-        self.assertIn("q04", {e["id"] for e in results["exclusions"]})
+        self.assertIn("q04", {e["id"] for e in results["exclusions"]["rows"]})
         self.assertNotIn("q04", results["curve"]["nodes"][0]["evidence_ids"])
 
     def test_declared_fx_rate_converts_and_documents(self):

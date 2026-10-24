@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import math
+from bisect import bisect_left
 from decimal import Decimal
 from statistics import median
 
@@ -41,17 +42,63 @@ def _valid_comparable(items: list[NormalizedQuote]) -> list[NormalizedQuote]:
     ]
 
 
+EXAMPLE_LIMIT = 10
+
+
+def _summary(values: list[float]) -> dict[str, object]:
+    """Count/min/median/max of a price list (never the list itself)."""
+    if not values:
+        return {"count": 0, "min": None, "median": None, "max": None}
+    return {
+        "count": len(values),
+        "min": min(values),
+        "median": median(values),
+        "max": max(values),
+    }
+
+
+def _bounded(entries: list[dict[str, object]], limit: int = EXAMPLE_LIMIT) -> dict[str, object]:
+    """Bounded serialisation of a per-quote list: count + first ``limit`` entries."""
+    return {
+        "count": len(entries),
+        "examples": entries[:limit],
+        "example_limit": limit,
+        "truncated": max(0, len(entries) - limit),
+    }
+
+
 def performance_cross_check(
-    items: list[NormalizedQuote], performance: tuple[PerformanceRow, ...], case: Case
-) -> list[dict[str, object]]:
-    """Translate valid different-hardware quotes into reference-GPU equivalents."""
+    items: list[NormalizedQuote],
+    performance: tuple[PerformanceRow, ...],
+    case: Case,
+    comparable: list[NormalizedQuote] | None = None,
+) -> dict[str, object]:
+    """Translate valid different-hardware quotes into reference-GPU equivalents.
+
+    Returns a bounded structure: the number of translated quotes, up to ``EXAMPLE_LIMIT``
+    example entries, and the same-class comparable price distribution as summary stats
+    computed once per (contract_class, side).
+    """
+    comparable = _valid_comparable(items) if comparable is None else comparable
     ref_rows = [row for row in performance if row.gpu == case.reference_product.gpu]
-    out: list[dict[str, object]] = []
+    perf_by_gpu: dict[str, PerformanceRow] = {}
+    for row in performance:
+        perf_by_gpu.setdefault(row.gpu, row)
+    same_class: dict[tuple[str, str], list[float]] = {}
+    for peer in comparable:
+        same_class.setdefault((peer.classification.contract_class, peer.quote.side), []).append(
+            float(peer.single_gpu_equivalent or 0)
+        )
+    class_summary = {
+        f"{cls}/{side}": _summary(values) for (cls, side), values in sorted(same_class.items())
+    }
+    entries: list[dict[str, object]] = []
+    translated = 0
     for item in items:
         c, q = item.classification, item.quote
         if not item.usable or c.as_of_status != AS_OF_VALID or q.gpu == case.reference_product.gpu:
             continue
-        other_rows = [row for row in performance if row.gpu == q.gpu]
+        other = perf_by_gpu.get(q.gpu)
         entry: dict[str, object] = {
             "quote_id": q.id,
             "gpu": q.gpu,
@@ -59,60 +106,52 @@ def performance_cross_check(
             "normalized_usd_per_gpu_hour": _f(item.single_gpu_equivalent),
             "status": "cross-check-only",
         }
-        if not ref_rows or not other_rows:
-            entry["note"] = (
-                "no matching performance measurement for both GPUs; no translation possible"
-            )
+        ref = ref_rows[0] if ref_rows else None
+        if ref is None or other is None:
+            entry["note"] = "no matching performance measurement for both GPUs; no translation"
             entry["equivalent_usd_per_reference_gpu_hour"] = None
-            out.append(entry)
-            continue
-        ref, other = ref_rows[0], other_rows[0]
-        if ref.workload != other.workload:
+        elif ref.workload != other.workload:
             entry["note"] = "performance rows measure different workloads; not translatable"
             entry["equivalent_usd_per_reference_gpu_hour"] = None
-            out.append(entry)
-            continue
-        if float(other.output_tokens_per_s) <= 0 or float(ref.output_tokens_per_s) <= 0:
-            entry["note"] = "non-positive throughput measurement; ratio undefined"
-            entry["equivalent_usd_per_reference_gpu_hour"] = None
-            out.append(entry)
-            continue
-        ratio = float(ref.output_tokens_per_s) / float(other.output_tokens_per_s)
-        rel_unc = math.sqrt(
-            float(ref.relative_uncertainty) ** 2 + float(other.relative_uncertainty) ** 2
-        )
-        price = float(item.single_gpu_equivalent or 0)
-        comparable_same_class = [
-            float(peer.single_gpu_equivalent or 0)
-            for peer in _valid_comparable(items)
-            if peer.classification.contract_class == c.contract_class and peer.quote.side == q.side
-        ]
-        entry.update(
-            {
-                "performance_ids": [ref.id, other.id],
-                "workload": ref.workload,
-                "throughput_ratio_reference_over_quote_gpu": ratio,
-                "ratio_relative_uncertainty": rel_unc,
-                "equivalent_usd_per_reference_gpu_hour": price * ratio,
-                "equivalent_low": price * ratio * (1 - rel_unc),
-                "equivalent_high": price * ratio * (1 + rel_unc),
-                "comparable_same_class_prices": sorted(comparable_same_class),
-                "note": (
-                    "throughput parity on one synthetic dense-decode workload; ignores memory "
-                    f"({q.memory_gib} vs {case.reference_product.memory_gib} "
-                    "GiB), software and demand mix"
-                ),
-            }
-        )
-        out.append(entry)
+        else:
+            ratio = float(ref.output_tokens_per_s) / float(other.output_tokens_per_s)
+            rel_unc = math.sqrt(
+                float(ref.relative_uncertainty) ** 2 + float(other.relative_uncertainty) ** 2
+            )
+            price = float(item.single_gpu_equivalent or 0)
+            translated += 1
+            entry.update(
+                {
+                    "performance_ids": [ref.id, other.id],
+                    "workload": ref.workload,
+                    "throughput_ratio_reference_over_quote_gpu": ratio,
+                    "ratio_relative_uncertainty": rel_unc,
+                    "equivalent_usd_per_reference_gpu_hour": price * ratio,
+                    "equivalent_low": price * ratio * (1 - rel_unc),
+                    "equivalent_high": price * ratio * (1 + rel_unc),
+                    "comparable_same_class_summary_key": f"{c.contract_class}/{q.side}",
+                    "note": (
+                        "throughput parity on one synthetic dense-decode workload; ignores "
+                        f"memory ({q.memory_gib} vs {case.reference_product.memory_gib} GiB), "
+                        "software and demand mix"
+                    ),
+                }
+            )
+        entries.append(entry)
+    out = _bounded(entries)
+    out["translated"] = translated
+    out["comparable_same_class_summary"] = class_summary
     return out
 
 
-def commitment_context(items: list[NormalizedQuote], case: Case) -> list[dict[str, object]]:
+def commitment_context(
+    items: list[NormalizedQuote], case: Case, comparable: list[NormalizedQuote] | None = None
+) -> dict[str, object]:
     """Usage commitments on the same hardware: discount on current usage, never a forward."""
+    comparable = _valid_comparable(items) if comparable is None else comparable
     minimum = case.quote_common_terms.get("usage_commitment_minimum_monthly_gpu_hours")
     out = []
-    for item in _valid_comparable(items):
+    for item in comparable:
         if item.classification.contract_class != CLASS_COMMITMENT:
             continue
         q = item.quote
@@ -132,16 +171,20 @@ def commitment_context(items: list[NormalizedQuote], case: Case) -> list[dict[st
                 ),
             }
         )
-    return out
+    return _bounded(out)
 
 
-def spot_context(items: list[NormalizedQuote], case: Case) -> list[dict[str, object]]:
+def spot_context(
+    items: list[NormalizedQuote], case: Case, comparable: list[NormalizedQuote] | None = None
+) -> dict[str, object]:
     """Preemptible/spot quotes for the same hardware: a different (0% SLA) product."""
+    comparable = _valid_comparable(items) if comparable is None else comparable
     flexible_asks = [
         float(peer.usd_per_gpu_hour or 0)
-        for peer in _valid_comparable(items)
+        for peer in comparable
         if peer.classification.contract_class == CLASS_FLEXIBLE and peer.quote.side == "ask"
     ]
+    cheapest = min(flexible_asks) if flexible_asks else None
     out = []
     for item in items:
         c = item.classification
@@ -156,20 +199,22 @@ def spot_context(items: list[NormalizedQuote], case: Case) -> list[dict[str, obj
                 "normalized_usd_per_gpu_hour": price,
                 "sla_pct": _f(item.quote.sla_pct),
                 "discount_vs_cheapest_flexible_on_demand_ask_per_gpu_hour": (
-                    None
-                    if not flexible_asks or min(flexible_asks) <= 0
-                    else 1 - price / min(flexible_asks)
+                    None if not cheapest or cheapest <= 0 else 1 - price / cheapest
                 ),
                 "treatment": "context only: preemptible with "
                 "no SLA is not comparable to reserved capacity",
             }
         )
-    return out
+    result = _bounded(out)
+    result["cheapest_flexible_on_demand_ask_usd_per_gpu_hour"] = cheapest
+    return result
 
 
-def flexibility_premium(items: list[NormalizedQuote], case: Case) -> dict[str, object] | None:
+def flexibility_premium(
+    items: list[NormalizedQuote], case: Case, comparable: list[NormalizedQuote] | None = None
+) -> dict[str, object] | None:
     """Cancellable vs reserved current-month asks at the same gpu_count (payment-normalized)."""
-    base = month_start_tenor_zero(items, case)
+    base = month_start_tenor_zero(items, case, comparable)
     if base is None:
         return None
     reserved, flexible = base
@@ -191,45 +236,55 @@ def flexibility_premium(items: list[NormalizedQuote], case: Case) -> dict[str, o
 
 
 def month_start_tenor_zero(
-    items: list[NormalizedQuote], case: Case
+    items: list[NormalizedQuote], case: Case, comparable: list[NormalizedQuote] | None = None
 ) -> tuple[NormalizedQuote, NormalizedQuote] | None:
-    for reserved in _valid_comparable(items):
+    """First (reserved tenor-0 ask, flexible ask) pair at the same gpu_count, in input order."""
+    comparable = _valid_comparable(items) if comparable is None else comparable
+    flexible_by_count: dict[int, NormalizedQuote] = {}
+    for flexible in comparable:
+        if (
+            flexible.classification.contract_class == CLASS_FLEXIBLE
+            and flexible.quote.side == "ask"
+            and flexible.quote.unit != "node_month"
+        ):
+            flexible_by_count.setdefault(flexible.quote.gpu_count, flexible)
+    for reserved in comparable:
         if (
             reserved.classification.contract_class != CLASS_RESERVED
+            or reserved.quote.side != "ask"
             or 0 not in reserved.classification.tenor_months
         ):
             continue
-        for flexible in _valid_comparable(items):
-            if (
-                flexible.classification.contract_class == CLASS_FLEXIBLE
-                and flexible.quote.side == reserved.quote.side == "ask"
-                and flexible.quote.gpu_count == reserved.quote.gpu_count
-                and flexible.quote.unit != "node_month"
-            ):
-                return reserved, flexible
+        flexible = flexible_by_count.get(reserved.quote.gpu_count)
+        if flexible is not None:
+            return reserved, flexible
     return None
 
 
 HISTORY_EXAMPLE_LIMIT = 5
 
 
-def historical_variability(items: list[NormalizedQuote], case: Case) -> dict[str, object]:
-    """Expired quotes paired with the nearest current quote of the same provider/kind/side/size.
+def historical_variability(
+    items: list[NormalizedQuote], case: Case, comparable: list[NormalizedQuote] | None = None
+) -> dict[str, object]:
+    """Expired quotes paired with the nearest-dated valid quote of the same provider/kind/side/size.
 
-    Each expired quote is matched to at most one valid quote (same provider, kind, side,
-    gpu_count and unit; the nearest observation after it), so the work is linear in the
-    number of quotes and the output is a bounded summary plus a few example pairs rather
-    than the full expired x valid cross product.
+    Each expired quote is matched to at most one valid quote: same provider, kind, side,
+    gpu_count and unit, choosing the one whose ``observed_at`` is closest in time (before or
+    after; ties go to the later one). The work is O(E log V) and the output is a bounded
+    summary plus a few example pairs rather than the expired x valid cross product.
     """
 
     def key(q: NormalizedQuote) -> tuple:
         return (q.quote.provider, q.quote.kind, q.quote.side, q.quote.gpu_count, q.quote.unit)
 
+    comparable = _valid_comparable(items) if comparable is None else comparable
     current: dict[tuple, list[NormalizedQuote]] = {}
-    for item in _valid_comparable(items):
+    for item in comparable:
         current.setdefault(key(item), []).append(item)
     for group in current.values():
         group.sort(key=lambda q: q.quote.observed_at)
+    stamps = {k: [q.quote.observed_at for q in g] for k, g in current.items()}
     vols: list[float] = []
     log_moves: list[float] = []
     examples: list[dict[str, object]] = []
@@ -243,8 +298,18 @@ def historical_variability(items: list[NormalizedQuote], case: Case) -> dict[str
         if not group:
             unmatched += 1
             continue
-        new = group[-1]
-        months = (new.quote.observed_at - old.quote.observed_at).total_seconds() / (30.4375 * 86400)
+        pos = bisect_left(stamps[key(old)], old.quote.observed_at)
+        candidates = [group[i] for i in (pos - 1, pos) if 0 <= i < len(group)]
+        new = min(
+            candidates,
+            key=lambda q: (
+                abs((q.quote.observed_at - old.quote.observed_at).total_seconds()),
+                -q.quote.observed_at.timestamp(),
+            ),
+        )
+        months = abs(new.quote.observed_at - old.quote.observed_at).total_seconds() / (
+            30.4375 * 86400
+        )
         old_p, new_p = float(old.usd_per_gpu_hour), float(new.usd_per_gpu_hour)
         if months <= 0 or old_p <= 0 or new_p <= 0:
             unmatched += 1
@@ -283,7 +348,7 @@ def historical_variability(items: list[NormalizedQuote], case: Case) -> dict[str
         "example_limit": HISTORY_EXAMPLE_LIMIT,
         "treatment": (
             "expired prices are never current levels; each expired quote is paired with the "
-            "nearest current quote of the same provider/kind/side/size only to inform the "
+            "nearest-dated valid quote of the same provider/kind/side/size only to inform the "
             "declared horizon-widening parameter; a handful of pairs cannot estimate "
             "volatility reliably"
         ),

@@ -14,7 +14,7 @@ python tasks/compute-quant/research/run.py \
 | Flag | Meaning |
 | --- | --- |
 | `--case PATH` | case JSON; CSVs are resolved relative to it |
-| `--out DIR` | writes `curve.csv`, `valuation.json`, `run-manifest.json` |
+| `--out DIR` | writes `curve.csv`, `valuation.json`, `run-manifest.json`, `normalization.csv` |
 | `--config PATH` | model parameters (default `research/config/default.json`) |
 | `--report PATH` | render `REPORT.md` from the same results (never hand-edited) |
 | `--exclude-quote ID` | drop a quote before modelling (evidence-removal experiments; repeatable) |
@@ -90,3 +90,25 @@ Python version, command line, input hashes, parameters.
 | `sensitivities` | see file | grids reported in `valuation.json` and the report |
 
 Every one of these is an assumption and is listed in the report as such.
+
+
+## Output size caps and cost envelope
+
+`valuation.json` is bounded regardless of input size: the per-quote table is capped at
+`output.max_quote_rows_in_valuation_json` rows (default 200; `quotes.count`/`quotes.truncated`
+say what was cut), exclusions are summarised by reason, and every cross-check list carries a
+`count` plus at most 10 example entries with summary statistics instead of raw price lists.
+The full per-quote normalization table is always written as `normalization.csv` next to
+`valuation.json` (one row per quote; grows linearly). Measured on the demo schema with
+synthetic rows cloned from the demo quotes (CPython 3.11, one core, this repository's
+`tests/test_review_findings.py::RoundThreeTests::test_full_pipeline_scale_envelope` asserts
+the 20k point stays under 60 s / 1 GB / 2 MB):
+
+| quote rows | wall time | peak RSS | valuation.json | normalization.csv |
+| --- | --- | --- | --- | --- |
+| 1,011 | 0.1 s | 32 MB | 0.43 MB | 0.24 MB |
+| 5,011 | 0.4 s | 64 MB | 0.52 MB | 1.21 MB |
+| 20,011 | 1.6 s | 183 MB | 0.86 MB | 4.85 MB |
+
+Outputs are rendered in memory first and then written atomically (temporary file + rename),
+so a failed run leaves no partial artifact.

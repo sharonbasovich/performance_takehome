@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
-import copy
+import contextlib
 import csv
 import hashlib
 import io
 import json
+import math
 import os
 import platform
 import subprocess
 import sys
+import tempfile
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -18,6 +21,7 @@ from pathlib import Path
 from . import __version__
 from .comparability import AS_OF_VALID, classify
 from .crosscheck import (
+    _valid_comparable,
     commitment_context,
     flexibility_premium,
     historical_variability,
@@ -92,15 +96,76 @@ CONFIG_SENSITIVITY_KEYS = (
 ANCHOR_KINDS = {"supply_cost_breakeven", "max_valid_same_hardware_ask", "fixed"}
 
 
+SUPPORTED_VALUATION = {
+    "day_count": {"ACT/365"},
+    "compounding": {"annual-effective"},
+    "default_timing": {"uniform-hazard-from-as-of-to-delivery-end"},
+    "sla_downtime_assumption": {"provider-delivers-exactly-at-sla-floor"},
+}
+KNOWN_CONFIG_KEYS = {
+    "config_version",
+    "name",
+    "description",
+    "curve",
+    "anchors",
+    "scenarios",
+    "valuation",
+    "sensitivities",
+    "output",
+}
+
+
+def _check_finite(value: object, path: str) -> None:
+    """Reject NaN/Infinity anywhere in the configuration (JSON parsers accept them)."""
+    if isinstance(value, bool):
+        return
+    if isinstance(value, float) and not math.isfinite(value):
+        raise InputError(f"{path}: non-finite number {value!r}")
+    if isinstance(value, dict):
+        for k, v in value.items():
+            _check_finite(v, f"{path}.{k}")
+    elif isinstance(value, list):
+        for i, v in enumerate(value):
+            _check_finite(v, f"{path}[{i}]")
+
+
+def unknown_config_keys(config: dict) -> list[str]:
+    """Top-level configuration keys that are not part of config_version 1."""
+    return sorted(k for k in config if k not in KNOWN_CONFIG_KEYS)
+
+
 def validate_config(config: object, where: str = "config") -> None:
-    """Check the model configuration shape, types and ranges; raise InputError naming the key."""
+    """Check the model configuration shape, types, finiteness and ranges; name the key on error.
+
+    Every string-valued valuation assumption must be one the code implements
+    (``SUPPORTED_VALUATION``); unsupported values are rejected rather than echoed.
+    """
     if not isinstance(config, dict):
         raise InputError(f"{where}: configuration must be a JSON object")
     if config.get("config_version") != 1:
         raise InputError(f"{where}: unsupported config_version {config.get('config_version')!r}")
+    _check_finite(config, where)
     for section in ("curve", "anchors", "scenarios", "valuation", "sensitivities"):
         if not isinstance(config.get(section), dict):
             raise InputError(f"{where}: missing or non-object section {section!r}")
+    for key, allowed in SUPPORTED_VALUATION.items():
+        value = config["valuation"].get(key)
+        if value not in allowed:
+            raise InputError(
+                f"{where}: valuation.{key}={value!r} is not implemented; "
+                f"supported: {sorted(allowed)}"
+            )
+    for key in config["valuation"]:
+        if key not in SUPPORTED_VALUATION:
+            raise InputError(f"{where}: valuation.{key} is not a recognised assumption")
+    output = config.get("output", {})
+    if not isinstance(output, dict):
+        raise InputError(f"{where}: output must be an object")
+    limit = output.get("max_quote_rows_in_valuation_json", 200)
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        raise InputError(
+            f"{where}: output.max_quote_rows_in_valuation_json must be an integer >= 1"
+        )
     curve = config["curve"]
     for key, (kind, low, high) in CONFIG_CURVE_KEYS.items():
         if key not in curve:
@@ -154,6 +219,20 @@ def validate_config(config: object, where: str = "config") -> None:
             or not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in values)
         ):
             raise InputError(f"{where}: sensitivities.{key} must be a non-empty list of numbers")
+    for key in (
+        "utilizations",
+        "reversion_multipliers",
+        "horizon_vol_multipliers",
+        "quantity_factor_multipliers",
+    ):
+        if any(v <= 0 for v in sens[key]):
+            raise InputError(f"{where}: sensitivities.{key} must be strictly positive")
+    if any(v > 1 for v in sens["utilizations"]):
+        raise InputError(f"{where}: sensitivities.utilizations must be <= 1")
+    if any(v < 0 for v in sens["financing_rates"]):
+        raise InputError(f"{where}: sensitivities.financing_rates must be >= 0")
+    if any(not 0 <= v <= 1 for v in sens["default_probabilities"]):
+        raise InputError(f"{where}: sensitivities.default_probabilities must be within [0, 1]")
 
 
 def code_digest() -> str:
@@ -224,6 +303,12 @@ def run_pipeline(
     normalized: list[NormalizedQuote] = [
         normalize_quote(q, classify(q, case), case) for q in quotes
     ]
+    for item in normalized:
+        if item.usable and item.usd_per_gpu_hour is not None and item.usd_per_gpu_hour <= 0:
+            item.excluded_reason = (
+                f"normalized price {item.usd_per_gpu_hour} USD/GPU-hour is not positive; "
+                "excluded from every view"
+            )
     factor, factor_note = estimate_quantity_factor(normalized, case)
     apply_quantity_adjustment(normalized, factor, case)
     model: CurveModel = build_curve_model(normalized, case, config)
@@ -233,6 +318,7 @@ def run_pipeline(
     base_cost = breakeven(case.economics)
     valuation = value_reservation(model, case)
     sensitivities = _sensitivities(model, case, config["sensitivities"], valuation.identified)
+    comparable = _valid_comparable(normalized)
     quote_table = []
     for item in normalized:
         q, c = item.quote, item.classification
@@ -289,6 +375,24 @@ def run_pipeline(
         for row in quote_table
         if not row["curve_eligible"]
     ]
+    limit = int(config.get("output", {}).get("max_quote_rows_in_valuation_json", 200))
+    reason_counts: dict[str, int] = {}
+    for row in exclusions:
+        reason_counts[row["reason"]] = reason_counts.get(row["reason"], 0) + 1
+    quotes_out = {
+        "count": len(quote_table),
+        "rows": quote_table[:limit],
+        "row_limit": limit,
+        "truncated": max(0, len(quote_table) - limit),
+        "full_table": "normalization.csv (one row per quote, written next to valuation.json)",
+    }
+    exclusions_out = {
+        "count": len(exclusions),
+        "by_reason": dict(sorted(reason_counts.items())),
+        "rows": exclusions[:limit],
+        "row_limit": limit,
+        "truncated": max(0, len(exclusions) - limit),
+    }
     results: dict[str, object] = {
         "schema_version": OUTPUT_SCHEMA_VERSION,
         "task": "compute-quant",
@@ -317,9 +421,12 @@ def run_pipeline(
             "quote_columns": list(loaded.quote_columns),
             "excluded_quote_ids_by_flag": list(exclude_quote_ids),
             "unknown_case_keys": list(case.unknown_keys),
+            "unknown_nested_case_keys": list(case.unknown_nested_keys),
+            "unknown_config_keys": unknown_config_keys(config),
         },
-        "quotes": quote_table,
-        "exclusions": exclusions,
+        "quotes": quotes_out,
+        "exclusions": exclusions_out,
+        "_quote_table": quote_table,
         "quantity_adjustment": {
             "factor": None if factor is None else float(factor),
             "note": factor_note,
@@ -368,12 +475,12 @@ def run_pipeline(
         },
         "cross_checks": {
             "performance_translation": performance_cross_check(
-                normalized, loaded.performance, case
+                normalized, loaded.performance, case, comparable
             ),
-            "usage_commitments": commitment_context(normalized, case),
-            "spot": spot_context(normalized, case),
-            "flexibility_premium": flexibility_premium(normalized, case),
-            "historical_variability": historical_variability(normalized, case),
+            "usage_commitments": commitment_context(normalized, case, comparable),
+            "spot": spot_context(normalized, case, comparable),
+            "flexibility_premium": flexibility_premium(normalized, case, comparable),
+            "historical_variability": historical_variability(normalized, case, comparable),
         },
         "reservation": {
             "id": case.reservation.id,
@@ -462,11 +569,15 @@ def _quantity_factor_sensitivity(model: CurveModel, case: Case, sens: dict) -> l
     """Re-run the curve with the quantity factor scaled; reports node mids (and mark if marked)."""
     rows: list[dict] = []
     for m in sens["quantity_factor_multipliers"]:
-        items = [copy.deepcopy(item) for item in model.items]
+        items = [
+            replace(
+                item,
+                quantity_adjusted_usd_per_gpu_hour=None,
+                steps=[step for step in item.steps if step.name != "quantity"],
+            )
+            for item in model.items
+        ]
         factor = model.quantity_factor
-        for item in items:
-            item.quantity_adjusted_usd_per_gpu_hour = None
-            item.steps = [step for step in item.steps if step.name != "quantity"]
         scaled = None if factor is None else factor * Decimal(str(m))
         apply_quantity_adjustment(items, scaled, case)
         alt = build_curve_model(items, case, model.config)
@@ -535,8 +646,20 @@ def render_curve_csv(results: dict[str, object]) -> str:
     return buffer.getvalue()
 
 
+def _public(obj: object) -> object:
+    """Drop private (underscore-prefixed) keys before serialisation."""
+    if isinstance(obj, dict):
+        return {k: _public(v) for k, v in obj.items() if not str(k).startswith("_")}
+    if isinstance(obj, list):
+        return [_public(v) for v in obj]
+    return obj
+
+
 def render_json(obj: dict[str, object]) -> str:
-    return json.dumps(obj, indent=2, sort_keys=False, ensure_ascii=False, allow_nan=False) + "\n"
+    return (
+        json.dumps(_public(obj), indent=2, sort_keys=False, ensure_ascii=False, allow_nan=False)
+        + "\n"
+    )
 
 
 def build_manifest(
@@ -576,18 +699,93 @@ def build_manifest(
     }
 
 
+def render_normalization_csv(results: dict[str, object]) -> str:
+    """One row per quote with the normalization outcome (the full, uncapped table)."""
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerow(
+        [
+            "id",
+            "provider",
+            "kind",
+            "side",
+            "observed_at",
+            "valid_until",
+            "raw_price",
+            "currency",
+            "unit",
+            "gpu_count",
+            "as_of_status",
+            "tier",
+            "contract_class",
+            "delivery_months",
+            "tenor_months",
+            "curve_eligible",
+            "usd_per_gpu_hour",
+            "single_gpu_equivalent_usd_per_gpu_hour",
+            "excluded_reason",
+            "steps",
+        ]
+    )
+    for row in results["_quote_table"]:
+        writer.writerow(
+            [
+                row["id"],
+                row["provider"],
+                row["kind"],
+                row["side"],
+                row["observed_at"],
+                row["valid_until"] or "",
+                row["raw"]["price"],
+                row["raw"]["currency"],
+                row["raw"]["unit"],
+                row["raw"]["gpu_count"],
+                row["as_of_status"],
+                row["tier"],
+                row["contract_class"],
+                ";".join(row["delivery_months"]),
+                ";".join(str(t) for t in row["tenor_months"]),
+                row["curve_eligible"],
+                "" if row["usd_per_gpu_hour"] is None else row["usd_per_gpu_hour"],
+                ""
+                if row["single_gpu_equivalent_usd_per_gpu_hour"] is None
+                else row["single_gpu_equivalent_usd_per_gpu_hour"],
+                row["excluded_reason"] or "",
+                " | ".join(f"{s['step']}: {s['before']} -> {s['after']}" for s in row["steps"]),
+            ]
+        )
+    return buf.getvalue()
+
+
+OUTPUT_FILES = ("curve.csv", "valuation.json", "run-manifest.json", "normalization.csv")
+
+
 def write_outputs(
     results: dict[str, object], out_dir: Path, manifest: dict[str, object]
 ) -> dict[str, Path]:
-    out_dir.mkdir(parents=True, exist_ok=True)
-    paths = {
-        "curve.csv": out_dir / "curve.csv",
-        "valuation.json": out_dir / "valuation.json",
-        "run-manifest.json": out_dir / "run-manifest.json",
+    """Render every artifact first, then write them atomically (temp files + rename).
+
+    A failure while rendering (e.g. a non-finite number) therefore leaves no partial
+    artifact on disk, and a reader never observes a half-written file.
+    """
+    rendered = {
+        "curve.csv": render_curve_csv(results),
+        "valuation.json": render_json(results),
+        "run-manifest.json": render_json(manifest),
+        "normalization.csv": render_normalization_csv(results),
     }
-    paths["curve.csv"].write_text(render_curve_csv(results), encoding="utf-8", newline="\n")
-    paths["valuation.json"].write_text(render_json(results), encoding="utf-8", newline="\n")
-    paths["run-manifest.json"].write_text(render_json(manifest), encoding="utf-8", newline="\n")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    paths = {name: out_dir / name for name in OUTPUT_FILES}
+    for name, text in rendered.items():
+        fd, tmp_name = tempfile.mkstemp(prefix=f".{name}.", dir=out_dir)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(text)
+            os.replace(tmp_name, paths[name])
+        except BaseException:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp_name)
+            raise
     return paths
 
 

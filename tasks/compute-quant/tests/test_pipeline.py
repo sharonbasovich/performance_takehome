@@ -6,7 +6,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from research.pipeline import load_config, render_curve_csv, render_json, run_pipeline
+from research.pipeline import (
+    load_config,
+    render_curve_csv,
+    render_json,
+    render_normalization_csv,
+    run_pipeline,
+)
 from research.report import render_report
 from research.schema import InputError
 
@@ -29,7 +35,9 @@ class CliTests(unittest.TestCase):
             proc = run_cli("--case", str(DEMO_CASE), "--out", tmp)
             self.assertEqual(proc.returncode, 0, proc.stderr)
             names = sorted(p.name for p in Path(tmp).iterdir())
-            self.assertEqual(names, ["curve.csv", "run-manifest.json", "valuation.json"])
+            self.assertEqual(
+                names, ["curve.csv", "normalization.csv", "run-manifest.json", "valuation.json"]
+            )
             manifest = json.loads((Path(tmp) / "run-manifest.json").read_text())
             self.assertEqual(manifest["python"]["version"].count("."), 2)
             self.assertEqual(len(manifest["code"]["source_sha256"]), 64)
@@ -69,6 +77,10 @@ class DeterminismTests(unittest.TestCase):
         )
         self.assertEqual(
             render_json(results), (TASK_DIR / "valuation.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            render_normalization_csv(results),
+            (TASK_DIR / "normalization.csv").read_text(encoding="utf-8"),
         )
 
     def test_two_runs_identical(self):
@@ -167,5 +179,6 @@ class SchemaPerturbationTests(unittest.TestCase):
                     self.assertEqual(results["valuation"]["decision"], expected["decision"])
                 if "excluded" in expected:
                     self.assertEqual(
-                        sorted(e["id"] for e in results["exclusions"]), sorted(expected["excluded"])
+                        sorted(e["id"] for e in results["exclusions"]["rows"]),
+                        sorted(expected["excluded"]),
                     )

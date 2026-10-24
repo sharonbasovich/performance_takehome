@@ -105,7 +105,7 @@ def node(results: dict, tenor: int) -> dict:
 
 
 def quote_row(results: dict, qid: str) -> dict:
-    return next(q for q in results["quotes"] if q["id"] == qid)
+    return next(q for q in results["_quote_table"] if q["id"] == qid)
 
 
 def width(node_dict: dict) -> float:

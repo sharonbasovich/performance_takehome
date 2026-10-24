@@ -4,6 +4,26 @@ The organizer's ``data/README.md`` defines the fields. Everything here is parsin
 validation only; no economics. Unknown columns are tolerated and recorded, missing
 optional fields become ``None`` (unknown, never zero), and malformed required fields
 raise :class:`InputError` with the offending row id.
+
+Numeric bounds (decided per field; 0 is only accepted where it is meaningful):
+
+======================================  ==========  ==================================
+field                                   bound       why
+======================================  ==========  ==================================
+quote.price                             > 0         a zero price is not a quote
+quote.gpu_count, performance.gpu_count  >= 1        counts
+quote.sla_pct, reference/reservation    0..100      0% SLA = spot, 100% = perfect
+quote.commitment_months                 >= 0        0 = no term
+quote.fee_usd_per_gpu_hour, one_time    >= 0        0 = no fee
+performance.output_tokens_per_s         > 0         ratio denominator
+performance.relative_uncertainty        0..1        relative error
+fx_rates_to_usd.<CCY>                   > 0         conversion factor
+reservation.fixed_usd_per_gpu_hour      > 0         a free reservation is not priced
+reservation.expected_buyer_used_fraction 0..1       informational share
+economics.* money/power/rates           >= 0        0 = free/none (life, PUE >= 1-ish are
+                                                    checked where they divide)
+curve.tenor_months                      >= 0        0 = as-of month
+======================================  ==========  ==================================
 """
 
 from __future__ import annotations
@@ -102,6 +122,42 @@ class Reservation:
     service_credit_policy: str | None
 
 
+KNOWN_ECONOMICS_KEYS = frozenset(
+    {
+        "capex_usd_per_gpu_including_supporting_hardware",
+        "economic_life_months",
+        "residual_value_fraction",
+        "gpu_power_kw",
+        "supporting_power_kw_per_gpu",
+        "pue",
+        "electricity_usd_per_kwh",
+        "non_energy_opex_usd_per_allocated_gpu_hour",
+        "operator_revenue_utilization_fraction",
+        "operator_financing_annual_rate",
+        "buyer_discount_annual_rate",
+        "provider_default_probability_over_deal",
+        "default_recovery_fraction",
+        "note",
+        "source_ref",
+        "synthetic",
+    }
+)
+KNOWN_RESERVATION_KEYS = frozenset(
+    {
+        "id",
+        "gpu_count",
+        "delivery_start",
+        "delivery_end",
+        "delivery_end_exclusive",
+        "fixed_usd_per_gpu_hour",
+        "payment",
+        "cancellation",
+        "expected_buyer_used_fraction",
+        "sla_pct",
+        "service_credit_policy",
+        "egress_and_taxes",
+    }
+)
 KNOWN_CASE_KEYS = frozenset(
     {
         "schema_version",
@@ -124,6 +180,7 @@ KNOWN_CASE_KEYS = frozenset(
 class Case:
     schema_version: int
     unknown_keys: tuple[str, ...]
+    unknown_nested_keys: tuple[str, ...]
     task: str
     synthetic: bool
     as_of: datetime
@@ -344,7 +401,10 @@ def performance_from_row(row: dict[str, str]) -> PerformanceRow:
             exclusive_minimum=True,
         ),
         relative_uncertainty=parse_decimal(
-            row["relative_uncertainty"], where=f"{where}.relative_uncertainty", minimum=Decimal(0)
+            row["relative_uncertainty"],
+            where=f"{where}.relative_uncertainty",
+            minimum=Decimal(0),
+            maximum=Decimal(1),
         ),
         extra={key: value for key, value in row.items() if key not in known and key is not None},
     )
@@ -487,6 +547,7 @@ def case_from_mapping(raw: dict[str, object]) -> Case:
             _require(res_raw, "fixed_usd_per_gpu_hour", where="reservation"),
             where="reservation.fixed_usd_per_gpu_hour",
             minimum=Decimal(0),
+            exclusive_minimum=True,
         ),
         payment=str(_require(res_raw, "payment", where="reservation")).strip(),
         cancellation=str(res_raw.get("cancellation") or "unspecified").strip(),
@@ -495,6 +556,7 @@ def case_from_mapping(raw: dict[str, object]) -> Case:
             parse_decimal,
             where="reservation.expected_buyer_used_fraction",
             minimum=Decimal(0),
+            maximum=Decimal(1),
         ),
         sla_pct=parse_decimal(
             res_raw.get("sla_pct", product.sla_pct),
@@ -515,13 +577,22 @@ def case_from_mapping(raw: dict[str, object]) -> Case:
     if not isinstance(fx_raw, dict):
         raise InputError("case.fx_rates_to_usd must be an object mapping currency -> USD per unit")
     fx = {
-        str(key).upper(): parse_decimal(value, where=f"fx_rates_to_usd.{key}", minimum=Decimal(0))
+        str(key).upper(): parse_decimal(
+            value, where=f"fx_rates_to_usd.{key}", minimum=Decimal(0), exclusive_minimum=True
+        )
         for key, value in fx_raw.items()
     }
     common = raw.get("quote_common_terms") or {}
     return Case(
         schema_version=schema_version,
         unknown_keys=tuple(sorted(k for k in raw if k not in KNOWN_CASE_KEYS)),
+        unknown_nested_keys=tuple(
+            sorted(
+                [f"reservation.{k}" for k in res_raw if k not in KNOWN_RESERVATION_KEYS]
+                + [f"economics.{k}" for k in econ_raw if k not in KNOWN_ECONOMICS_KEYS]
+                + [f"curve.{k}" for k in curve_raw if k not in {"tenor_months", "tenor_definition"}]
+            )
+        ),
         task=str(raw.get("task") or ""),
         synthetic=parse_bool(raw.get("synthetic", False), where="case.synthetic"),
         as_of=parse_timestamp(_require(raw, "as_of", where="case"), where="case.as_of"),

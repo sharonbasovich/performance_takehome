@@ -252,7 +252,7 @@ def render_report(results: dict[str, Any]) -> str:
     )
     add("### All quotes, one row each\n")
     rows = []
-    for q in r["quotes"]:
+    for q in r["quotes"]["rows"]:
         done, why = _quote_treatment(q)
         rows.append(
             [
@@ -288,7 +288,12 @@ def render_report(results: dict[str, Any]) -> str:
     )
     add("")
     add("### Exclusions from the curve (with reasons)\n")
-    add(_table(["id", "reason"], [[f"`{e['id']}`", e["reason"]] for e in r["exclusions"]]))
+    add(_table(["id", "reason"], [[f"`{e['id']}`", e["reason"]] for e in r["exclusions"]["rows"]]))
+    if r["exclusions"]["truncated"]:
+        add(
+            f"\n{r['exclusions']['truncated']} further exclusion(s) omitted here; counts by "
+            f"reason: {r['exclusions']['by_reason']}."
+        )
     add("")
 
     # ---- Curve
@@ -451,7 +456,7 @@ def render_report(results: dict[str, Any]) -> str:
     fp = xc["flexibility_premium"]
     flex_asks = [
         q
-        for q in r["quotes"]
+        for q in r["quotes"]["rows"]
         if q["as_of_status"] == "valid"
         and q["tier"] == "comparable"
         and q["contract_class"] == "flexible_on_demand"
@@ -584,7 +589,7 @@ def render_report(results: dict[str, Any]) -> str:
         "speed and explicit bands, not as a bound.\n"
     )
     add("### Cross-checks (never curve inputs)\n")
-    for item in xc["performance_translation"]:
+    for item in xc["performance_translation"]["examples"]:
         if item.get("equivalent_usd_per_reference_gpu_hour") is None:
             add(f"- `{item['quote_id']}` ({item['gpu']}): {item['note']}.")
             continue
@@ -601,7 +606,7 @@ def render_report(results: dict[str, Any]) -> str:
             f"{', '.join(_p(p) for p in item['comparable_same_class_prices'])}. "
             f"{item['note']}. Weak cross-check only."
         )
-    for item in xc["usage_commitments"]:
+    for item in xc["usage_commitments"]["examples"]:
         add(
             f"- **Usage commitment** `{item['quote_id']}`: "
             f"{_p(item['normalized_usd_per_gpu_hour'])} for "
@@ -610,7 +615,7 @@ def render_report(results: dict[str, Any]) -> str:
             f"{item['minimum_monthly_gpu_hours_per_common_terms']} "
             f"GPU-hours/month. {item['treatment']}."
         )
-    for item in xc["spot"]:
+    for item in xc["spot"]["examples"]:
         add(
             f"- **Spot/preemptible** `{item['quote_id']}`: "
             f"{_p(item['normalized_usd_per_gpu_hour'])} at SLA "

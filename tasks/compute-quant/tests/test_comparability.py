@@ -114,7 +114,7 @@ class QuoteTypeSemanticsTests(unittest.TestCase):
         row = quote_row(self.results, "q03")
         self.assertEqual(row["contract_class"], "usage_commitment")
         self.assertFalse(row["curve_eligible"])
-        ctx = self.results["cross_checks"]["usage_commitments"]
+        ctx = self.results["cross_checks"]["usage_commitments"]["examples"]
         self.assertEqual(ctx[0]["quote_id"], "q03")
         self.assertIn("NOT a forward", ctx[0]["treatment"])
         self.assertEqual(ctx[0]["minimum_monthly_gpu_hours_per_common_terms"], 600)
@@ -141,14 +141,14 @@ class QuoteTypeSemanticsTests(unittest.TestCase):
         row = quote_row(self.results, "q09")
         self.assertEqual(row["contract_class"], "spot")
         self.assertEqual(row["tier"], "different_product")
-        spot = self.results["cross_checks"]["spot"]
+        spot = self.results["cross_checks"]["spot"]["examples"]
         self.assertEqual(spot[0]["quote_id"], "q09")
         self.assertAlmostEqual(
             spot[0]["discount_vs_cheapest_flexible_on_demand_ask_per_gpu_hour"], 1 - 1.8 / 4.5
         )
 
     def test_h200_only_cross_check_with_uncertainty(self):
-        xc = self.results["cross_checks"]["performance_translation"][0]
+        xc = self.results["cross_checks"]["performance_translation"]["examples"][0]
         self.assertEqual(xc["quote_id"], "q08")
         self.assertEqual(xc["status"], "cross-check-only")
         self.assertAlmostEqual(xc["throughput_ratio_reference_over_quote_gpu"], 1.25)
@@ -162,5 +162,5 @@ class QuoteTypeSemanticsTests(unittest.TestCase):
     def test_h200_without_performance_row_cannot_be_translated(self):
         builder = CaseBuilder(self)
         builder.case["files"].pop("performance")
-        xc = builder.run()["cross_checks"]["performance_translation"][0]
+        xc = builder.run()["cross_checks"]["performance_translation"]["examples"][0]
         self.assertIsNone(xc["equivalent_usd_per_reference_gpu_hour"])

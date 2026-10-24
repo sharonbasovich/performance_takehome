@@ -67,29 +67,22 @@ def main(argv: list[str] | None = None) -> int:
 
 def _main(argv: list[str] | None) -> int:
     args = build_parser().parse_args(argv)
-    try:
-        config = load_config(args.config)
-        results = run_pipeline(
-            args.case,
-            config,
-            exclude_quote_ids=tuple(args.exclude_quote),
-            as_of_override=args.as_of,
-        )
-    except (InputError, ValueError, OSError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
-    except Exception as exc:  # noqa: BLE001 - last resort: keep the 0/2 exit contract
-        print(
-            f"error: unexpected failure while running the pipeline ({type(exc).__name__}: {exc}); "
-            "please report this with the input pack",
-            file=sys.stderr,
-        )
-        return 2
+    config = load_config(args.config)
+    results = run_pipeline(
+        args.case,
+        config,
+        exclude_quote_ids=tuple(args.exclude_quote),
+        as_of_override=args.as_of,
+    )
     for message in results["curve"]["warnings"]:
         warn(message)
+    for key in results["inputs"]["unknown_nested_case_keys"]:
+        warn(f"case key {key!r} is not part of schema_version 1 and was ignored")
+    for key in results["inputs"]["unknown_config_keys"]:
+        warn(f"config key {key!r} is not part of config_version 1 and was ignored")
     for key in results["inputs"]["unknown_case_keys"]:
         warn(f"case key {key!r} is not part of schema_version 1 and was ignored")
-    for item in results["exclusions"]:
+    for item in results["exclusions"]["rows"]:
         warn(f"quote {item['id']} not a curve input: {item['reason']}")
     manifest = build_manifest(
         results, args.case, args.config, sys.argv[1:] if argv is None else list(argv)

@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+from pathlib import Path
 
 from research.pipeline import load_config, validate_config
 from research.schema import InputError
@@ -158,12 +159,18 @@ class ProvenanceTests(unittest.TestCase):
 
 
 class MinorFindingsTests(unittest.TestCase):
-    def test_crossed_market_is_labelled(self):
+    def test_crossed_market_is_not_an_observation_and_does_not_flip_the_decision(self):
         r = CaseBuilder(self).set("q06", price="4.70").run()
         n = node(r, 3)
-        self.assertEqual(n["uncertainty_type"], "crossed-market")
-        self.assertEqual((n["usd_per_gpu_hour_low"], n["usd_per_gpu_hour_high"]), (4.5, 4.7))
-        self.assertTrue(any("crossed" in note for note in n["notes"]))
+        self.assertNotEqual(n["status"], "observed")
+        self.assertIn("crossed-market", n["uncertainty_type"])
+        self.assertLessEqual(n["usd_per_gpu_hour_low"], 4.5)
+        self.assertGreaterEqual(n["usd_per_gpu_hour_high"], 4.7)
+        self.assertTrue(any("crossed" in w for w in r["curve"]["warnings"]))
+        self.assertNotIn(3, r["curve"]["reversion"]["observed_forward_tenors"])
+        wild = CaseBuilder(self).set("q06", price="9.00").run()
+        self.assertEqual(wild["valuation"]["decision"], run_demo()["valuation"]["decision"])
+        self.assertLess(wild["valuation"]["buyer_mark"]["default_and_sla_adjusted_usd"], 0)
 
     def test_sla_above_100_rejected_everywhere(self):
         with self.assertRaises(InputError):
@@ -211,3 +218,159 @@ class MinorFindingsTests(unittest.TestCase):
         mids = [row["anchor_mid_by_tenor"]["0"] for row in rows]
         self.assertEqual(mids, sorted(mids, reverse=True))
         self.assertEqual(len({row["curve_mid_by_tenor"]["3"] for row in rows}), 1)
+
+
+class RoundThreeTests(unittest.TestCase):
+    """Regression tests for the second independent review (R-1..R-7 and nits)."""
+
+    def test_zero_fx_rate_rejected(self):
+        b = CaseBuilder(self).set("q04", currency="EUR")
+        b.case["fx_rates_to_usd"] = {"EUR": 0}
+        with self.assertRaises(InputError) as ctx:
+            b.run()
+        self.assertIn("fx_rates_to_usd.EUR", str(ctx.exception))
+
+    def test_non_positive_normalized_price_is_excluded_never_observed(self):
+        r = CaseBuilder(self).set("q04", price="0.0000001").run()
+        row = quote_row(r, "q04")
+        self.assertFalse(row["curve_eligible"])
+        self.assertIn("not positive", row["excluded_reason"])
+        n = node(r, 1)
+        self.assertNotEqual(n["status"], "observed")
+        for n in r["curve"]["nodes"]:
+            if n["usd_per_gpu_hour_mid"] is not None:
+                self.assertGreater(n["usd_per_gpu_hour_mid"], 0)
+
+    def test_other_zero_bounds(self):
+        b = CaseBuilder(self)
+        b.case["reservation"]["fixed_usd_per_gpu_hour"] = 0
+        with self.assertRaises(InputError):
+            b.run()
+        b = CaseBuilder(self)
+        b.case["reservation"]["expected_buyer_used_fraction"] = 1.5
+        with self.assertRaises(InputError):
+            b.run()
+        r = CaseBuilder(self).set("q04", fee_usd_per_gpu_hour="0").run()
+        self.assertEqual(quote_row(r, "q04")["usd_per_gpu_hour"], 4.9)
+
+    def test_full_pipeline_scale_envelope(self):
+        import resource
+
+        b = CaseBuilder(self)
+        rows = []
+        for i in range(20000):
+            src = ("q01", "q04", "q05", "q06", "q08", "q09", "q10", "q03")[i % 8]
+            rows.append((src, f"s{i}", {"price": str(3 + (i % 50) / 10)}))
+        for src, qid, extra in rows:
+            b.copy_quote(src, qid, **extra)
+        path = b.write()
+        start = time.perf_counter()
+        proc = run_cli("--case", str(path), "--out", str(b.dir / "out"))
+        elapsed = time.perf_counter() - start
+        self.assertEqual(proc.returncode, 0, proc.stderr[-2000:])
+        size = (b.dir / "out" / "valuation.json").stat().st_size
+        self.assertLess(size, 2_000_000)
+        self.assertLess(elapsed, 60.0)
+        peak_children_kb = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+        self.assertLess(peak_children_kb, 1_000_000)
+        data = json.loads((b.dir / "out" / "valuation.json").read_text())
+        self.assertEqual(data["quotes"]["count"], 20011)
+        self.assertEqual(len(data["quotes"]["rows"]), data["quotes"]["row_limit"])
+        xc = data["cross_checks"]
+        self.assertLessEqual(len(xc["performance_translation"]["examples"]), 10)
+        self.assertLessEqual(len(xc["spot"]["examples"]), 10)
+        self.assertLessEqual(len(xc["usage_commitments"]["examples"]), 10)
+        self.assertNotIn("comparable_same_class_prices", json.dumps(xc))
+        lines = (b.dir / "out" / "normalization.csv").read_text().splitlines()
+        self.assertEqual(len(lines), 20012)
+
+    def test_unsupported_valuation_assumption_rejected(self):
+        cfg = copy.deepcopy(load_config(None))
+        cfg["valuation"]["day_count"] = "30/360"
+        with self.assertRaises(InputError) as ctx:
+            validate_config(cfg)
+        self.assertIn("valuation.day_count", str(ctx.exception))
+        cfg = copy.deepcopy(load_config(None))
+        cfg["valuation"]["extra_assumption"] = "x"
+        with self.assertRaises(InputError):
+            validate_config(cfg)
+
+    def test_non_finite_config_named_and_no_partial_outputs(self):
+        cfg = copy.deepcopy(load_config(None))
+        cfg["anchors"]["base"] = {"kind": "fixed", "usd_per_gpu_hour": float("nan")}
+        with self.assertRaises(InputError) as ctx:
+            validate_config(cfg)
+        self.assertIn("anchors.base.usd_per_gpu_hour", str(ctx.exception))
+        bad = TASK_DIR / "tests" / "_nan_config.json"
+        bad.write_text(json.dumps(cfg))
+        self.addCleanup(bad.unlink)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "out"
+            proc = run_cli(
+                "--case",
+                str(TASK_DIR / "data" / "demo-case.json"),
+                "--out",
+                str(out),
+                "--config",
+                str(bad),
+            )
+            self.assertEqual(proc.returncode, 2)
+            self.assertFalse(out.exists() and any(out.iterdir()))
+
+    def test_write_outputs_is_atomic(self):
+        from unittest import mock
+
+        from research import pipeline
+
+        results = run_demo()
+        manifest = {"x": 1}
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "o"
+            with mock.patch.object(pipeline, "render_json", side_effect=ValueError("boom")):
+                with self.assertRaises(ValueError):
+                    pipeline.write_outputs(results, out, manifest)
+            self.assertFalse(out.exists() and any(out.iterdir()))
+            pipeline.write_outputs(results, out, manifest)
+            self.assertEqual(
+                sorted(p.name for p in out.iterdir()),
+                ["curve.csv", "normalization.csv", "run-manifest.json", "valuation.json"],
+            )
+
+    def test_historical_pairing_uses_nearest_dated_quote(self):
+        b = CaseBuilder(self)
+        b.copy_quote("q01", "early", price="4.00", observed_at="2026-06-20T00:00:00Z")
+        b.copy_quote("q01", "late", price="6.00", observed_at="2026-09-30T00:00:00Z")
+        r = b.run()
+        hist = r["cross_checks"]["historical_variability"]
+        ex = {e["expired_quote_id"]: e for e in hist["examples"]}
+        self.assertEqual(ex["q10"]["current_quote_id"], "early")
+        self.assertGreater(ex["q10"]["months_apart"], 0)
+        self.assertEqual(hist["unmatched_expired_quotes"], 0)
+
+    def test_quantity_multipliers_must_be_positive(self):
+        for bad in (0, -1):
+            cfg = copy.deepcopy(load_config(None))
+            cfg["sensitivities"]["quantity_factor_multipliers"] = [bad, 1.0]
+            with self.assertRaises(InputError) as ctx:
+                validate_config(cfg)
+            self.assertIn("quantity_factor_multipliers", str(ctx.exception))
+
+    def test_unknown_config_and_nested_case_keys_are_reported(self):
+        cfg = copy.deepcopy(load_config(None))
+        cfg["curv"] = {}
+        from research.pipeline import run_pipeline
+
+        b = CaseBuilder(self)
+        b.case["economics"]["pue_typo"] = 1.3
+        b.case["reservation"]["gpu_cnt"] = 2
+        r = run_pipeline(b.write(), cfg)
+        self.assertEqual(r["inputs"]["unknown_config_keys"], ["curv"])
+        self.assertEqual(
+            r["inputs"]["unknown_nested_case_keys"], ["economics.pue_typo", "reservation.gpu_cnt"]
+        )
+
+    def test_evidence_ids_list_only_influencing_quotes(self):
+        r = run_demo()
+        self.assertEqual(node(r, 6)["evidence_ids"], ["q05", "q06"])
+        self.assertEqual(node(r, 12)["evidence_ids"], ["q05", "q06"])
+        self.assertEqual(node(r, 1)["evidence_ids"], ["q04"])

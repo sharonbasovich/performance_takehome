@@ -48,6 +48,16 @@ class Observation:
     note: str
 
 
+@dataclass(frozen=True)
+class Disputed:
+    """A tenor whose best bid exceeds its best ask: evidence exists but is not a clean level."""
+
+    tenor: int
+    low: float
+    high: float
+    quote_ids: list[str]
+
+
 @dataclass
 class Anchor:
     tenor: int
@@ -124,6 +134,7 @@ class CurveModel:
     warnings: list[str] = field(default_factory=list)
     items: list[NormalizedQuote] = field(default_factory=list)
     quantity_factor: object = None
+    disputed: dict[int, Disputed] = field(default_factory=dict)
 
     @property
     def observed_forward_anchors(self) -> list[Anchor]:
@@ -269,10 +280,12 @@ class CurveModel:
                 0.0,
             )
         distance = min(abs(a.tenor - tenor) for a in self.anchors)
+        evidence: list[str] = []
         if status == STATUS_IMPLIED:
             lo_t, hi_t = detail["interpolated_between"]
             lo_a = next(a for a in self.anchors if a.tenor == lo_t)
             hi_a = next(a for a in self.anchors if a.tenor == hi_t)
+            evidence = sorted(set(lo_a.evidence_ids) | set(hi_a.evidence_ids))
             w = (tenor - lo_t) / (hi_t - lo_t)
             v = vol * math.sqrt(distance) * max(lo_a.high, hi_a.high)
             low = (1 - w) * lo_a.low + w * hi_a.low - v
@@ -283,6 +296,7 @@ class CurveModel:
             beyond = detail.get("months_beyond")
             if beyond is not None:
                 last = next(a for a in self.anchors if a.tenor == detail["from_anchor"])
+                evidence = list(last.evidence_ids)
                 low, high = self._structural_band(last, beyond, vol)
                 band = self.config["curve"]["reversion_band_per_month"]
                 notes.append(
@@ -295,6 +309,7 @@ class CurveModel:
                 first = next(a for a in self.anchors if a.tenor == detail["flat_from_first_anchor"])
                 v = vol * math.sqrt(distance) * first.high
                 low, high = first.low - v, first.high + v
+                evidence = list(first.evidence_ids)
                 notes.append(f"flat extension from the first anchor at tenor {first.tenor}")
             unc = (
                 "model-band+scenario-union"
@@ -304,7 +319,15 @@ class CurveModel:
         finite = [v for v in scenarios.values() if v is not None]
         low = max(0.0, min(low, mid, *finite))
         high = max(high, mid, *finite)
-        evidence = sorted({qid for a in self.anchors for qid in a.evidence_ids})
+        dispute = self.disputed.get(tenor)
+        if dispute is not None:
+            low, high = min(low, dispute.low), max(high, dispute.high)
+            evidence = sorted(set(evidence) | set(dispute.quote_ids))
+            unc += "+crossed-market-union"
+            notes.append(
+                f"crossed market from {dispute.quote_ids} (bid above ask): not used as a level; "
+                f"interval widened to cover {dispute.low:.4f}-{dispute.high:.4f}"
+            )
         return Node(
             tenor,
             start,
@@ -370,6 +393,7 @@ def _build_anchors(
     reference_spread = max(two_sided_spreads) if two_sided_spreads else None
     frac = float(config["curve"]["one_sided_spread_fraction"])
     anchors: list[Anchor] = []
+    disputed: dict[int, Disputed] = {}
     for tenor, group in chosen.items():
         bids = [o for o in group if o.side == "bid"]
         asks = [o for o in group if o.side == "ask"]
@@ -379,16 +403,16 @@ def _build_anchors(
         best_ask = min((o.price for o in asks), default=None)
         if best_bid is not None and best_ask is not None:
             if best_bid > best_ask:
+                ids = sorted({o.quote_id for o in group})
                 warnings.append(
-                    f"tenor {tenor}: crossed market (bid {best_bid} "
-                    f"> ask {best_ask}); interval swapped"
+                    f"tenor {tenor}: crossed market (bid {best_bid} > ask {best_ask}) from "
+                    f"{ids}; not a clean observation - excluded from anchors and kappa fit, "
+                    "node modeled with the interval widened to cover both prices"
                 )
-                low, high = best_ask, best_bid
-                notes.append("crossed bid/ask; treated as uncertain two-sided evidence")
-                unc = "crossed-market"
-            else:
-                low, high = best_bid, best_ask
-                unc = "bid-ask"
+                disputed[tenor] = Disputed(tenor, best_ask, best_bid, ids)
+                continue
+            low, high = best_bid, best_ask
+            unc = "bid-ask"
             mid = (best_bid + best_ask) / 2
             if frac * mid < (high - low):
                 warnings.append(
@@ -418,7 +442,7 @@ def _build_anchors(
                 tenor, max(0.0, mid), max(0.0, low), max(0.0, high), status, bids, asks, notes, unc
             )
         )
-    return anchors, reference_spread, warnings
+    return anchors, reference_spread, warnings, disputed
 
 
 def _fit_kappa(
@@ -508,7 +532,7 @@ def _anchor_level(
 def build_curve_model(items: list[NormalizedQuote], case: Case, config: dict) -> CurveModel:
     """Assemble anchors, scenario anchor levels and the reversion speed."""
     observations = _collect_observations(items)
-    anchors, reference_spread, warnings = _build_anchors(observations, config)
+    anchors, reference_spread, warnings, disputed = _build_anchors(observations, config)
     levels: dict[str, float | None] = {}
     notes: dict[str, str] = {}
     for scenario, spec in config["scenarios"].items():
@@ -522,5 +546,15 @@ def build_curve_model(items: list[NormalizedQuote], case: Case, config: dict) ->
             "is implied/modeled/forecast or unidentified"
         )
     return CurveModel(
-        case, config, anchors, levels, notes, kappa, source, detail, reference_spread, warnings
+        case,
+        config,
+        anchors,
+        levels,
+        notes,
+        kappa,
+        source,
+        detail,
+        reference_spread,
+        warnings,
+        disputed=disputed,
     )
