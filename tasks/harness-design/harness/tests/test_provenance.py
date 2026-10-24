@@ -56,9 +56,112 @@ class ProvenanceTest(unittest.TestCase):
             (code / "results.tsv").write_text("ts\n", encoding="utf-8")
             (code / "reports").mkdir()
             (code / "reports" / "001.json").write_text("{}", encoding="utf-8")
-            self.assertFalse(run._git_describe(repo)[1], "evidence outputs are not code")
+            self.assertTrue(
+                run._git_describe(repo)[1], "outputs count as dirty unless this run owns them"
+            )
+            owned = (
+                "tasks/harness-design/harness/results.tsv",
+                "tasks/harness-design/harness/reports/",
+            )
+            self.assertFalse(run._git_describe(repo, owned)[1], "configured outputs are ignored")
             (code / "run.py").write_text("changed", encoding="utf-8")
-            self.assertTrue(run._git_describe(repo)[1], "edited code is dirty")
+            self.assertTrue(run._git_describe(repo, owned)[1], "edited code is dirty")
+
+    def test_tracked_evidence_is_detected_and_defaults_avoid_it(self) -> None:
+        tracked = run._tracked_outputs(_paths.REPO_ROOT, [_paths.HARNESS_DIR / "results.tsv"])
+        self.assertEqual(tracked, ["tasks/harness-design/harness/results.tsv"])
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(run._tracked_outputs(_paths.REPO_ROOT, [Path(tmp) / "r.tsv"]), [])
+        args = run.build_parser().parse_args(
+            [
+                "run",
+                "--engine",
+                "standin",
+                "--model-dir",
+                "/m",
+                "--out",
+                "/tmp/o.json",
+                "--state-dir",
+                "/tmp/s",
+                "--budget-minutes",
+                "1",
+                "--api-spend-limit-usd",
+                "0",
+            ]
+        )
+        self.assertIsNone(args.results)
+        self.assertIsNone(args.reports_dir)
+        self.assertIsNone(args.patches_dir)
+
+    def test_run_refuses_to_overwrite_committed_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            code = run.cmd_run(
+                run.build_parser().parse_args(
+                    [
+                        "run",
+                        "--engine",
+                        "standin",
+                        "--model-dir",
+                        tmp,
+                        "--out",
+                        f"{tmp}/o.json",
+                        "--state-dir",
+                        f"{tmp}/s",
+                        "--budget-minutes",
+                        "1",
+                        "--api-spend-limit-usd",
+                        "0",
+                        "--experiments",
+                        f"{tmp}/q.json",
+                        "--results",
+                        str(_paths.HARNESS_DIR / "results.tsv"),
+                    ]
+                )
+            )
+            self.assertEqual(code, 2)
+            self.assertFalse((Path(tmp) / "s").exists(), "refused before touching disk")
+
+    def test_committed_manifest_tree_hash_matches_its_source_commit(self) -> None:
+        import io
+        import json
+        import tarfile
+
+        from abstract_harness import manifest as manifest_mod
+
+        task_dir = _paths.HARNESS_DIR.parent
+        sub = json.loads((task_dir / "submission.json").read_text(encoding="utf-8"))
+        source = sub["source"]
+        self.assertEqual(source["image_identity_kind"], manifest_mod.IMAGE_IDENTITY_KIND)
+        commit = source["commit"].removesuffix("-dirty")
+        try:
+            archive = subprocess.run(
+                ["git", "-C", str(_paths.REPO_ROOT), "archive", commit, "tasks/harness-design"],
+                check=True,
+                capture_output=True,
+                timeout=60,
+            ).stdout
+        except (OSError, subprocess.SubprocessError) as exc:
+            self.skipTest(f"git archive {commit} unavailable: {exc}")
+        with tempfile.TemporaryDirectory() as tmp:
+            with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+                tar.extractall(tmp, filter="data")
+            expected = run.harness_tree_sha256(Path(tmp) / "tasks" / "harness-design")
+        self.assertEqual(source["harness_tree_sha256"], expected)
+        prov = json.loads((_paths.HARNESS_DIR / "reports" / "build-provenance.json").read_text())
+        self.assertEqual(prov["harness_tree_sha256"], expected)
+        self.assertEqual(prov["source_commit"], source["commit"])
+
+    def test_committed_agent_provenance_carries_the_pi_pins(self) -> None:
+        import json
+
+        pins = json.loads((_paths.REPO_ROOT / "agent-harness" / "profiles.json").read_text())["pi"]
+        for name in ("agent-provenance.json",):
+            agent = json.loads((_paths.HARNESS_DIR / "reports" / name).read_text())
+            self.assertEqual(agent["pi_integrity"], pins["artifact_integrity"])
+            self.assertEqual(agent["pi_node_requirement"], pins["node_requirement"])
+            self.assertEqual(agent["pi_version"], pins["version"])
+        sub = json.loads((_paths.HARNESS_DIR.parent / "submission.json").read_text())
+        self.assertEqual(sub["agent_harness"]["pi_integrity"], pins["artifact_integrity"])
 
     def test_run_refuses_dirty_tree_without_allow_dirty(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

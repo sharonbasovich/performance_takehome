@@ -182,6 +182,7 @@ def apply_patch(patch_text: str, target_dir: Path, *, timeout_s: float = 60) -> 
                 return False, f"patch touches a path outside the build context: {path}"
     if shutil.which("patch") is None:
         return False, "`patch` binary not available"
+    links_before = _symlinks(target_dir)
     result = procs.run(
         ["patch", "-p1", "--batch", "--forward", "--no-backup-if-mismatch", "-d", str(target_dir)],
         timeout_s=timeout_s,
@@ -191,10 +192,17 @@ def apply_patch(patch_text: str, target_dir: Path, *, timeout_s: float = 60) -> 
         bad = escaping_symlinks(target_dir)
         if bad:
             return False, f"patch created symlinks escaping the build context: {bad}"
+        created = sorted(_symlinks(target_dir) - links_before)
+        if created:
+            return False, f"patch created symlinks inside the build context: {created}"
     output = (result.stdout + result.stderr).strip()
     if result.timed_out:
         return False, "patch timed out"
     return result.ok, output
+
+
+def _symlinks(root: Path) -> set[str]:
+    return {str(p.relative_to(root)) for p in root.rglob("*") if p.is_symlink()}
 
 
 def _slug(text: str) -> str:

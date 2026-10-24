@@ -187,7 +187,7 @@ def wait_for_quiet_host(
     sample_s: float = 1.0,
     sampler: Callable[[float], float | None] = cpu_idle_fraction,
     should_abort: Callable[[], bool] | None = None,
-) -> dict[str, float | int | bool | None]:
+) -> dict[str, float | int | bool | str | None]:
     """Block until the host CPU has been >= ``min_idle`` idle for ``stable_samples`` samples.
 
     Background work (BuildKit export/GC after a build, a previous container
@@ -201,7 +201,12 @@ def wait_for_quiet_host(
     while True:
         last = sampler(sample_s)
         if last is None:
-            return {"waited_s": round(time.monotonic() - start, 1), "idle": None, "quiet": True}
+            return {
+                "waited_s": round(time.monotonic() - start, 1),
+                "idle": None,
+                "quiet": None,
+                "reason": "idle sampler unavailable (no readable /proc/stat)",
+            }
         streak = streak + 1 if last >= min_idle else 0
         if streak >= stable_samples:
             return {"waited_s": round(time.monotonic() - start, 1), "idle": last, "quiet": True}

@@ -46,7 +46,7 @@ from abstract_harness.engines import make_engine  # noqa: E402
 from abstract_harness.loop import Harness, LoopConfig, Timeouts  # noqa: E402
 from abstract_harness.procs import LockError  # noqa: E402
 from abstract_harness.proposers import PiLaunchConfig, PiProposer, ScriptedProposer  # noqa: E402
-from abstract_harness.state import StateError  # noqa: E402
+from abstract_harness.state import StateError, load_state  # noqa: E402
 
 STANDIN_MODEL = {
     "repo": "unsloth/SmolLM2-135M-Instruct-GGUF",
@@ -57,8 +57,12 @@ STANDIN_MODEL = {
 }
 
 
-def _git_describe(repo_root: Path) -> tuple[str, bool]:
-    """``(HEAD sha, dirty)`` of the repository that contains the running harness code."""
+def _git_describe(repo_root: Path, ignore: tuple[str, ...] = ()) -> tuple[str, bool]:
+    """``(HEAD sha, dirty)`` of the repository that contains the running harness code.
+
+    ``ignore`` lists the repo-relative paths this run is configured to write (results,
+    reports, patches, manifest); only those may be modified without counting as dirty.
+    """
     try:
         head = subprocess.run(
             ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
@@ -77,18 +81,37 @@ def _git_describe(repo_root: Path) -> tuple[str, bool]:
     except (OSError, subprocess.SubprocessError):
         return "UNKNOWN", True
     dirty = any(
-        line.strip() and not line[3:].startswith(IGNORED_DIRTY_PREFIXES)
+        line.strip() and not (ignore and line[3:].startswith(ignore))
         for line in status.splitlines()
     )
     return head, dirty
 
 
-IGNORED_DIRTY_PREFIXES = (
-    "tasks/harness-design/harness/results.tsv",
-    "tasks/harness-design/harness/reports/",
-    "tasks/harness-design/harness/patches/",
-    "tasks/harness-design/submission.json",
-)
+def _repo_relative(repo_root: Path, path: Path) -> str | None:
+    """``path`` relative to ``repo_root`` (POSIX), or None when it lies outside the repo."""
+    try:
+        return path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return None
+
+
+def _tracked_outputs(repo_root: Path, paths: list[Path]) -> list[str]:
+    """Git-tracked files under any of ``paths`` (committed evidence a run would overwrite)."""
+    rel = [r for r in (_repo_relative(repo_root, p) for p in paths) if r]
+    if not rel:
+        return []
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo_root), "ls-files", "--", *rel],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return [line for line in out.splitlines() if line.strip()]
+
 
 HARNESS_TREE_FILES = (
     "harness/run.py",
@@ -139,13 +162,30 @@ def build_parser() -> argparse.ArgumentParser:
         "--development-benchmark", type=Path, default=HERE / "development-benchmark.json"
     )
     run.add_argument("--program", type=Path, default=HERE / "program.md")
-    run.add_argument("--results", type=Path, default=HERE / "results.tsv")
+    run.add_argument(
+        "--results",
+        type=Path,
+        default=None,
+        help="results.tsv to append to (default: <state-dir>/results.tsv)",
+    )
     run.add_argument("--out", type=Path, required=True, help="manifest path (submission.json)")
     run.add_argument(
         "--state-dir", type=Path, required=True, help="persistent state (resume) + scratch + logs"
     )
-    run.add_argument("--reports-dir", type=Path, default=HERE / "reports")
-    run.add_argument("--patches-dir", type=Path, default=HERE / "patches")
+    run.add_argument("--reports-dir", type=Path, default=None, help="default: <state-dir>/reports")
+    run.add_argument("--patches-dir", type=Path, default=None, help="default: <state-dir>/patches")
+    run.add_argument(
+        "--overwrite-evidence",
+        action="store_true",
+        help="allow --results/--reports-dir/--patches-dir/--out to point at git-tracked "
+        "(committed) evidence files; refused otherwise",
+    )
+    run.add_argument(
+        "--manifest-only",
+        action="store_true",
+        help="do not run attempts: load the state directory and rewrite the manifest, "
+        "build-provenance and agent-provenance files from it",
+    )
     run.add_argument("--proposer", choices=["scripted", "pi"], default="scripted")
     run.add_argument("--experiments", type=Path, help="scripted proposer queue (JSON)")
     run.add_argument(
@@ -220,7 +260,22 @@ def build_parser() -> argparse.ArgumentParser:
 def cmd_run(args: argparse.Namespace) -> int:
     """Build config objects and run the loop."""
     now = time.time()
-    head, dirty = _git_describe(REPO_ROOT)
+    args.results = args.results or args.state_dir / "results.tsv"
+    args.reports_dir = args.reports_dir or args.state_dir / "reports"
+    args.patches_dir = args.patches_dir or args.state_dir / "patches"
+    outputs = [args.results, args.reports_dir, args.patches_dir, args.out]
+    tracked = _tracked_outputs(REPO_ROOT, outputs)
+    if tracked and not args.overwrite_evidence:
+        more = f" and {len(tracked) - 1} more" if len(tracked) > 1 else ""
+        print(
+            f"[run] refusing to write over committed evidence ({tracked[0]}{more}); "
+            "point --results/--reports-dir/--patches-dir/--out elsewhere or pass "
+            "--overwrite-evidence",
+            file=sys.stderr,
+        )
+        return 2
+    ignore = tuple(r for r in (_repo_relative(REPO_ROOT, p) for p in outputs) if r)
+    head, dirty = _git_describe(REPO_ROOT, ignore)
     if dirty and not args.allow_dirty:
         print(
             "[run] tasks/harness-design has uncommitted code changes; commit them so every "
@@ -229,6 +284,14 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         return 2
     source_commit = f"{head}-dirty" if dirty else head
+    tree_sha256 = harness_tree_sha256(HERE.parent)
+    if args.manifest_only:
+        # Rewriting the manifest must describe the code that produced the rows, not HEAD.
+        prior = load_state(args.state_dir / "state.json", on_warning=print)
+        if prior is None:
+            print(f"[run] --manifest-only: no state in {args.state_dir}", file=sys.stderr)
+            return 2
+        source_commit, tree_sha256 = prior.source_commit, prior.harness_tree_sha256
     budget = budget_mod.BudgetConfig(
         api_usd_limit=args.api_spend_limit_usd,
         gpu_hours_limit=args.gpu_hours,
@@ -286,7 +349,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         program_path=args.program,
         out_manifest=args.out,
         source_commit=source_commit,
-        harness_tree_sha256=harness_tree_sha256(HERE.parent),
+        harness_tree_sha256=tree_sha256,
         startup_regression_limit=args.startup_regression_limit,
         budget=budget,
         timeouts=Timeouts(
@@ -312,6 +375,13 @@ def cmd_run(args: argparse.Namespace) -> int:
             args.experiments, skip=harness.state.attempt_index - 1
         )
         harness.proposer = proposer
+    if args.manifest_only:
+        try:
+            manifest = harness.finalize(harness.state.finish_reason or "manifest-only")
+        finally:
+            harness._release_locks()
+        print(f"[run] manifest rewritten from {args.state_dir}: image={manifest.get('image')}")
+        return 0
     return harness.run()
 
 

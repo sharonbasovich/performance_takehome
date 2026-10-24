@@ -19,6 +19,8 @@ from . import procs
 if TYPE_CHECKING:
     from .loop import Harness
 
+# `docker buildx build --load` yields the image config ID, not a registry manifest digest.
+IMAGE_IDENTITY_KIND = "docker-image-config-id"
 STARTER_COMMIT = "81aead87d78ed468c4c374fb42921471b44c3f80"
 UNAVAILABLE = "UNAVAILABLE_IN_DRAFT"
 
@@ -89,6 +91,8 @@ def build_manifest(
         ),
         "patches": [last_good.patch] if last_good and last_good.patch else [],
         "provenance_path": cfg.rel(cfg.reports_dir / "build-provenance.json"),
+        "harness_tree_sha256": state.harness_tree_sha256,
+        "image_identity_kind": IMAGE_IDENTITY_KIND,
     }
     if engine.name == "standin":
         manifest["model"] = {
@@ -173,6 +177,8 @@ def write_manifest(harness: Harness) -> dict[str, Any]:
         "last_good": state.last_good.__dict__ if state.last_good else None,
         "attempts": len(state.history),
         "source_commit": state.source_commit,
+        "harness_tree_sha256": state.harness_tree_sha256,
+        "image_identity_kind": IMAGE_IDENTITY_KIND,
         "digest_resolution": "docker buildx --metadata-file containerimage.digest / "
         "docker image inspect RepoDigests",
     }
@@ -225,17 +231,18 @@ def _standin_engine_revision(dockerfile: Path) -> str:
 
 def _pi_pins(repo_root: Path) -> dict[str, str]:
     """Pi package/version/integrity exactly as pinned in ``agent-harness/profiles.json``."""
-    try:
-        data = json.loads(
-            (repo_root / "agent-harness" / "profiles.json").read_text(encoding="utf-8")
-        )["pi"]
-    except (OSError, KeyError, json.JSONDecodeError):
-        return {"pi_package": "", "pi_version": "", "pi_integrity": ""}
-    return {
+    profiles = repo_root / "agent-harness" / "profiles.json"
+    data = json.loads(profiles.read_text(encoding="utf-8"))["pi"]
+    pins = {
         "pi_package": str(data.get("package", "")),
         "pi_version": str(data.get("version", "")),
-        "pi_integrity": str(data.get("integrity", "")),
+        "pi_integrity": str(data.get("artifact_integrity", "")),
+        "pi_node_requirement": str(data.get("node_requirement", "")),
     }
+    missing = [key for key, value in pins.items() if not value]
+    if missing:
+        raise RuntimeError(f"{profiles} lacks the Pi pin fields {missing}")
+    return pins
 
 
 def _transcripts(cfg: Any) -> list[str]:

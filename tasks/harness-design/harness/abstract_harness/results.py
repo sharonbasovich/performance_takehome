@@ -243,13 +243,15 @@ def append_row(path: Path, row: ResultRow) -> None:
 
 def iter_rows(path: Path) -> Iterator[ResultRow]:
     """Yield validated rows from an existing results file."""
-    with path.open("r", encoding="utf-8") as fh:
+    with path.open("r", encoding="utf-8", newline="") as fh:
         header = fh.readline()
         if header != HEADER_LINE:
             raise ResultsError(f"{path} has an unexpected header: {header!r}")
         for number, line in enumerate(fh, start=2):
             if not line.strip():
                 continue
+            if "\r" in line:
+                raise ResultsError(f"{path}:{number}: CRLF line ending; results.tsv is LF-only")
             if not line.endswith("\n"):
                 raise ResultsError(f"{path}:{number}: truncated last line (no trailing newline)")
             row = ResultRow.from_line(line)

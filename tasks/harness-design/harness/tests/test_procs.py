@@ -91,8 +91,9 @@ class QuietHostTest(unittest.TestCase):
 
     def test_unavailable_sampler_does_not_block(self) -> None:
         out = procs.wait_for_quiet_host(sample_s=0, sampler=lambda _s: None)
-        self.assertTrue(out["quiet"])
+        self.assertIsNone(out["quiet"], "unknown must not be recorded as quiet")
         self.assertIsNone(out["idle"])
+        self.assertIn("unavailable", str(out["reason"]))
 
     def test_real_sampler_reads_proc_stat(self) -> None:
         idle = procs.cpu_idle_fraction(0.2)

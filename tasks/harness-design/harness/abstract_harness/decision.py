@@ -206,12 +206,15 @@ def compare_metric(
 def startup_hard_gate(baseline: Samples, candidate: Samples, limit: float) -> str | None:
     """Reason string when the candidate's startup median exceeds ``limit`` x baseline, else None.
 
-    Works with a single sample per side; non-finite or missing samples never trip it.
+    Works with a single sample per side. A candidate without any finite positive startup
+    sample fails the gate (the baseline side always has one when a comparison is possible).
     """
     base = [v for vs in _groups(baseline).values() for v in vs if math.isfinite(v) and v > 0]
     cand = [v for vs in _groups(candidate).values() for v in vs if math.isfinite(v) and v > 0]
-    if not base or not cand or limit <= 0:
+    if limit <= 0 or not base:
         return None
+    if not cand:
+        return "startup hard gate: candidate produced no finite startup sample"
     ratio = statistics.median(cand) / statistics.median(base)
     if ratio > limit:
         return (

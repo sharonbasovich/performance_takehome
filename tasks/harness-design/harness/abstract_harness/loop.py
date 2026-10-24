@@ -143,16 +143,12 @@ class Harness:
             self.state.source_commit = config.source_commit
 
     def _release_locks(self) -> None:
-        results_lock = self.config.results_path.with_suffix(
-            self.config.results_path.suffix + ".lock"
-        )
+        # Lock files are never unlinked: unlinking races a second holder onto a new inode.
         for name in ("_results_lock", "_lock"):
             fh = getattr(self, name, None)
             if fh is not None:
                 fh.close()
                 setattr(self, name, None)
-                if name == "_results_lock":
-                    results_lock.unlink(missing_ok=True)
 
     # ------------------------------------------------------------------ signals
     def install_signal_handlers(self) -> None:
@@ -279,7 +275,9 @@ class Harness:
         """Start a container from ``image``, measure startup + benchmark, always stop it."""
         container = f"{self.config.container_prefix}-{label}-{int(self.clock()) % 100000}"
         quiet = procs.wait_for_quiet_host(should_abort=self._should_abort)
-        if not quiet["quiet"]:
+        if quiet["quiet"] is None:
+            self.log(f"[harness] host idle unknown before {label}: {quiet.get('reason')}")
+        elif not quiet["quiet"]:
             self.log(f"[harness] host did not go quiet before {label} (idle={quiet['idle']})")
         docker.ensure_internal_network(self.config.network_name)
         runtime_args = self.engine.full_runtime_args(docker.image_cmd(image))

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from abstract_harness import budget, measure, procs, results
 from abstract_harness.decision import decide, startup_hard_gate
+from abstract_harness.engines import StandinEngine
 from abstract_harness.proposers import (
     ProposerError,
     ScriptedProposer,
@@ -97,6 +98,21 @@ class PathContainmentTest(unittest.TestCase):
         self.assertEqual(
             escaping_symlinks(self.ctx), [] if not (self.ctx / "lnk").is_symlink() else ["lnk"]
         )
+
+    def test_apply_patch_rejects_symlink_creation_inside_context(self) -> None:
+        patch = (
+            "diff --git a/lnk2 b/lnk2\n"
+            "new file mode 120000\n"
+            "--- /dev/null\n"
+            "+++ b/lnk2\n"
+            "@@ -0,0 +1 @@\n"
+            "+Dockerfile\n"
+            "\\ No newline at end of file\n"
+        )
+        ok, out = apply_patch(patch, self.ctx)
+        self.assertFalse(ok, out)
+        if (self.ctx / "lnk2").is_symlink():
+            self.assertIn("symlinks inside the build context", out)
 
     def test_escaping_symlinks_detects_dangling_and_outside_links(self) -> None:
         (self.ctx / "a").symlink_to("/nonexistent/path")
@@ -314,7 +330,97 @@ class BenchmarkValidationTest(unittest.TestCase):
                 measure.load_benchmark(self._mutated(mutate))
 
 
+class ManifestPinsTest(unittest.TestCase):
+    def test_pi_pins_come_from_profiles_json_and_are_nonempty(self) -> None:
+        from abstract_harness import manifest as manifest_mod
+
+        pins = manifest_mod._pi_pins(_paths.REPO_ROOT)
+        self.assertTrue(all(pins.values()), pins)
+        self.assertTrue(pins["pi_integrity"].startswith("sha512-"), pins["pi_integrity"])
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = Path(tmp) / "agent-harness"
+            fake.mkdir()
+            (fake / "profiles.json").write_text(
+                json.dumps({"pi": {"package": "p", "version": "1"}}), encoding="utf-8"
+            )
+            with self.assertRaises(RuntimeError):
+                manifest_mod._pi_pins(Path(tmp))
+
+    def test_manifest_records_tree_hash_and_image_identity_kind(self) -> None:
+        from abstract_harness import manifest as manifest_mod
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            harness = make_harness(root)
+            harness.engine = StandinEngine.create(_paths.REPO_ROOT, root, cpus=1)
+            try:
+                harness.state.harness_tree_sha256 = "a" * 64
+                manifest = manifest_mod.write_manifest(harness)
+            finally:
+                harness._release_locks()
+            self.assertEqual(manifest["source"]["harness_tree_sha256"], "a" * 64)
+            self.assertEqual(
+                manifest["source"]["image_identity_kind"], manifest_mod.IMAGE_IDENTITY_KIND
+            )
+            prov = json.loads((root / "reports" / "build-provenance.json").read_text("utf-8"))
+            self.assertEqual(prov["harness_tree_sha256"], "a" * 64)
+            self.assertEqual(prov["image_identity_kind"], manifest_mod.IMAGE_IDENTITY_KIND)
+            agent = json.loads((root / "reports" / "agent-provenance.json").read_text("utf-8"))
+            self.assertTrue(agent["pi_integrity"])
+
+
+class StartupGateMissingSampleTest(unittest.TestCase):
+    def test_missing_or_nan_candidate_startup_fails_the_gate(self) -> None:
+        base = {"startup": [1.0]}
+        self.assertIn("no finite startup", startup_hard_gate(base, {}, 1.5) or "")
+        self.assertIn(
+            "no finite startup", startup_hard_gate(base, {"startup": [float("nan")]}, 1.5) or ""
+        )
+        self.assertIsNone(startup_hard_gate({}, {"startup": [1.0]}, 1.5))
+
+
+class CrlfResultsTest(unittest.TestCase):
+    def test_crlf_results_file_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "results.tsv"
+            text = (_paths.HARNESS_DIR / "results.tsv").read_text(encoding="utf-8")
+            path.write_bytes(text.replace("\n", "\r\n").encode("utf-8"))
+            with self.assertRaises(results.ResultsError):
+                results.validate_file(path)
+
+
 class EarlyLockTest(unittest.TestCase):
+    def test_lock_files_survive_release_and_block_another_process(self) -> None:
+        import subprocess
+        import sys
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            lock = root / "results.tsv.lock"
+            holder = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-c",
+                    "import fcntl,sys,time;fh=open(sys.argv[1],'a+');"
+                    "fcntl.flock(fh,fcntl.LOCK_EX|fcntl.LOCK_NB);print('held',flush=True);"
+                    "time.sleep(30)",
+                    str(lock),
+                ],
+                stdout=subprocess.PIPE,
+                text=True,
+            )
+            try:
+                self.assertEqual(holder.stdout.readline().strip(), "held")
+                with self.assertRaises(procs.LockError):
+                    make_harness(root)
+            finally:
+                holder.kill()
+                holder.wait()
+            harness = make_harness(root)
+            harness._release_locks()
+            self.assertTrue(lock.exists(), "lock files are never unlinked (unlink races)")
+            self.assertTrue((root / "state" / "harness.lock").exists())
+
     def test_second_harness_on_same_paths_fails_before_touching_disk(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
