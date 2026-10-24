@@ -115,6 +115,20 @@ Monthly base-mid path used by the valuation (tenor → USD/GPU-hour):
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | base mid | 4.3279 | 4.5325 | 4.3913 | 4.2500 | 4.1288 | 4.0192 | 3.9201 | 3.8305 | 3.7496 | 3.6764 | 3.6103 | 3.5505 | 3.4964 |
 
+### Quantity-factor identification and sensitivity
+
+The quantity factor 0.8654 is identified from a **single pair** of flexible on-demand asks (one single-GPU, one node) and is applied to every node-sized reserved quote — in this pack only the current-month anchor (tenor 0), which the required tenors do not interpolate through. Scaling the factor shows how much of the curve depends on it:
+
+| factor × | factor | tenor-0 anchor mid | 1m mid | 3m mid | 6m mid | 12m mid | mark |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0.9 | 0.7788 | 4.8088 | 4.5325 | 4.2500 | 3.9201 | 3.4964 | -$762.32 |
+| 1.0 | 0.8654 | 4.3279 | 4.5325 | 4.2500 | 3.9201 | 3.4964 | -$762.32 |
+| 1.1 | 0.9519 | 3.9345 | 4.5325 | 4.2500 | 3.9201 | 3.4964 | -$762.32 |
+
+### Scarcity anchor: choice and bias
+
+The scarcity scenario reverts toward 5.2000, the highest valid same-hardware ask at as-of across *all* contract classes — in this pack the cancel-anytime single-GPU on-demand ask. That price embeds a cancellation option and single-GPU granularity, so as an anchor for non-cancellable reserved capacity it is biased **upward**: the scenario is deliberately a stress ('forwards re-price to today's dearest flexible access'), not a central estimate. Reserved-class evidence alone would give a lower anchor (the highest reserved ask) and a milder stress; the choice is a declared config parameter (`anchors.scarcity.kind`) and can be switched without code changes.
+
 ### Why the current on-demand asks are context, not the 1-month node
 
 The reference contract is non-cancellable reserved capacity. Cancel-anytime hourly asks (`q01` 5.20 per GPU-hour on 1 GPU(s), `q02` 4.50 per GPU-hour on 8 GPU(s)) embed a cancellation option and do not guarantee capacity in a future month, so they bound a one-month reservation from above rather than price it. The paired current-month evidence puts the flexibility premium at 1.111× (`q02` 4.5000 vs reserved `q07` 4.0490 arrears-equivalent). The firm 2026-11 ask 4.9000 anchors the first node as its upper edge; the on-demand asks above are the context it is checked against.
@@ -153,7 +167,7 @@ The observed market nodes (2026-11 4.5325, 2027-01 4.2500) sit well above the fu
 - **H200 via performance ratio** (`q08`, p01, p02): 3.3000 × 1.250 = 4.1250 per MI355X-equivalent hour, ±14.1% → 3.5416–4.7084. Comparable same-class MI355X asks: 5.2000, 5.2000. throughput parity on one synthetic dense-decode workload; ignores memory (141 vs 288 GiB), software and demand mix. Weak cross-check only.
 - **Usage commitment** `q03`: 3.4000 for 12 months, capacity guaranteed = False, minimum 600 GPU-hours/month. NOT a forward: no delivery window, no guaranteed capacity, postpaid spend commitment; shown as the provider's willingness to discount predictable current usage, and as a soft long-run cross-check only.
 - **Spot/preemptible** `q09`: 1.8000 at SLA 0.0%, a 60.0% discount to the cheapest flexible on-demand ask per GPU-hour. context only: preemptible with no SLA is not comparable to reserved capacity.
-- **Historical pair** `q10` → `q01`: 4.6000 → 5.2000 over 1.97 months (log move 0.1226, 0.087/√month). expired price is never a current level; the pair only informs the declared horizon-widening parameter, and one pair cannot estimate volatility reliably. The declared band parameter is 0.08/√month.
+- **Historical pairs** (1 expired quote(s) matched to the nearest current quote of the same provider/kind/side/size; 0 unmatched): implied vol per √month median 0.087, range 0.087–0.087. Examples: `q10`→`q01` 4.6000→5.2000 over 1.97 months. expired prices are never current levels; each expired quote is paired with the nearest current quote of the same provider/kind/side/size only to inform the declared horizon-widening parameter; a handful of pairs cannot estimate volatility reliably. The declared band parameter is 0.08/√month.
 
 ## Reservation mark
 
