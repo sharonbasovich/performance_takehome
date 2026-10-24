@@ -695,7 +695,7 @@ def build_manifest(
         "as_of": results["as_of"],
         "parameters": results["config"],
         "network_access": "none",
-        "outputs": ["curve.csv", "valuation.json", "run-manifest.json"],
+        "outputs": list(OUTPUT_FILES),
     }
 
 
