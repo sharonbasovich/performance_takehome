@@ -77,4 +77,3 @@ class LlmdBuildContextTest(unittest.TestCase):
                 self.assertTrue(harness.engine.spec.dockerfile.is_file())
             finally:
                 harness._release_locks()
-
