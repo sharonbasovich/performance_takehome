@@ -109,6 +109,12 @@ the 20k point stays under 60 s / 1 GB / 2 MB):
 | 1,011 | 0.1 s | 32 MB | 0.43 MB | 0.24 MB |
 | 5,011 | 0.4 s | 64 MB | 0.52 MB | 1.21 MB |
 | 20,011 | 1.6 s | 183 MB | 0.86 MB | 4.85 MB |
+| 50,011 | 4.2 s | 424 MB | 1.57 MB | 12.15 MB |
+
+Size envelope: `valuation.json` grows only with the number of distinct exclusion reasons and
+the fixed example caps (about 0.5 MB + ~20 bytes per quote for the by-reason map, 1.6 MB at
+50k rows); `normalization.csv` is ~250 bytes per quote and is the only artifact that grows
+linearly; peak RSS is ~8 KB per quote on top of a ~30 MB baseline.
 
 Outputs are rendered in memory first and then written atomically (temporary file + rename),
 so a failed run leaves no partial artifact.

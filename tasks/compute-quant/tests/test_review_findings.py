@@ -369,6 +369,43 @@ class RoundThreeTests(unittest.TestCase):
             r["inputs"]["unknown_nested_case_keys"], ["economics.pue_typo", "reservation.gpu_cnt"]
         )
 
+    def test_nested_unknown_keys_at_every_level(self):
+        from research.pipeline import run_pipeline
+
+        cfg = copy.deepcopy(load_config(None))
+        cfg["curve"]["one_sided_spread_fractoin"] = 0.2
+        cfg["anchors"]["base"]["utilisation"] = 0.5
+        cfg["scenarios"]["base"]["side"] = "mid"
+        b = CaseBuilder(self)
+        b.case["reference_product"]["gpu_memory"] = 288
+        b.case["quote_common_terms"]["egress"] = "free"
+        r = run_pipeline(b.write(), cfg)
+        self.assertEqual(
+            r["inputs"]["unknown_config_keys"],
+            ["anchors.base.utilisation", "curve.one_sided_spread_fractoin", "scenarios.base.side"],
+        )
+        self.assertEqual(
+            r["inputs"]["unknown_nested_case_keys"],
+            ["quote_common_terms.egress", "reference_product.gpu_memory"],
+        )
+        self.assertEqual(run_demo()["inputs"]["unknown_config_keys"], [])
+        self.assertEqual(run_demo()["inputs"]["unknown_nested_case_keys"], [])
+
+    def test_empty_header_only_and_whitespace_quote_files_exit_2(self):
+        for label, content in (
+            ("empty", ""),
+            ("header-only", "id,provider\n"),
+            ("whitespace", "   \n\n"),
+        ):
+            b = CaseBuilder(self)
+            path = b.write()
+            (b.dir / "demo-quotes.csv").write_text(content)
+            proc = run_cli("--case", str(path), "--out", str(b.dir / "out"))
+            with self.subTest(label=label):
+                self.assertEqual(proc.returncode, 2, proc.stderr)
+                self.assertNotIn("Traceback", proc.stderr)
+                self.assertIn("quote", proc.stderr)
+
     def test_evidence_ids_list_only_influencing_quotes(self):
         r = run_demo()
         self.assertEqual(node(r, 6)["evidence_ids"], ["q05", "q06"])

@@ -84,6 +84,8 @@ def load_inputs(case_path: Path) -> LoadedInputs:
     if not quotes_path.exists():
         raise InputError(f"quotes file {quotes_path} referenced by the case does not exist")
     rows, columns = _read_csv(quotes_path)
+    if not rows:
+        raise InputError(f"{quotes_path}: no quote rows (header only); nothing to price")
     quotes = tuple(quote_from_row(row) for row in rows)
     seen: set[str] = set()
     duplicates: set[str] = set()

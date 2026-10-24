@@ -986,7 +986,7 @@ def render_report(results: dict[str, Any]) -> str:
                 [
                     "Output schema",
                     "artifact names only",
-                    "`curve.csv` columns, `valuation.json`/`run-manifest.json` "
+                    "`curve.csv` columns, `valuation.json`/`run-manifest.json`/`normalization.csv` "
                     "with `schema_version`",
                     "organizer schema, if any",
                 ],
@@ -1045,7 +1045,8 @@ def render_report(results: dict[str, Any]) -> str:
         "  --case tasks/compute-quant/data/demo-case.json \\\n"
         "  --out tasks/compute-quant/outputs/ \\\n"
         "  --report tasks/compute-quant/outputs/REPORT.md\n"
-        "cp tasks/compute-quant/outputs/{curve.csv,valuation.json,run-manifest.json,REPORT.md} "
+        "cp tasks/compute-quant/outputs/{curve.csv,valuation.json,run-manifest.json,"
+        "normalization.csv,REPORT.md} "
         "tasks/compute-quant/\n"
         "python -m unittest discover -s tasks/compute-quant/tests -t tasks/compute-quant -v\n"
         "python -B -m tools.check_integrity --base 81aead87d78ed468c4c374fb42921471b44c3f80\n"

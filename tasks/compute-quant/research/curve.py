@@ -432,10 +432,13 @@ def _build_anchors(
             mid, low, high = best_bid + est / 2, best_bid, best_bid + est
             unc = "one-sided(bid)-spread-estimate"
             notes.append(f"bid only: implied ask = bid + spread estimate {est:.4f}")
-        if best_ask == 0 or best_bid == 0:
+        # Prices are schema-checked > 0 and non-positive normalized prices are excluded
+        # upstream; only a one-sided spread estimate larger than a tiny price can push the
+        # implied side below zero, and then the interval is clamped at zero and flagged.
+        if mid <= 0 or low < 0:
             warnings.append(
-                f"tenor {tenor}: zero-price quote; treated as evidence but almost certainly "
-                "a data error"
+                f"tenor {tenor}: spread estimate exceeds the quoted price; implied side and "
+                "mid clamped at zero - treat this node as weakly identified"
             )
         anchors.append(
             Anchor(

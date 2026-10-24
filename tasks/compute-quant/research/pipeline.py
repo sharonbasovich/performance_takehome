@@ -129,9 +129,28 @@ def _check_finite(value: object, path: str) -> None:
             _check_finite(v, f"{path}[{i}]")
 
 
+DOC_KEYS = {"note", "description"}
+KNOWN_ANCHOR_KEYS = {"kind", "utilization", "financing", "usd_per_gpu_hour"} | DOC_KEYS
+KNOWN_SCENARIO_KEYS = {"anchor", "observed_side"} | DOC_KEYS
+KNOWN_OUTPUT_KEYS = {"max_quote_rows_in_valuation_json"} | DOC_KEYS
+
+
 def unknown_config_keys(config: dict) -> list[str]:
-    """Top-level configuration keys that are not part of config_version 1."""
-    return sorted(k for k in config if k not in KNOWN_CONFIG_KEYS)
+    """Configuration keys, at every level, that are not part of config_version 1."""
+    unknown = [k for k in config if k not in KNOWN_CONFIG_KEYS]
+    curve_known = set(CONFIG_CURVE_KEYS) | {"reversion_band_per_month"} | DOC_KEYS
+    unknown += [f"curve.{k}" for k in config.get("curve", {}) if k not in curve_known]
+    for name, spec in config.get("anchors", {}).items():
+        unknown += [f"anchors.{name}.{k}" for k in spec if k not in KNOWN_ANCHOR_KEYS]
+    for name, spec in config.get("scenarios", {}).items():
+        unknown += [f"scenarios.{name}.{k}" for k in spec if k not in KNOWN_SCENARIO_KEYS]
+    unknown += [
+        f"sensitivities.{k}"
+        for k in config.get("sensitivities", {})
+        if k not in set(CONFIG_SENSITIVITY_KEYS) | DOC_KEYS
+    ]
+    unknown += [f"output.{k}" for k in config.get("output", {}) if k not in KNOWN_OUTPUT_KEYS]
+    return sorted(unknown)
 
 
 def validate_config(config: object, where: str = "config") -> None:

@@ -158,6 +158,41 @@ KNOWN_RESERVATION_KEYS = frozenset(
         "egress_and_taxes",
     }
 )
+KNOWN_REFERENCE_PRODUCT_KEYS = frozenset(
+    {
+        "gpu",
+        "memory_gib",
+        "gpu_count",
+        "region",
+        "isolation",
+        "preemptible",
+        "sla_pct",
+        "payment",
+        "cancellation",
+        "cpu_cores",
+        "ram_gib",
+        "network_gbps",
+        "delivery",
+        "quote_unit",
+        "included_egress_gib",
+        "network_egress_usd_per_gib",
+        "note",
+        "source_ref",
+    }
+)
+KNOWN_QUOTE_COMMON_TERMS_KEYS = frozenset(
+    {
+        "usage_commitment_minimum_monthly_gpu_hours",
+        "cpu_cores_per_gpu",
+        "ram_gib_per_gpu",
+        "network_gbps",
+        "node_interconnect",
+        "includes_energy",
+        "egress_pricing",
+        "taxes_included",
+        "note",
+    }
+)
 KNOWN_CASE_KEYS = frozenset(
     {
         "schema_version",
@@ -588,7 +623,17 @@ def case_from_mapping(raw: dict[str, object]) -> Case:
         unknown_keys=tuple(sorted(k for k in raw if k not in KNOWN_CASE_KEYS)),
         unknown_nested_keys=tuple(
             sorted(
-                [f"reservation.{k}" for k in res_raw if k not in KNOWN_RESERVATION_KEYS]
+                [
+                    f"reference_product.{k}"
+                    for k in product_raw
+                    if k not in KNOWN_REFERENCE_PRODUCT_KEYS
+                ]
+                + [
+                    f"quote_common_terms.{k}"
+                    for k in common
+                    if k not in KNOWN_QUOTE_COMMON_TERMS_KEYS
+                ]
+                + [f"reservation.{k}" for k in res_raw if k not in KNOWN_RESERVATION_KEYS]
                 + [f"economics.{k}" for k in econ_raw if k not in KNOWN_ECONOMICS_KEYS]
                 + [f"curve.{k}" for k in curve_raw if k not in {"tenor_months", "tenor_definition"}]
             )
