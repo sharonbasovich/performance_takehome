@@ -75,3 +75,69 @@ local summaries, not official metrics. If you use them, document their definitio
 workloads in the referenced `development_report`; add clearly named columns for other
 local metrics. Retain distributions, repetitions, failures, uncertainty, and measurement
 cost in raw reports. There are no official grader reports to attach during development.
+
+---
+
+# Candidate implementation (CANDIDATE-BUILT; everything below this line is the candidate's)
+
+The contract above is the organizer's draft and is kept verbatim. The implementation lives
+next to it:
+
+| Path | What it is |
+| --- | --- |
+| `run.py` | CLI: `run`, `validate-results`, `fetch-standin-model`, `retag-last-good` |
+| `abstract_harness/engines.py` | `Engine` abstraction: `LlmdEngine` (pinned `baseline/lock.json` image, same device/mount/security flags as `tools.baseline.start_command`, internal no-egress network instead of `--publish`) and `StandinEngine` (candidate-built llama.cpp CPU server, `../standin/`) |
+| `abstract_harness/proposers.py` | `PiProposer` (pinned Pi 1.0.0, print mode, stock tools, isolation flags, key by env-var name only) and `ScriptedProposer` (deterministic queue; used for all evidence here because no coding-model key was available) |
+| `abstract_harness/measure.py` | development benchmark runner: TTFT, Etalon FTGR via protected `benchmarks.metrics`, startup-to-first-valid-generation, correctness gates |
+| `abstract_harness/decision.py` | prompt-stratified bootstrap decision rule (`improved` / `regressed` / `no_change` / `gate_failed`) |
+| `abstract_harness/loop.py` | the unattended loop: build -> start -> gate -> A/B measure -> decide -> keep/revert; checkpoints, SIGTERM/SIGINT handling, resume from `state.json` |
+| `abstract_harness/budget.py` | pre-attempt guard: API USD, GPU-hours (= allocated x elapsed), lease deadline, reserved final window |
+| `abstract_harness/docker_runtime.py`, `procs.py` | Docker/BuildKit wrappers, process-group aware timeouts |
+| `abstract_harness/results.py`, `state.py`, `manifest.py` | exact `results.tsv` schema + vocabulary, atomic on-disk state, final `--out` manifest + integrity report |
+| `development-benchmark.json` | the candidate development workload (prompts, repetitions, gates, thresholds) |
+| `experiments/standin-queue.json` | the deterministic experiment queue used to produce `results.tsv` (includes the fault-injection entries) |
+| `patches/`, `reports/` | per-attempt unified diffs and development reports written by the loop |
+| `tests/` | task-local unittest suite |
+
+## Run it
+
+Stand-in engine on CPU (what produced the committed `results.tsv`; needs Docker + ~2 GB disk,
+network only for the one-time model download and the first image build):
+
+```sh
+uv run --frozen python tasks/harness-design/harness/run.py fetch-standin-model --model-dir /tmp/standin-model
+uv run --frozen python tasks/harness-design/harness/run.py run \
+  --engine standin --model-dir /tmp/standin-model \
+  --experiments tasks/harness-design/harness/experiments/standin-queue.json \
+  --state-dir /tmp/harness-state --out tasks/harness-design/submission.json \
+  --results tasks/harness-design/harness/results.tsv \
+  --budget-minutes 120 --api-spend-limit-usd 0 --gpus 0 --standin-cpus 8
+```
+
+Real target (MI355X host + coding-model key; **not executed in this draft**):
+
+```sh
+export HARNESS_LLM_API_KEY=...            # never passed on the command line, never logged
+uv run --frozen python tasks/harness-design/harness/run.py run \
+  --engine llmd --model-dir /path/to/model-repo \
+  --proposer pi --pi-bin /opt/pi/node_modules/.bin/pi --api-key-env HARNESS_LLM_API_KEY \
+  --state-dir /var/tmp/harness-state --out tasks/harness-design/submission.json \
+  --results tasks/harness-design/harness/results.tsv \
+  --budget-minutes 1380 --api-spend-limit-usd 40 --gpus 1 --gpu-hours 24
+```
+
+Send `SIGTERM` at any time: the loop finishes the current step boundary, logs the attempt
+as `interrupted`, keeps the last-good image, writes the manifest and exits 3. Re-running the
+same command resumes from `state.json`.
+
+## Tests (one command, offline, no GPU; Docker-only tests skip when the image is absent)
+
+```sh
+uv run --frozen python -m unittest discover -s tasks/harness-design/harness/tests -t tasks/harness-design/harness -v
+```
+
+## Validate the log
+
+```sh
+uv run --frozen python tasks/harness-design/harness/run.py validate-results --results tasks/harness-design/harness/results.tsv
+```
