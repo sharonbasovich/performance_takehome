@@ -405,7 +405,16 @@ def _build_anchors(
             mid, low, high = best_bid + est / 2, best_bid, best_bid + est
             unc = "one-sided(bid)-spread-estimate"
             notes.append(f"bid only: implied ask = bid + spread estimate {est:.4f}")
-        anchors.append(Anchor(tenor, mid, max(0.0, low), high, status, bids, asks, notes, unc))
+        if best_ask == 0 or best_bid == 0:
+            warnings.append(
+                f"tenor {tenor}: zero-price quote; treated as evidence but almost certainly "
+                "a data error"
+            )
+        anchors.append(
+            Anchor(
+                tenor, max(0.0, mid), max(0.0, low), max(0.0, high), status, bids, asks, notes, unc
+            )
+        )
     return anchors, reference_spread, warnings
 
 

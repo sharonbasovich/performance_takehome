@@ -3,9 +3,10 @@
 import unittest
 
 from research.months import parse_utc
+from research.schema import InputError
 from research.valuation import discount_factor, survival_probability
 
-from .support import CaseBuilder, run_demo
+from .support import CaseBuilder, node, run_demo
 
 
 class ReservationTests(unittest.TestCase):
@@ -139,6 +140,59 @@ class ReservationTests(unittest.TestCase):
         self.assertIsNone(val["buyer_mark"])
         self.assertEqual(val["reserved_hours"], 2160)
         self.assertEqual(val["fees_total_usd"], 9720.0)
+
+
+class ReservationEdgeCaseTests(unittest.TestCase):
+    def test_window_not_month_aligned_is_an_input_error(self):
+        b = CaseBuilder(self)
+        b.case["reservation"]["delivery_end"] = "2027-03-15T00:00:00Z"
+        with self.assertRaises(InputError) as ctx:
+            b.run()
+        self.assertIn("reservation", str(ctx.exception))
+
+    def test_window_in_the_past_is_an_input_error(self):
+        b = CaseBuilder(self)
+        b.case["reservation"]["delivery_start"] = "2026-06-01T00:00:00Z"
+        b.case["reservation"]["delivery_end"] = "2026-09-01T00:00:00Z"
+        with self.assertRaises(InputError):
+            b.run()
+
+    def test_zero_length_window_rejected(self):
+        b = CaseBuilder(self)
+        b.case["reservation"]["delivery_end"] = "2027-01-01T00:00:00Z"
+        with self.assertRaises(InputError):
+            b.run()
+
+    def test_duplicate_tenor_quotes_use_best_side(self):
+        r = (
+            CaseBuilder(self)
+            .copy_quote("q05", "q5b", price="4.30")
+            .copy_quote("q06", "q6b", price="4.10")
+            .run()
+        )
+        n = node(r, 3)
+        self.assertEqual((n["bid"], n["ask"]), (4.1, 4.3))
+        self.assertEqual(n["usd_per_gpu_hour_mid"], 4.2)
+
+    def test_zero_price_quote_warns_and_never_yields_negative_prices(self):
+        r = CaseBuilder(self).set("q04", price="0").run()
+        self.assertTrue(any("zero-price" in w for w in r["curve"]["warnings"]))
+        for n in r["curve"]["nodes"]:
+            self.assertGreaterEqual(n["usd_per_gpu_hour_low"], 0.0)
+            self.assertGreaterEqual(n["usd_per_gpu_hour_mid"], 0.0)
+
+    def test_full_default_probability_shrinks_but_keeps_sign(self):
+        b = CaseBuilder(self)
+        b.case["economics"]["provider_default_probability_over_deal"] = 1.0
+        mark = b.run()["valuation"]["buyer_mark"]["default_and_sla_adjusted_usd"]
+        base = run_demo()["valuation"]["buyer_mark"]["default_and_sla_adjusted_usd"]
+        self.assertLess(mark, 0)
+        self.assertLess(abs(mark), abs(base))
+
+    def test_as_of_mid_month_with_valid_quotes(self):
+        r = CaseBuilder(self).run(as_of_override="2026-10-05T00:00:00Z")
+        self.assertEqual(node(r, 1)["status"], "observed")
+        self.assertEqual(r["valuation"]["reserved_hours"], 2160)
 
 
 class HelperTests(unittest.TestCase):

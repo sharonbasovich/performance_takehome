@@ -27,7 +27,7 @@ from .months import (
     months_between,
     year_fraction,
 )
-from .schema import Case
+from .schema import Case, InputError
 
 
 @dataclass
@@ -111,7 +111,16 @@ def value_reservation(
     rows: list[MonthRow] = []
     scenario_values = {name: 0.0 for name in model.config["scenarios"]}
     scenario_weights = {name: 0.0 for name in model.config["scenarios"]}
-    for month in months_between(res.delivery_start, res.delivery_end):
+    try:
+        months = months_between(res.delivery_start, res.delivery_end)
+    except ValueError as exc:
+        raise InputError(f"reservation {res.id}: {exc}") from exc
+    if model.tenor_of(months[0]) < 0:
+        raise InputError(
+            f"reservation {res.id}: delivery starts {months[0]:%Y-%m}, before the as-of month "
+            f"{case.as_of:%Y-%m}; a past window cannot be marked against a forward curve"
+        )
+    for month in months:
         tenor = model.tenor_of(month)
         node = model.node(tenor, kappa=kappa, vol_multiplier=vol_multiplier)
         if node.mid is None or node.low is None or node.high is None:
