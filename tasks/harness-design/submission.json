@@ -2,16 +2,16 @@
   "schema_version": 2,
   "task": "harness-design",
   "status": "development-evidence-on-candidate-built-cpu-standin-not-an-official-submission",
-  "image": "abstract-harness-standin@sha256:18274644668df642ff3e85ae0be31dd689baf752fd6d5c2249e7d667e1d9b7f2",
+  "image": "abstract-harness-standin@sha256:531323d6ac7a55bc3e5f9e25b1c7abb29c65006eabe79781d90726372f3da974",
   "platform": "linux/amd64",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "commit": "81aead87d78ed468c4c374fb42921471b44c3f80",
+    "commit": "45fc163eba7cdc34f27d377fbd4387ffe17b3627",
     "dockerfile": "tasks/harness-design/standin/Dockerfile",
     "build_command": "docker buildx build --platform linux/amd64 --load -f tasks/harness-design/standin/Dockerfile -t candidate tasks/harness-design/standin",
-    "engine_source_revision": "llama.cpp 620d2225cc436ab0b001e3200e590e3b286ef9ab (v0.7.0)",
+    "engine_source_revision": "llama.cpp 620d2225cc436ab0b001e3200e590e3b286ef9ab",
     "patches": [
-      "tasks/harness-design/harness/patches/001-threads-8.patch"
+      "tasks/harness-design/harness/patches/013-openmp-off-cold-rebuild.patch"
     ],
     "provenance_path": "tasks/harness-design/harness/reports/build-provenance.json"
   },
@@ -99,10 +99,10 @@
     ],
     "agent_transcripts": [],
     "last_good": {
-      "tag": "abstract-harness-standin:001-threads-8",
-      "digest": "sha256:18274644668df642ff3e85ae0be31dd689baf752fd6d5c2249e7d667e1d9b7f2",
-      "experiment": "001-threads-8",
-      "development_report": "tasks/harness-design/harness/reports/001-threads-8.json"
+      "tag": "abstract-harness-standin:013-openmp-off-cold-rebuild",
+      "digest": "sha256:531323d6ac7a55bc3e5f9e25b1c7abb29c65006eabe79781d90726372f3da974",
+      "experiment": "013-openmp-off-cold-rebuild",
+      "development_report": "tasks/harness-design/harness/reports/013-openmp-off-cold-rebuild.json"
     },
     "finish_reason": "proposer exhausted",
     "api_usd_cumulative": 0.0

@@ -77,26 +77,26 @@ candidate removed that bias (cost: 2x measurement time per attempt).
 
 ## Evidence: `harness/results.tsv` (stand-in CPU rows)
 
-| experiment | kept | outcome | TTFT x | FTGR x | startup s | harness note |
-| --- | --- | --- | --- | --- | --- | --- |
-| baseline | 1 | baseline | - | - | 0.736 | ttft_median_s=0.0402 ftgr_median_tok_s=11.1355 reps=5 |
-| 001-threads-8 | 1 | improved | 1.3494 | 1.4385 | 0.701 | significant improvement: ttft_s x1.349, ftgr_tok_s x1.439 |
-| 002-threads-1 | 0 | regressed | 0.1925 | 0.2308 | 0.833 | primary metric regressed: ttft_s x0.193, ftgr_tok_s x0.231 |
-| 003-ubatch-64 | 0 | no_change | 0.9713 | 1.0258 | 0.719 | no primary metric moved significantly |
-| 004-repeat-penalty-1.5 | 0 | gate_failed | 0.9566 | 0.6836 | 0.697 | golden_output_match: 6 prompts differ from the baseline golden outputs: ['capital', 'color |
-| 005-port-8001-misconfig | 0 | error | - | - | - | MeasurementError: readiness timeout after 90s: ConnectionRefusedError: [Errno 111] Connect |
-| 006-avx512-on-host-without-avx512 | 0 | error | - | - | - | MeasurementError: engine process exited before serving /v1/models (ConnectionRefusedError: |
-| 007-native-march | 0 | interrupted | - | - | - | interrupted by SIGTERM during stage building |
-| 008-lto-on | 0 | no_change | 1.0653 | 1.0219 | 0.701 | no primary metric moved significantly |
-| 009-flash-attn-on | 0 | no_change | 1.0036 | 0.9658 | 0.715 | no primary metric moved significantly |
-| 010-parallel-4-slots | 0 | no_change | 0.9800 | 0.9735 | 0.706 | no primary metric moved significantly |
-| 011-no-warmup | 0 | no_change | 0.7278 | 0.8212 | 0.762 | no primary metric moved significantly |
-| 012-kv-cache-q8 | 0 | gate_failed | 1.2100 | 1.4361 | 0.736 | golden_output_match: 3 prompts differ from the baseline golden outputs: ['colors', 'explai |
-| 013-openmp-off-cold-rebuild | 0 | no_change | 1.0052 | 0.9519 | 0.705 | no primary metric moved significantly |
+| experiment | kept | outcome | TTFT x | FTGR x | startup s | build s | harness note |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | 1 | baseline | - | - | 0.736 | 32.82 | ttft_median_s=0.0403 ftgr_median_tok_s=8.2403 reps=5 |
+| 001-threads-8 | 1 | improved | 1.4206 | 1.4465 | 0.747 | 104.49 | significant improvement: ttft_s x1.421, ftgr_tok_s x1.447 |
+| 002-threads-1 | 0 | regressed | 0.2126 | 0.2567 | 0.846 | 110.96 | primary metric regressed: ttft_s x0.213, ftgr_tok_s x0.257 |
+| 003-ubatch-64 | 0 | no_change | 0.9329 | 0.9295 | 0.718 | 108.84 | no primary metric moved significantly |
+| 004-repeat-penalty-1.5 | 0 | gate_failed | 0.9794 | 0.6219 | 0.739 | 105.79 | golden_output_match: 6 prompts differ from the baseline golden outputs (showing  |
+| 005-port-8001-misconfig | 0 | error | - | - | - | 105.94 | MeasurementError: readiness timeout after 90s: ConnectionRefusedError: [Errno 11 |
+| 006-avx512-on-host-without-avx512 | 0 | error | - | - | - | 105.1 | MeasurementError: engine process exited before serving /v1/models (ConnectionRef |
+| 007-native-march | 0 | interrupted | - | - | - | 16.61 | interrupted by SIGTERM (RuntimeError: build failed: build failed (rc=130): #9 10 |
+| 008-lto-on | 0 | no_change | 0.9767 | 0.9861 | 0.780 | 101.94 | no primary metric moved significantly |
+| 009-flash-attn-on | 0 | no_change | 0.9946 | 1.0115 | 0.727 | 104.19 | no primary metric moved significantly |
+| 010-parallel-4-slots | 0 | no_change | 1.0464 | 1.0764 | 0.727 | 103.5 | no primary metric moved significantly |
+| 011-no-warmup | 0 | no_change | 1.0128 | 1.0067 | 0.710 | 103.07 | no primary metric moved significantly |
+| 012-kv-cache-q8 | 0 | gate_failed | 0.9547 | 0.9810 | 0.718 | 106.4 | golden_output_match: 3 prompts differ from the baseline golden outputs: ['colors |
+| 013-openmp-off-cold-rebuild | 1 | improved | 1.0713 | 1.1145 | 0.714 | 101.29 | significant improvement: ftgr_tok_s x1.114 |
 
-Speedups are candidate vs the same-attempt re-measurement of the last-good image (>1 = faster). `012-kv-cache-q8` was ~1.2-1.4x faster yet rejected: quantised KV cache changed 3 of 6 greedy outputs, which is exactly the never-keep-on-correctness-failure rule. `013-openmp-off-cold-rebuild` was appended in a later invocation of the same state directory with `--no-cache`: its build was a real uncached llama.cpp compile (`build.duration_s` = 100.22 s, 199 `Building C/CXX object` lines and no `CACHED` compile step in `harness/reports/013-openmp-off-cold-rebuild.json` / the build log), so the build-timeout/budget path was exercised on a real build, not only in unit tests. `011-no-warmup` looked ~25% slower but the bootstrap interval still covered 1.0, so it is `no_change`, not `regressed`. Rows ending with `error` have blank metrics (blank != 0).
+Speedups are candidate vs the same-attempt re-measurement of the last-good image (>1 = faster). All 14 rows were produced by **one** queue run from the committed harness tree (`source_commit` = `45fc163eba7c`, the commit whose code wrote them): one `run.py run ... --no-cache` invocation, a real SIGTERM injected while `007-native-march` was building (row `interrupted`, exit 3), and a second invocation that resumed from `state.json` and finished the queue. Every build in this set is an uncached llama.cpp compile (`build s` column, `build.no_cache: true` in each report). `012-kv-cache-q8` is rejected by the golden-output gate; `013-openmp-off-cold-rebuild` was kept (x1.07 TTFT / x1.11 FTGR, CI excludes 1). `error` rows have blank metrics (blank != 0) and GPU hours are blank because `--gpus 0`.
 
-Every row was written by `run.py`; nothing was hand-edited. Rows 0-12 come from one invocation (plus the SIGTERM resume); row 13 from a third invocation of `run.py run ... --no-cache` on the same state directory after the queue was extended by one experiment. Per-attempt JSON reports with raw
+Every row was written by `run.py`; nothing was hand-edited.  Per-attempt JSON reports with raw
 samples, container commands and log tails are in `harness/reports/`; patches in
 `harness/patches/`. `error` rows come from fault injection (a wrong `--port` so readiness
 never arrives; `GGML_AVX512=ON` on a host without AVX-512 so the binary dies at startup),
@@ -130,6 +130,12 @@ next invocation resumed from `state.json` and continued the queue.
    inside Pi (`stopReason: error`) was indistinguishable from a crash (now surfaced with its
    `errorMessage` and the spend so far). Container-exits-before-readiness and ready-but-every-
    request-500s paths were already errors; the latter now has a test against a stub server.
+10. First regenerated evidence set (discarded) showed the last-good A/B arm 2-3x slower in some
+    attempts than in others (threads-8 FTGR median 13.9 vs 4.4 vs 7.4): BuildKit's post-build
+    export/GC after each `--no-cache` compile was still running when the first measurement arm
+    started. Fixed by `procs.wait_for_quiet_host()` (bounded wait for >= 85% idle over 3 samples,
+    recorded as `host_quiet_before_start` in every container record); the committed set shows
+    consistent last-good medians (12.7-13.7 tok/s) across attempts.
 
 ## Pi test double (what `PiProposer` was actually tested against)
 
@@ -243,9 +249,8 @@ The organizer `takehome-start` tag is absent in this draft fork, so the single u
 
 Active agent time: one unattended session (~a working day equivalent). API charges: 0 (no
 coding-model calls). GPU-hours: 0 (none allocated). CPU: 8 vCPU VM; the committed evidence run
-(13 rows) spanned 2026-10-24T08:29:42Z..08:33:29Z (3 min 47 s). Builds in that run were Docker
-layer-cache hits (0.16-0.31 s each, see `build.duration_s` in the reports) because the same
-Dockerfile/flags had been compiled in four earlier, discarded development runs; row 13 was
-added afterwards with `--no-cache` and took 100.22 s for a full llama.cpp compile on 8 vCPUs. Per attempt: ~6-18 s for build + readiness + gates + A/B
-measurement, 95 s for the readiness-timeout fault. Cut: Pi end-to-end run (no key),
+(14 rows, one queue, SIGTERM + resume) spanned 2026-10-24T09:42:50Z..10:08:59Z (26 min 9 s). Every build
+was an uncached llama.cpp compile (`--no-cache`): 101-111 s per attempt image, 32.8 s for the baseline
+image, 16.6 s into the `007` build when SIGTERM arrived. Per attempt ~2.5 min including the quiet-host
+wait (3 s each arm), A/B re-measure and candidate measurement; 95 s extra for the readiness-timeout fault. Cut: Pi end-to-end run (no key),
 LLMD execution (no GPU), more repetitions (time).
