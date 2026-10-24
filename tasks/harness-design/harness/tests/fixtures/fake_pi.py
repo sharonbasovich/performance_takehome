@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """CANDIDATE-BUILT test double for the pinned Pi 1.0.0 CLI in ``--print --mode json`` mode.
 
-It emits exactly the line protocol of ``@earendil-works/pi-coding-agent@1.0.0``:
+It emits the line protocol of ``@earendil-works/pi-coding-agent@1.0.0`` faithfully for
+every field ``PiProposer`` consumes (``agent_end``/``turn_end``/``message_start`` payloads
+are abbreviated):
 
 * ``dist/cli/args.js`` L134 (``--print``), L224 (``@file`` prompt arguments),
   L47 (``--mode`` must be text|json|rpc);
@@ -14,9 +16,9 @@ It emits exactly the line protocol of ``@earendil-works/pi-coding-agent@1.0.0``:
 * ``node_modules/@earendil-works/pi-agent-core/dist/types.d.ts`` L451-483 list
   the event types (agent_start, turn_start, message_start, message_update,
   message_end, tool_execution_start/update/end, turn_end, agent_end);
-* ``node_modules/@earendil-works/pi-ai/dist/types.d.ts`` L292-310 define
+* ``node_modules/@earendil-works/pi-ai/dist/types.d.ts`` L289-309 define
   ``usage`` (input, output, cacheRead, cacheWrite, totalTokens, cost{input,
-  output, cacheRead, cacheWrite, total}) and L386-388 ``stopReason`` /
+  output, cacheRead, cacheWrite, total}) and L310 ``StopReason`` / L388
   ``errorMessage`` on the assistant message.
 
 Behaviour is selected with ``FAKE_PI_MODE``: ``ok`` (default), ``error``

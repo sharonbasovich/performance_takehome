@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -56,6 +57,7 @@ def _seed_in_progress(root: Path, stage: str) -> None:
         engine="standin",
         source_commit="81aead87d78ed468c4c374fb42921471b44c3f80",
         lease_start_ts=0.0,
+        attempt_index=3,
     )
     state.in_progress = InProgress(
         experiment="003-hung",
@@ -63,6 +65,7 @@ def _seed_in_progress(root: Path, stage: str) -> None:
         started_ts=1.0,
         patch_path="patches/003.patch",
         stage=stage,
+        attempt_index=3,
     )
     (root / "state").mkdir(parents=True, exist_ok=True)
     save_state(root / "state" / "state.json", state)
@@ -103,7 +106,7 @@ class RecoverFromDiskTest(unittest.TestCase):
             state = load_state(root / "state" / "state.json")
             assert state is not None
             self.assertIsNone(state.in_progress)
-            self.assertEqual(state.attempt_index, 1)
+            self.assertEqual(state.attempt_index, 4)
 
     def test_clean_state_needs_no_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -127,11 +130,18 @@ CHILD = textwrap.dedent(
     h = make_harness(root)
     h.install_signal_handlers()
     (root / "ready").write_text("1")
+    result = procs.run(
+        ["bash", "-c", "sleep 120 & echo $! > {pidfile}; wait"],
+        timeout_s=300,
+        should_abort=h._should_abort,
+    )
+    assert result.aborted and not result.timed_out, result
+    # the handler only set a flag; it stays installed so a second signal can abort finalize
+    assert signal.getsignal(signal.SIGTERM) == h._on_signal
     try:
-        procs.run(["bash", "-c", "sleep 120 & echo $! > {pidfile}; wait"], timeout_s=300)
+        h._checkpoint()
         sys.exit(99)
     except Interrupted as exc:
-        assert signal.getsignal(signal.SIGTERM) is signal.SIG_IGN
         (root / "interrupted").write_text(str(exc))
         sys.exit(3)
     """
@@ -180,3 +190,107 @@ class SigtermSubprocessTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CrashBetweenWritesTest(unittest.TestCase):
+    """Die at any point between report write, row append and state save: never duplicate."""
+
+    def _finished_row(self, root: Path, experiment: str) -> None:
+        results.append_row(
+            root / "results.tsv",
+            results.make_row(
+                ts="2026-01-01T00:01:00Z",
+                experiment=experiment,
+                source_commit="81aead87d78ed468c4c374fb42921471b44c3f80",
+                image_digest="sha256:" + "c" * 64,
+                kept="0",
+                outcome="regressed",
+                local_ttft_speedup="0.5",
+                local_ftgr_speedup="0.6",
+                development_report=f"reports/{experiment}.json",
+            ),
+        )
+
+    def test_report_written_but_no_row(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_in_progress(root, "measuring")
+            (root / "reports").mkdir()
+            (root / "reports" / "003-hung.json").write_text('{"kind": "attempt"}', encoding="utf-8")
+            with (
+                mock.patch.object(loop_mod.docker, "kill_containers_with_prefix"),
+                mock.patch.object(loop_mod.docker, "remove_image"),
+            ):
+                harness = make_harness(root)
+                harness.recover_from_previous_run()
+                harness._release_locks()
+            rows = results.validate_file(root / "results.tsv")
+            self.assertEqual([r.outcome for r in rows], ["baseline", "interrupted"])
+            self.assertEqual(
+                json.loads((root / "reports" / "003-hung.json").read_text("utf-8")),
+                {"kind": "attempt"},
+                "finished report must not be overwritten",
+            )
+            self.assertTrue((root / "reports" / "003-hung.recovered.json").exists())
+
+    def test_row_written_but_state_not_saved(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_in_progress(root, "measuring")
+            self._finished_row(root, "003-hung")
+            (root / "reports").mkdir()
+            (root / "reports" / "003-hung.json").write_text('{"kind": "attempt"}', encoding="utf-8")
+            with mock.patch.object(loop_mod.docker, "kill_containers_with_prefix"):
+                harness = make_harness(root)
+                harness.recover_from_previous_run()
+                harness._release_locks()
+            rows = results.validate_file(root / "results.tsv")
+            self.assertEqual([r.outcome for r in rows], ["baseline", "regressed"])
+            self.assertEqual(
+                (root / "reports" / "003-hung.json").read_text("utf-8"), '{"kind": "attempt"}'
+            )
+            state = load_state(root / "state" / "state.json")
+            assert state is not None
+            self.assertIsNone(state.in_progress)
+            self.assertEqual(state.attempt_index, 4)
+
+    def test_bak_rewind_never_reuses_attempt_numbers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_in_progress(root, "measuring")  # state: attempt 3 in progress
+            self._finished_row(root, "003-hung")
+            self._finished_row(root, "004-later")
+            self._finished_row(root, "005-latest")
+            # newest checkpoint lost: state.json truncated, .bak is the attempt-3 checkpoint
+            path = root / "state" / "state.json"
+            shutil.copy2(path, path.with_suffix(".json.bak"))
+            path.write_text(path.read_text("utf-8")[:40], encoding="utf-8")
+            with mock.patch.object(loop_mod.docker, "kill_containers_with_prefix"):
+                harness = make_harness(root)
+                harness.recover_from_previous_run()
+                harness._release_locks()
+            rows = results.validate_file(root / "results.tsv")
+            self.assertEqual(len(rows), 4, "no duplicate rows after a rewind")
+            state = load_state(path)
+            assert state is not None
+            self.assertEqual(state.attempt_index, 6)
+            self.assertIsNone(state.in_progress)
+
+    def test_validate_rejects_duplicate_attempt_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_in_progress(root, "measuring")
+            self._finished_row(root, "003-hung")
+            with (root / "results.tsv").open("a", encoding="utf-8") as fh:
+                fh.write(
+                    results.make_row(
+                        ts="2026-01-01T00:02:00Z",
+                        experiment="003-hung",
+                        source_commit="x",
+                        image_digest="",
+                        kept="0",
+                        outcome="interrupted",
+                    ).to_line()
+                )
+            with self.assertRaises(results.ResultsError):
+                results.validate_file(root / "results.tsv")

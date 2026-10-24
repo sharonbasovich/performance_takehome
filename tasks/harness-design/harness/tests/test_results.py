@@ -55,7 +55,9 @@ class ResultsSchemaTest(unittest.TestCase):
             _row(kept="yes").validate()
         with self.assertRaises(results.ResultsError):
             _row(kept="1", outcome="regressed").validate()
-        _row(kept="1", outcome="improved").validate()
+        _row(
+            kept="1", outcome="improved", local_ttft_speedup="1.21", local_ftgr_speedup="1.05"
+        ).validate()
 
     def test_blank_metrics_are_preserved_not_zeroed(self) -> None:
         row = _row(outcome="error", image_digest="", development_report="reports/e.json")
