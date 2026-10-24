@@ -60,10 +60,10 @@
     "method": "task-local regex pre-tokenizer (bench.tokens.TOKENIZER_ID)",
     "server_usage_trusted": false,
     "usage_ratio_band": [
-      0.6,
-      1.6
+      0.5,
+      2.0
     ],
-    "note": "Independent counts come from re-tokenizing verbatim SSE deltas; server usage is recorded and compared, never used as the count."
+    "note": "Independent counts come from re-tokenizing verbatim SSE deltas; server usage is recorded and compared, never used as the count. The band is wide because the task-local pre-tokenizer is not the engine tokenizer (the mock already differs 2x on newline-separated integers); recalibrate it against the pinned tokenizer before trusting it as a tight gate. A 3x false usage is still outside it."
   },
   "client_integrity": {
     "max_event_loop_lag_s": 0.05,

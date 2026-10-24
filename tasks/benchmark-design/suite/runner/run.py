@@ -201,6 +201,7 @@ class Runner:
         self.measure_windows: list[tuple[str, float, float]] = []
         self.engine: dict[str, Any] = {}
         self.counter = 0
+        self.launched: list[subprocess.Popen[bytes]] = []
         self.status = "in_progress"
         self.scheduled: list[ScheduledCell] = [
             unit
@@ -417,8 +418,8 @@ class Runner:
             await asyncio.sleep(cfg["readiness_poll_interval_s"] * self.scale)
         else:
             launch["status"] = "timeout"
-        if proc is not None and self.args.stop_after_launch:
-            proc.terminate()
+        if proc is not None:
+            self.launched.append(proc)
 
     async def _run_unit(self, client: httpx.AsyncClient, unit: ScheduledCell) -> None:
         self.units_meta.append(
@@ -602,6 +603,10 @@ class Runner:
         except (KeyboardInterrupt, asyncio.CancelledError):
             self.status = "aborted"
         finally:
+            if self.args.stop_after_launch:
+                for proc in self.launched:
+                    proc.terminate()
+                    proc.wait(timeout=10)
             await self.lag.stop()
             self._requests_fh.close()
             (self.out / RUN_FILE).write_text(
@@ -624,7 +629,9 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="command that cold-starts the engine; the startup clock starts at launch",
     )
     p.add_argument(
-        "--stop-after-launch", action="store_true", help="terminate the launched process at the end"
+        "--stop-after-launch",
+        action="store_true",
+        help="terminate every process started via --launch-cmd when the run ends",
     )
     p.add_argument(
         "--cache-flush-url", help="POST here before each unit; otherwise rely on nonce isolation"

@@ -72,7 +72,8 @@ class Evaluator:
         run = self.ev.run.raw
         if self.ev.schema_errors:
             self.reasons.append(
-                f"schema: {len(self.ev.schema_errors)} violation(s), e.g. {self.ev.schema_errors[0]}"
+                f"schema: {len(self.ev.schema_errors)} violation(s), "
+                f"e.g. {self.ev.schema_errors[0]}"
             )
         if run.get("status") != "completed":
             self.reasons.append(f"run status is {run.get('status')!r}, not 'completed'")
@@ -85,7 +86,8 @@ class Evaluator:
                 self.reasons.append("client event-loop lag was not measured (no samples)")
         elif lag["event_loop_lag_max_s"] > limit:
             self.reasons.append(
-                f"client event-loop lag {lag['event_loop_lag_max_s']:.3f}s exceeds {limit}s: timings are client-owned"
+                f"client event-loop lag {lag['event_loop_lag_max_s']:.3f}s exceeds {limit}s: "
+                "timings are client-owned"
             )
         engine = run.get("engine") or {}
         for key in ("model_id", "lock_digest"):
@@ -94,7 +96,8 @@ class Evaluator:
         plan_digest = (run.get("plan") or {}).get("plan_id")
         if plan_digest and plan_digest != self.plan["plan_id"]:
             self.reasons.append(
-                f"run was recorded under plan {plan_digest!r}, evaluated with {self.plan['plan_id']!r}"
+                f"run was recorded under plan {plan_digest!r}, "
+                f"evaluated with {self.plan['plan_id']!r}"
             )
 
     def judge_all(self) -> None:
@@ -111,7 +114,8 @@ class Evaluator:
         if invalid:
             sample = invalid[0]
             self.reasons.append(
-                f"{len(invalid)} request(s) with untrustworthy evidence, e.g. {sample.request_id}: {sample.reasons[:2]}"
+                f"{len(invalid)} request(s) with untrustworthy evidence, "
+                f"e.g. {sample.request_id}: {sample.reasons[:2]}"
             )
 
     def population(self) -> dict[str, Any]:
@@ -296,7 +300,8 @@ class Evaluator:
                 "ftgr_note": None
                 if ftgr is not None
                 else (
-                    "unresolved: all-at-once delivery in some trace, or no completed multi-token traces"
+                    "unresolved: all-at-once delivery in some trace, "
+                    "or no completed multi-token traces"
                 ),
                 "traces_excluded_single_token": len(completed) - len(traces),
             }
@@ -332,7 +337,8 @@ class Evaluator:
             )
             if first_valid_request and not consistent:
                 self.reasons.append(
-                    f"startup launch {launch['launch_index']}: claimed first valid probe fails the gates"
+                    f"startup launch {launch['launch_index']}: "
+                    "claimed first valid probe fails the gates"
                 )
             launches.append(
                 {
@@ -365,7 +371,8 @@ class Evaluator:
             self.inconclusive.append("startup: no launch reached a valid completed generation")
         elif not cold:
             self.inconclusive.append(
-                "startup: runner attached to an already running server (no cold launch); clock measures attach-to-first-valid only"
+                "startup: runner attached to an already running server (no cold launch); "
+                "clock measures attach-to-first-valid only"
             )
         return {
             "launches": launches,
@@ -403,7 +410,7 @@ def compare_groups(
     salt: int,
     comparisons: int = 1,
 ) -> dict[str, Any]:
-    """Compare matching samples from two groups on TTFT p50/p90, strict FI mean, FTGR proxy (MDD p99)."""
+    """Compare two groups on TTFT p50/p90, strict FI mean and the FTGR proxy (MDD p99)."""
     cfg = ev_a.stats_cfg
     conf = bonferroni(cfg["confidence"], comparisons)
     me = cfg["min_effect"]
@@ -481,7 +488,8 @@ def evaluate(
     aa = ev.aa_control(cells, samples)
     if aa and aa["decision"] in ("regression", "improvement"):
         ev.reasons.append(
-            f"A/A control cells differ confidently ({aa['decision']}): the measurement is not stable"
+            f"A/A control cells differ confidently ({aa['decision']}): "
+            "the measurement is not stable"
         )
     if not any(c["enough_evidence"] for c in cells.values()):
         ev.inconclusive.append("no cell reached min_requests_per_cell completed requests")
@@ -550,7 +558,8 @@ def compare_runs(
         "decision": overall,
         "cells_compared": len(common),
         "per_cell": per_cell,
-        "why": f"cell decisions: {dict(decisions)}; run statuses {rep_a['status']}/{rep_b['status']}",
+        "why": f"cell decisions: {dict(decisions)}; "
+        f"run statuses {rep_a['status']}/{rep_b['status']}",
     }
 
 
@@ -571,20 +580,23 @@ def summarize(report: dict[str, Any]) -> str:
             "## Population",
             "| planned | offered | completed | failed | unfinished | evidence_invalid |",
             "| --- | --- | --- | --- | --- | --- |",
-            f"| {pop['planned']} | {pop['offered']} | {pop['completed']} | {pop['failed']} | {pop['unfinished']} | {pop['evidence_invalid']} |",
+            f"| {pop['planned']} | {pop['offered']} | {pop['completed']} | {pop['failed']} "
+            f"| {pop['unfinished']} | {pop['evidence_invalid']} |",
         ]
     st = report.get("startup", {}).get("startup_to_first_valid_generation_s")
     if st:
         lines += [
             "",
-            f"## Startup: launch -> first VALID generation: median {st['median']} s over {st['n']} launch(es)",
+            "## Startup: launch -> first VALID generation: "
+            f"median {st['median']} s over {st['n']} launch(es)",
         ]
     cells = report.get("cells", {})
     if cells:
         lines += [
             "",
             "## Cells",
-            "| cell | load | completed/offered | TTFT p50 s [CI] | TTFT p90 s | FI strict mean | FI relaxed SLO | MDD p99 s | FTGR tok/s | rejections |",
+            "| cell | load | completed/offered | TTFT p50 s [CI] | TTFT p90 s | FI strict mean "
+            "| FI relaxed SLO | MDD p99 s | FTGR tok/s | rejections |",
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
         for c in cells.values():
@@ -594,8 +606,10 @@ def summarize(report: dict[str, Any]) -> str:
             lines.append(
                 f"| {c['cell_id']} | {c['load_label']} | {c['completed']}/{c['offered']} | "
                 f"{_fmt(p50.get('point'))} [{_fmt(p50.get('low'))}, {_fmt(p50.get('high'))}] | "
-                f"{_fmt(c['ttft_s']['p90'].get('point'))} | {_fmt(fi.get('point'))} | {rel.get('slo_met')} | "
-                f"{_fmt(c['decode']['min_decode_deadline_s']['p99'])} | {_fmt(c['decode']['ftgr_tokens_per_s'])} | "
+                f"{_fmt(c['ttft_s']['p90'].get('point'))} | {_fmt(fi.get('point'))} | "
+                f"{rel.get('slo_met')} | "
+                f"{_fmt(c['decode']['min_decode_deadline_s']['p99'])} | "
+                f"{_fmt(c['decode']['ftgr_tokens_per_s'])} | "
                 f"{c['rejection_reasons'] or '-'} |"
             )
     aa = report.get("aa_control")

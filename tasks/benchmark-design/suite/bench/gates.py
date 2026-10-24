@@ -223,7 +223,8 @@ def judge(record: dict[str, Any], plan: dict[str, Any], schema_errors: list[str]
             ratio = usage["completion_tokens"] / independent if independent else None
             if ratio is None or not lo <= ratio <= hi:
                 reasons.append(
-                    f"usage_discrepancy:usage={usage['completion_tokens']} independent={independent}"
+                    f"usage_discrepancy:usage={usage['completion_tokens']} "
+                    f"independent={independent}"
                 )
         elif usage is None and plan["output_policy"]["stream_options"].get("include_usage"):
             verdict.flags.append("usage_not_reported")

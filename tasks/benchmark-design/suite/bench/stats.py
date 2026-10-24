@@ -104,7 +104,8 @@ def decide(
         }
     return {
         "decision": "inconclusive",
-        "why": f"CI [{worse_low:+.3f}, {worse_high:+.3f}] straddles the {min_effect} boundary (underpowered)",
+        "why": f"CI [{worse_low:+.3f}, {worse_high:+.3f}] straddles the {min_effect} "
+        "boundary (underpowered)",
     }
 
 
