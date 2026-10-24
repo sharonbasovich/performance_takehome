@@ -1,38 +1,273 @@
 # Task 1 — Benchmark design report
 
-Replace this template. Reference raw evidence and runnable suite/config/source revisions.
+**Status of this report:** a complete, candidate-owned design validated end to end on a CPU
+mock. **No GPU run has happened.** Every number labelled *planned* is arithmetic from
+`suite/workload.json`; every number labelled *measured* was produced on this CPU host by
+the committed code and is stored under `validation/`. Nothing in this document describes
+llm-d or MI355X behaviour.
 
-## Evaluation goals and workloads
+Source identities: suite version `1.0.0` (`suite/bench/__init__.py`), plan
+`abstract-t1-llmd-mi355x-v1` schema `1.0.0`, event schema `1.0.0`, report schema `1.0.0`.
+The organizer's `takehome-start` tag does not exist in this draft repository; the frozen
+starter is commit `81aead87d78ed468c4c374fb42921471b44c3f80` and the integrity check was run
+against it (`validation/integrity.txt`).
 
-Which user experiences are covered, what is omitted, and why these lengths/arrival rates?
+## 1. Evaluation goals and workloads
 
-## Metrics and validity
+The benchmark answers: *is the server fast, smooth and correct for the user experiences it
+will actually serve?* Three axes are reported separately, never blended into one score:
 
-TTFT, Etalon fluidity/FTGR, startup boundaries, token/population accounting, and quality gates.
-Which inputs make the result invalid or inconclusive rather than good or bad?
+| Axis | Statistic | Where computed |
+| --- | --- | --- |
+| Fast | TTFT = first non-empty **content** delta − send, per cell × load; p50/p90 with bootstrap CIs, p99, prefill-deadline hit rate, TTFT-SLO hit rate | `evaluate.py::Evaluator.cells` |
+| Smooth | Etalon fluidity index per request at three decode deadlines, SLO fraction, minimum decode deadline p50/p99, FTGR = 1/p99(min decode deadline) | `benchmarks.metrics` via `evaluate.py` |
+| Startup | launch → first **valid** completed generation per cold launch; readiness lead time reported, never used as the stop | `evaluate.py::Evaluator.startup` |
 
-## Statistical policy
+### Cells (`workload.json` → `cells`)
 
-Warmup/cache states, repetitions, uncertainty, aggregation, and meaningful regression thresholds.
+| Cell | Represents | Prompt source | Arrival | Why |
+| --- | --- | --- | --- | --- |
+| `chat_short_open` | interactive chat: short prompts (64–256 tokens), ≤256 output tokens, nonce echo required | `chat_short` | open-loop Poisson 0.5 / 1 / 2 / 4 rps, 40–120 requests per rate | TTFT and fluidity under increasing arrival pressure; Poisson because chat users arrive independently of server speed (open loop exposes queueing that closed loop hides) |
+| `rag_long_open` | RAG / summarisation: 2 048–4 096-token prompts, ≤128 output tokens, planted fact must be returned | `rag_long` | Poisson 0.25 / 0.5 rps, 30–45 requests | prefill-dominated; TTFT must be judged against a prompt-length-dependent deadline (Etalon §4.1) and correctness is checkable (the fact is unique per prompt) |
+| `generation_long_open` | long outputs: list 1..N (N drawn per prompt), ≤1 024 tokens | `generation_long` | Poisson 0.2 rps, 30 requests | decode-dominated; exact integer sequence makes truncation, garbling and token-boundary errors detectable without a model judge |
+| `mixed_open` | realistic mix 50 % chat / 30 % RAG / 20 % long generation | `mixed` | Poisson 1 rps, 60 requests | interference between prefill-heavy and decode-heavy requests is where stalls appear |
+| `closed_loop_sweep` | capacity curve | `chat_short` | closed loop, concurrency 1 / 4 / 16 / 32, 16–96 requests | closed loop bounds offered load by the server's own speed, so it shows the latency/throughput knee without building an unbounded queue; the two arrival models are complementary, not redundant |
+| `prefill_calibration` | fits the prefill deadline curve | `rag_long` forced to 128/512/1024/2048/4096 prompt tokens | closed loop, concurrency 1, 15 requests | Etalon §4.1 derives the prefill deadline from isolated prompt-length measurements; the shipped intercept/slope are placeholders to be replaced from this cell |
+| `aa_control_a` / `aa_control_b` | identical configuration, different arrival seeds | `chat_short` | Poisson 1 rps, 60 requests each | A/A control: the comparison machinery must call these "no difference" or "inconclusive", never "regression" |
 
-## Validation matrix
+Omitted on purpose: multi-turn conversations (prefix-cache dependent; cache state is
+controlled instead), tool calling, images, non-greedy sampling (temperature is pinned to 0
+so text validity is deterministic), and any "quality" judged by another model.
 
-Public fault/regression fixtures and clean/noisy controls; expected behavior versus observations.
-Discuss false positives, false negatives, and limitations without guessing hidden fixture labels.
+### Arrival rates
 
-## Measured compute cost
+The rates were chosen so that the full mode fits the 3-hour cap with three repetitions
+(see §5) while still spanning from an unloaded server (0.5 rps chat, ~1 request in flight)
+to a saturating one (4 rps chat ≈ 8–10 concurrent decodes at 30 tok/s per stream, and
+closed-loop 32). Rates are *planning* values: the first pilot replaces the planning
+assumptions in `planning_assumptions` and the `--dry-run` arithmetic re-sizes the cells.
 
-Quick/full per-phase wall time and allocated GPU-hours, including launch/warmup/drain/cleanup.
-Explain why the requested samples fit within the task's allowance and suite-run ceiling.
+### Prompts
 
-## Reproducibility
+Prompts are generated by `bench/prompts.py` from `(prompt_seed, source, cell, repetition,
+index)` with SHA-256-derived RNGs, so every request is reproducible and no two requests
+share a prefix (each carries a unique nonce), which is the fallback cache policy when the
+engine offers no prefix-cache flush (`cache_state`). Each prompt carries an **expected**
+block the evaluator checks against the generated text: nonce echo + minimum length (chat),
+planted fact (RAG), exact integer sequence (generation), no U+FFFD / mojibake (all).
 
-Commands, suite/source/config identities, seeds, raw-event reports, and candidate tests.
-Record the supplied enhanced Pi profile/release identity, immutable starter commit,
-`tools.check_integrity` result, and the released task validation commands you ran.
-Organizer harness/tests/fixtures must be unchanged; suite tests are candidate-owned.
+### Startup procedure
 
-## Effort and resource use
+`startup.procedure`: cold-start the pinned engine (clock starts at launch) → poll
+`/v1/models` every 1 s and record every probe → issue a short probe generation every 2 s →
+stop the clock at the first probe that passes **every evaluator gate**
+(`runner/run.py::_is_valid_generation` calls `bench.gates.judge`). Readiness is recorded
+as `readiness_at`/`readiness_lead_s` and is informational.
 
-Active hours, task-specific API charges, allocated GPU-hours, CPU build/test use, and cuts.
-This task does not require an optimized engine image or optimization harness.
+## 2. Metrics and validity
+
+### Deadlines (Etalon, arXiv 2407.07000 §4)
+
+* **Prefill deadline** `D_p(prompt_tokens) = max(floor, intercept + slope × tokens) +
+  scheduling_slack` (`deadlines.prefill`): Etalon §4.1 defines the prefill deadline as a
+  function of prompt length and recommends fitting it from isolated measurements rather
+  than using one global TTFT target. Shipped constants (0.25 s + 0.5 ms/token, floor 0.3 s,
+  slack 50 ms) are explicitly marked placeholders in the plan; `prefill_calibration` exists
+  to refit them.
+* **Decode deadlines** (`deadlines.decode_tiers`): **strict 25 ms** (Etalon §5 evaluates a
+  25 ms TBT SLO, 40 tok/s), **medium 50 ms** (20 tok/s, interactive reading with headroom),
+  **relaxed 166.7 ms** (6 tok/s ≈ 250 words/min, the reading-speed reference in Etalon
+  §2.2). Fluidity is computed with Etalon's slot semantics via `benchmarks.metrics.fluidity`:
+  early tokens accumulate slack, a long stall misses several consecutive slots, and the
+  deadline sequence restarts after a miss.
+* **Fluidity SLO** (`deadlines.fluidity_slo`): a request is fluid when its index ≥ 0.9 (≤10 %
+  missed slots); the cell meets the SLO when the 99th-percentile request is fluid. FTGR is
+  `benchmarks.metrics.fluid_token_generation_rate` = 1/p99 of the per-request minimum
+  decode deadline at 10 % miss rate; it is `null` with a reason when any trace is
+  unresolved (all tokens in one chunk), never infinity.
+* **TTFT SLOs** (`deadlines.ttft_slo_s`): 1 s chat/generation, 4 s RAG, reported as hit
+  rates next to the prefill-deadline hit rate; both are descriptive, the gates below are
+  what make a run invalid.
+
+### Token accounting
+
+Server `usage` is kept in every record and never used as the count. The independent count
+re-tokenizes the concatenated verbatim deltas with the task-local regex pre-tokenizer
+(`bench/tokens.py`, id `regex-pretokenizer-v1 …`, resolution `delta`: all tokens in a delta
+get the delta's arrival time). This is an approximation of the engine tokenizer and is
+flagged as such in every record (`client_tokens.resolution`). Consequences: (a) token
+inter-arrival within one delta is 0, so bursts are penalised, never rewarded; (b) the usage
+band is wide (0.5–2.0) because the mock's own tokenizer already differs 2× on
+newline-separated integers; a 3× false usage still fails. Replacing the tokenizer with the
+pinned engine tokenizer (or per-token timestamps from the organizer's adapter) tightens
+the band and changes the resolution flag to `token` — nothing else changes.
+
+### Gates (`bench/gates.py`)
+
+| Gate | Outcome | Category |
+| --- | --- | --- |
+| schema violation, timestamp missing / non-monotonic, record text ≠ verbatim payloads, send later than `planned_send + max_send_lag_s` | request `evidence_invalid` → **run invalid** | evidence |
+| HTTP ≠ 200, protocol violation (bad JSON, data after `[DONE]`, multiple choices), empty output, text fails expected properties, `finish_reason` not allowed, usage outside band | request `failed` (scored as failure, fluidity 0) | server |
+| no `[DONE]`, no `finish_reason`, connection drop, timeout | request `unfinished` (scored as failure) | server |
+| run-level: status ≠ completed, event-loop lag > 50 ms in a measurement window, lag not measured, engine identity missing, A/A controls confidently different, claimed-valid startup probe fails gates | **run invalid** | evidence |
+| fewer than `min_requests_per_cell` trustworthy requests in a cell, no cold launch, no launch reached a valid generation, no cell with enough evidence | **run inconclusive** | sufficiency |
+
+The report's `status` is `invalid` if any evidence gate fired, else `inconclusive` if any
+sufficiency gate fired, else `valid`. A valid run can still describe a terrible server
+(e.g. 100 % failed requests) — that is a conclusive negative result, not an invalid one.
+
+## 3. Statistical policy
+
+* **Warmup**: 4 unscored requests per unit (`phase=warmup`), recorded so the population
+  table still accounts for them. **Cache state**: flush request before each unit when the
+  engine supports it (`--cache-flush-url`), otherwise nonce isolation; the choice is
+  recorded in the phase marker.
+* **Repetitions**: full mode runs every unit three times, interleaved
+  (`modes.full.interleave`) so drift affects all cells alike; quick mode once. Units are
+  pooled per cell × load for reporting; the per-unit population table keeps the split.
+* **Sample sizes**: `statistics.min_requests_per_cell = 30` trustworthy requests per cell ×
+  load in the real plan (12 in the compact mock plan). Below that the cell is marked
+  `enough_evidence=false` and the run is inconclusive; latency statistics are still
+  reported with their own `n` and CI so partial evidence is visible, not hidden.
+* **Uncertainty**: seeded percentile bootstrap (2 000 resamples, 95 %) on TTFT p50/p90,
+  fluidity index mean and SLO fraction; inputs are sorted first so record order cannot
+  change the CI. **Client lag** evidence is bounded explicitly rather than modelled.
+* **Decision rule** (`bench/stats.py::decide`, two runs or A/A within one run): bootstrap
+  CI of the difference B − A; *regression* only if the CI excludes 0 on the bad side **and**
+  the point estimate exceeds `min_effect` (10 % TTFT p50, 15 % TTFT p90, 0.05 fluidity
+  index, 10 % min-decode-deadline p99); *no_difference* if the whole CI lies within
+  ±min_effect; otherwise *inconclusive* (underpowered). Any side with fewer than
+  `min_requests_per_cell` samples is inconclusive by construction (this is what protects
+  against degenerate bootstrap CIs on tiny samples). Confidence is Bonferroni-adjusted
+  across compared cells. Runs that are not both valid cannot be compared (`invalid`).
+
+## 4. Validation matrix
+
+Fixtures are produced by the CPU mock (`suite/mock_server`, 18 profiles) through the real
+runner with a real cold launch per fixture, at the mock's native injected timings
+(`fixtures/manifest.json: time_scale = 1.0`). Two evidence-corruption families are derived
+from the clean capture by `fixtures/generate.py::mutate`. Held-out fixtures reuse ten
+profiles with fresh seeds under opaque names; `evaluate.py` never reads labels or names
+(`tests/test_fixtures.py::FixtureIdentityIndependenceTests` renames, permutes and plants a
+decoy label, then asserts a byte-identical report).
+
+The machine-generated discrimination table, control false-positive accounting and
+held-out results are in `validation/discrimination.md` (JSON next to it); per-fixture
+reports are in `validation/reports/`. Summary of what was observed:
+
+VALIDATION_SUMMARY_PLACEHOLDER
+
+**False negatives / limitations observed honestly:** the mock's `stall` and `burst`
+families are invisible to fluidity when fixtures are generated with compressed timing
+(`time_scale 0.25`, tried first): a 3 ms decode interval against a 25 ms deadline builds
+enough Etalon slack to absorb a 0.4 s stall. That is correct metric behaviour, not a
+detector weakness, and it is why fixtures are generated at native timing. Hidden organizer
+fixtures with gentler faults than these may legitimately produce `valid` reports with
+small metric shifts rather than gate rejections; the table lists which signal carries each
+detection so that outcome is interpretable.
+
+## 5. Measured compute cost
+
+### Planned GPU cost (arithmetic, unmeasured — `validation/dry_run_*.json`)
+
+`runner --dry-run` sums, per unit: setup (10 s) + cache flush (5 s) + warmup + arrival span
+(requests/rate for Poisson; requests × service time / concurrency for closed loop) + the
+service time of the last request + 30 s drain grace; plus per launch the planning cold
+start (480 s) + 60 s; plus 60 s teardown; × 1.25 safety margin. Planning assumptions
+(27B model, one GPU): 4 000 prefill tok/s, 30 decode tok/s per stream, 900 aggregate, 80 %
+of `max_tokens` produced.
+
+| Mode | Units | Offered requests (+warmup) | Launches | Raw minutes | ×1.25 planned minutes | Cap | GPU-hours (1 GPU) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| quick | 8 | 190 (+28) | 1 | 26.9 | **33.7** | 40 | 0.56 |
+| full | 45 | 2 454 (+96) | 2 | 120.0 | **150.1** | 180 | 2.5 |
+
+Full mode therefore fits the 3-hour suite ceiling (`docs/BUDGETS.md`) and the proposed
+4 GPU-hour grading allowance (`budgets.toml`), with ~30 minutes of head-room for the pilot
+to be slower than assumed. The first real quick run replaces every assumption with a
+measurement and the arithmetic is re-run before the full run is scheduled.
+
+### Measured CPU/mock cost (this host; `validation/timing.md`)
+
+TIMING_PLACEHOLDER
+
+These measure the candidate tooling only.
+
+## 6. Reproducibility
+
+```bash
+git clone <fork> && cd performance_takehome && git checkout submission/benchmark-design
+uv sync --frozen --extra dev
+uv run --frozen ruff check .
+uv run --frozen python -m unittest discover -s tests -v              # root (organizer) tests
+uv build
+uv run --frozen python -B -m tools.check_integrity --base 81aead87d78ed468c4c374fb42921471b44c3f80
+cd tasks/benchmark-design/suite
+uv run --frozen python -m unittest discover -s tests -v              # candidate tests
+uv run --frozen python -m runner --plan workload.json --mode full --dry-run
+uv run --frozen python evaluate.py --events fixtures/public/stall --workload fixtures/workload.mock.json --out /tmp/r.json
+cd .. && uv run --frozen python validation/build_validation.py      # rebuilds validation/ from fixtures
+```
+
+Seeds: `seeds.prompt_seed 20260101`, `arrival_seed 20260102`, `bootstrap_seed 20260103`
+(plan); mock fixture seeds 100+ (public), 500+ (held-out), 900+ (mutations). Engine lock
+digest (sha256 of `baseline/lock.json`) and plan digest are recorded in every `run.json`.
+Enhanced Pi profile/release identity: **not released** (`docs/RELEASE_STATUS.md`); recorded
+as `UNAVAILABLE_IN_DRAFT` in `submission.json`. Organizer harness, root tests, fixtures and
+baseline are byte-identical to the starter commit (`validation/integrity.txt`).
+
+## 7. Threats to validity
+
+1. **No GPU evidence.** Every performance number here is from a mock with injected delays.
+2. **Tokenizer approximation** (§2): independent counts are regex pre-tokens, not model
+   tokens; fluidity at `delta` resolution attributes all tokens of a chunk to one instant.
+3. **Prefill deadline constants are placeholders** until `prefill_calibration` is run.
+4. **Single client host**: event-loop lag is monitored and bounded, but network jitter
+   between client and engine is not separated from server behaviour; the plan assumes the
+   organizer's harness runs the client on the same host or a dedicated link.
+5. **Mock realism**: faults are stylised (fixed 1.5 s stalls, 8-token bursts, 3× usage).
+   Real regressions are gentler; the decision rule's minimum effects and the sample sizes
+   were chosen for plausibly detectable effects, not for the mock.
+6. **Comparison power** depends on repetition count; three repetitions × 30+ requests was
+   sized by budget, not by a measured variance — the A/A cells exist to expose that.
+7. **Planning arithmetic** assumes no retries and no failed launches; a failed cold launch
+   consumes ~9 planned minutes each.
+
+## 8. Organizer-supplied vs candidate-built vs still missing
+
+| Piece | Organizer-supplied | Candidate-built stand-in | Still missing |
+| --- | --- | --- | --- |
+| `benchmarks/metrics.py`, `benchmarks/streaming.py` | yes (unmodified, imported) | — | — |
+| `baseline/lock.json`, `budgets.toml`, `tools/check_integrity.py`, root tests | yes (read only) | — | `takehome-start` tag |
+| Fixed measurement runner | no | `suite/runner/` | real runner → `load_events(adapter=…)` |
+| Plan / raw-event schemas | no | `suite/workload.json`, `suite/schema/` | organizer schemas → adapter mapping |
+| Pinned engine on MI355X | no (no GPU) | `suite/mock_server/` | real engine, pilot numbers |
+| Fault / control fixtures | no | `suite/fixtures/{public,heldout}` | organizer fixtures |
+| Engine tokenizer / per-token timing | no | `bench/tokens.py` (`delta`) | pinned tokenizer, `token` resolution |
+| Enhanced Pi harness, profile/release digests, receipts | no | — | `UNAVAILABLE_IN_DRAFT` |
+
+### What changes when the organizer's runner/schema arrive
+
+* `bench/records.py`: add an adapter that maps their files onto `RunRecord`/`RequestRecord`;
+  fields they do not provide become `null` and the gates report them as missing evidence.
+* `workload.json`: re-express the same cells in their plan schema (configuration, not code);
+  the `schema_version` field is there for that migration.
+* If their adapter supplies per-token timestamps, `client_tokens.resolution` becomes
+  `token` and fluidity uses true token times; the usage band can be tightened.
+* The mock and fixtures remain as regression tests for the evaluator.
+
+## 9. Effort and resource use
+
+* Active engineering time: one autonomous agent session (≈ 3 wall-clock hours of work).
+* GPU-hours allocated: **0**. GPU-hours used: **0**. Paid API charges: **0**.
+* CPU use: fixture generation and validation on one VM (`validation/timing.md`).
+* Cuts: no real-engine pilot (no GPU); no model-judged quality metric; no multi-turn or
+  prefix-cache-hit cells; the prefill curve is a placeholder pending the calibration cell.
+
+## 10. Issues found in supplied infrastructure
+
+None that block the task. Observations, not fixes (protected files untouched):
+`benchmarks.metrics.minimum_decode_deadline` returns `None` for all-at-once delivery — the
+evaluator propagates this as an unresolved trace and withholds FTGR rather than reporting
+infinite speed, as the docstring requests. `submission.example.json` points the integrity
+command at the absent `takehome-start` tag; the submission records the commit SHA instead.

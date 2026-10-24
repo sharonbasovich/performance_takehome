@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import httpx  # noqa: E402
 from bench import REPO_ROOT, SUITE_VERSION  # noqa: E402
 from bench.arrivals import closed_loop_assignments, poisson_schedule  # noqa: E402
+from bench.gates import judge  # noqa: E402
 from bench.plan import (  # noqa: E402
     ScheduledCell,
     estimate_mode,
@@ -42,7 +43,7 @@ from bench.plan import (  # noqa: E402
     plan_digest,
     resolve_mode,
 )
-from bench.prompts import PromptSpec, check_expected, make_prompt  # noqa: E402
+from bench.prompts import PromptSpec, make_prompt  # noqa: E402
 from bench.records import EVENT_SCHEMA_VERSION, REQUESTS_FILE, RUN_FILE  # noqa: E402
 from bench.tokens import TIMING_RESOLUTION, TOKENIZER_ID, count_tokens  # noqa: E402
 
@@ -325,13 +326,8 @@ class Runner:
         }
 
     def _is_valid_generation(self, record: dict[str, Any]) -> bool:
-        return (
-            record["http_status"] == 200
-            and record["error"] is None
-            and record["done_received"]
-            and record["finish_reason"] in record["prompt"]["expected"].get("finish_reasons", [])
-            and not check_expected(record["text"]["content"], record["prompt"]["expected"])
-        )
+        """A probe is valid only if it passes every evaluator gate (single source of truth)."""
+        return judge(record, self.plan, []).category == "completed"
 
     async def startup(self, client: httpx.AsyncClient, launch_index: int) -> None:
         """Cold start (optional launch), poll readiness, probe until the first VALID generation."""

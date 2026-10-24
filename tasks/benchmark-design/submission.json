@@ -1,0 +1,50 @@
+{
+  "schema_version": 2,
+  "task": "benchmark-design",
+  "status": "candidate-submission-draft-repo-cpu-validated-only",
+  "source": {
+    "repository": "https://github.com/sharonbasovich/performance_takehome",
+    "branch": "submission/benchmark-design",
+    "commit": "REPLACE_COMMIT_AT_END"
+  },
+  "suite": {
+    "entrypoint": "tasks/benchmark-design/suite/evaluate.py",
+    "workload": "tasks/benchmark-design/suite/workload.json",
+    "tests": "tasks/benchmark-design/suite/tests",
+    "test_command": "cd tasks/benchmark-design/suite && uv run --frozen python -m unittest discover -s tests -v",
+    "run_wall_budget_minutes": 180.0,
+    "planned_wall_minutes": {"quick": 33.7, "full": 150.1},
+    "planned_gpu_hours": {"quick": 0.56, "full": 2.5},
+    "planned_cost_source": "tasks/benchmark-design/validation/dry_run_quick.json, dry_run_full.json (planning arithmetic, unmeasured)"
+  },
+  "fixed_environment": {
+    "baseline_lock": "baseline/lock.json",
+    "baseline_lock_sha256": "e6119c70cd265bc2bfd34131d6fae846859614d0074ac107848f3088a673bce2",
+    "measurement_harness_digest": "UNAVAILABLE_IN_DRAFT: the fixed measurement runner has not been released (docs/RELEASE_STATUS.md); a candidate-built stand-in lives in tasks/benchmark-design/suite/runner",
+    "agent_harness_profile": "enhanced-pi-1.0",
+    "agent_harness_release_digest": "UNAVAILABLE_IN_DRAFT: the enhanced Pi harness release has not been published (docs/RELEASE_STATUS.md)"
+  },
+  "integrity": {
+    "starter_commit": "81aead87d78ed468c4c374fb42921471b44c3f80",
+    "starter_tag": "UNAVAILABLE_IN_DRAFT: no takehome-start tag exists in the draft repository; the only upstream commit was used as the base",
+    "command": "python -B -m tools.check_integrity --base 81aead87d78ed468c4c374fb42921471b44c3f80",
+    "report": "tasks/benchmark-design/validation/integrity.txt"
+  },
+  "evidence": {
+    "report": "tasks/benchmark-design/DESIGN.md",
+    "validation_reports": [
+      "tasks/benchmark-design/validation/discrimination.md",
+      "tasks/benchmark-design/validation/discrimination.json",
+      "tasks/benchmark-design/validation/controls.json",
+      "tasks/benchmark-design/validation/heldout_results.json",
+      "tasks/benchmark-design/validation/comparison_clean_vs_noisy.json",
+      "tasks/benchmark-design/validation/comparison_clean_vs_slow_decode.json",
+      "tasks/benchmark-design/validation/comparison_clean_vs_late_first_token.json",
+      "tasks/benchmark-design/validation/reports/public",
+      "tasks/benchmark-design/validation/reports/heldout"
+    ],
+    "compute_report": "tasks/benchmark-design/validation/timing.md (measured CPU/mock wall time) and tasks/benchmark-design/validation/dry_run_full.json (planned GPU arithmetic)",
+    "gpu_hours_used": 0,
+    "gpu_runs": "none: no GPU was available; every measurement is from the CPU mock"
+  }
+}

@@ -1,4 +1,124 @@
-# Candidate benchmark suite interface (draft)
+# Candidate benchmark suite — Task 1 (benchmark-design)
+
+> **CANDIDATE-BUILT STAND-INS INSIDE.** The organizer's fixed measurement runner, plan/event
+> schemas, fault/control fixtures and enhanced Pi harness are unreleased
+> (`docs/RELEASE_STATUS.md`). Everything below that the organizer was going to supply is a
+> candidate stand-in with its own directory and README, behind an adapter boundary, so the
+> real piece can be dropped in. The organizer's original interface note is preserved at the
+> bottom of this file.
+
+The suite answers one question for an OpenAI-compatible streaming server: **is it fast
+(TTFT), smooth (Etalon fluidity / FTGR, startup-to-first-valid-generation) and correct
+(completion, text validity, independent token accounting)** — and it refuses to score
+evidence it cannot trust.
+
+## Layout
+
+| Path | Owner | What it is |
+| --- | --- | --- |
+| `workload.json` | candidate (deliverable) | versioned declarative plan: cells, prompt sources, arrivals, warmup, cache state, output policy, deadlines, startup procedure, quick/full modes with budget arithmetic, A/A controls |
+| `schema/` | candidate stand-in | JSON Schema for per-request and run-level raw events (`schema_version` 1.0.0) + the adapter point for the organizer's real schema |
+| `bench/` | candidate | library: plan validation and budget arithmetic (`plan.py`), seeded prompts with checkable expected properties (`prompts.py`), arrivals (`arrivals.py`), task-local tokenizer (`tokens.py`), record loader/validator (`records.py`), per-request gates (`gates.py`), bootstrap/decision statistics (`stats.py`) |
+| `runner/` | candidate stand-in | async `httpx` runner: cold start + readiness polling + probe generations, Poisson/closed-loop arrivals, verbatim SSE capture with monotonic timestamps, event-loop lag monitor, `--dry-run` |
+| `mock_server/` | candidate stand-in | stdlib-asyncio OpenAI-compatible mock with 18 seeded fault profiles and a token-stream oracle |
+| `fixtures/` | candidate stand-in | `generate.py`, the small mock plan `workload.mock.json`, generated `public/<profile>/` (labeled) and `heldout/hx-*/` (opaque) event fixtures |
+| `evaluate.py` | candidate (deliverable) | the graded analysis; reads only `run.json` + `requests.jsonl[.gz]` |
+| `tests/` | candidate | unittest suite covering the validation matrix |
+| `../validation/` | candidate | reports per fixture, discrimination table, control false-positive rate, held-out results, measured CPU wall time, integrity output, dry-run estimates |
+
+## Commands (from a clean clone; Python 3.11 via `uv`)
+
+```bash
+uv sync --frozen --extra dev
+cd tasks/benchmark-design/suite
+
+# 1. Plan validation + cost arithmetic (no server needed)
+uv run --frozen python -m runner --plan workload.json --mode quick --dry-run
+uv run --frozen python -m runner --plan workload.json --mode full  --dry-run
+
+# 2. Unit tests (one command)
+uv run --frozen python -m unittest discover -s tests -v
+
+# 3. Evaluate a captured events directory (fixture shown; any directory with run.json + requests.jsonl works)
+uv run --frozen python evaluate.py --events fixtures/public/stall \
+    --workload fixtures/workload.mock.json --out /tmp/stall.report.json --summary /tmp/stall.md
+uv run --frozen python evaluate.py --events fixtures/public/clean --compare fixtures/public/slow_decode \
+    --workload fixtures/workload.mock.json --out /tmp/compare.report.json
+
+# 4. Run the mock + runner end to end (CPU only, ~30 s)
+uv run --frozen python -m mock_server --profile burst --seed 7 --port 8089 &
+uv run --frozen python -m runner --plan fixtures/workload.mock.json --mode quick \
+    --base-url http://127.0.0.1:8089 --out /tmp/events_burst --assume-mock
+curl -s -X POST http://127.0.0.1:8089/_mock/shutdown
+uv run --frozen python evaluate.py --events /tmp/events_burst --workload fixtures/workload.mock.json --out /tmp/burst.json
+
+# 5. Regenerate fixtures (~20 min on CPU) and rebuild validation artifacts
+uv run --frozen python fixtures/generate.py
+(cd .. && uv run --frozen python validation/build_validation.py)
+```
+
+Against a real engine the same runner is used with the real plan and a cold-start command:
+
+```bash
+uv run --frozen python -m runner --plan workload.json --mode full --out <events_dir> \
+    --base-url http://<engine>:8000 --launch-cmd "<command that cold-starts the pinned engine>" \
+    --stop-after-launch --gpu-count 1 --gpu-hours 3 --gpu-kind MI355X
+```
+
+Exit codes: `evaluate.py` returns 0 for `valid`, 3 for `inconclusive`, 4 for `invalid`;
+`runner --dry-run` returns 2 when the mode does not fit its wall cap.
+
+## Evidence rules the suite enforces
+
+* **Timestamps** are `time.monotonic()` from the client process; nothing is back-filled.
+  Missing or non-monotonic times make the request `evidence_invalid` and the run `invalid`.
+* **Chunks are not tokens.** Every SSE payload is kept verbatim; the evaluator re-parses it
+  with `benchmarks.streaming`, concatenates the deltas, re-tokenizes with the task-local
+  tokenizer and assigns each token the arrival time of the delta holding its last
+  character (resolution `delta`, flagged in every record). Burst deltas therefore produce
+  zero intra-burst intervals, which the Etalon fluidity metric penalises correctly.
+* **Server `usage` is recorded, never trusted.** A completion count outside
+  `token_accounting.usage_ratio_band` of the independent count rejects the request.
+* **Completion** requires both a `finish_reason` and the literal `[DONE]`; the text must
+  satisfy the prompt's independently checkable expectation (nonce echo, planted fact,
+  exact integer sequence, no replacement characters).
+* **Startup** is launch → first *valid* completed generation. `/v1/models` readiness is
+  recorded and reported as `readiness_lead_s` but never stops the clock.
+* **Client lag** (event-loop stalls above `client_integrity.max_event_loop_lag_s` inside a
+  measurement window, or a send more than `max_send_lag_s` late) invalidates the run.
+* **Population accounting** per unit: planned / offered / completed / failed / unfinished /
+  evidence_invalid. Server faults are *scored as failures* (fluidity index 0); evidence
+  faults are *not scored at all*.
+* **Status** is `invalid` (evidence untrustworthy) > `inconclusive` (too little trustworthy
+  evidence, no valid cold launch, underpowered comparison) > `valid`. Missing evidence is
+  never a pass.
+
+## Gap table — organizer-supplied vs candidate-built vs still missing
+
+| Piece | Organizer-supplied | Candidate-built stand-in | Still missing / needs organizer |
+| --- | --- | --- | --- |
+| Shared metrics (`benchmarks/metrics.py`) and SSE parser (`benchmarks/streaming.py`) | yes, used unmodified | — | — |
+| Engine lock (`baseline/lock.json`), budgets, integrity checker | yes, read only | — | `takehome-start` tag (absent; commit `81aead87…` used) |
+| Fixed measurement runner | no | `runner/` (adapter `native`, schema 1.0.0) | the real runner; its output mapped through `bench/records.py::load_events(adapter=…)` |
+| Plan / raw-event schemas | no | `workload.json` (`schema_version`), `schema/*.schema.json` | organizer schema; field mapping documented in `schema/README.md` |
+| Engine (llm-d on MI355X) | no GPU available | `mock_server/` (injected timings) | real engine; every GPU number in this suite is a planning placeholder |
+| Fault / control fixtures | no | `fixtures/public`, `fixtures/heldout` from the mock | organizer fixtures; evaluator is identity-independent (tested) |
+| Tokenizer for independent counts | no | `bench/tokens.py` regex pre-tokenizer (resolution `delta`) | pinned engine tokenizer / per-token timestamps (`resolution: token`) |
+| Prefill deadline curve | no | placeholder intercept+slope with `prefill_calibration` cell to refit | pilot measurement on the real engine |
+| Enhanced Pi harness, profile digests, receipts | no | — | `UNAVAILABLE_IN_DRAFT` in `submission.json` |
+
+## Adapter boundary
+
+`bench/records.py::load_events(directory, adapter)` is the only code that opens evidence
+files. `evaluate.py` sees `RunRecord`/`RequestRecord` objects and nothing else. Adding the
+organizer's format means adding one loader and one `ADAPTERS` entry; the gates, metrics and
+report schema do not change. Prompt expectations travel inside each request record
+(`prompt.expected`), so the evaluator does not need the plan to judge text validity — the
+plan supplies deadlines, SLOs, bands and statistics only.
+
+---
+
+## Organizer's original interface note (unchanged text, kept for reference)
 
 The suite is **candidate-owned**. The measurement harness is **organizer-owned**.
 This directory is a contract/starter, not an implemented benchmark or runner.
@@ -8,7 +128,7 @@ Task 1 also receives the [enhanced Pi 1.0 coding-agent harness](../../../agent-h
 for benchmark authoring/debugging. That harness and the trusted measurement runner are
 separate, organizer-owned, and read-only. Neither is a candidate deliverable.
 
-## Separation of responsibilities
+### Separation of responsibilities
 
 1. Candidate supplies a versioned declarative workload/measurement plan (`workload.json`).
    It specifies prompts/seeds, arrivals, output policy, warmup, phases, repetitions,
@@ -29,12 +149,7 @@ python tasks/benchmark-design/suite/evaluate.py \
   --out <report.json>
 ```
 
-Candidates implement `evaluate.py` and `workload.json`; neither exists in this draft.
-The live fixed-harness invocation and exact JSON schemas remain organizer release work.
-Before release, provide both commands, public example plans/events, and a conformance test.
-Do not claim the shared `benchmarks.smoke` command is this full interface.
-
-## Required report content
+### Required report content
 
 - Suite/config/source identity and referenced raw evidence; no hidden label dependency.
 - Planned/offered/completed/failed/unfinished requests per cell/repetition.
@@ -45,7 +160,7 @@ Do not claim the shared `benchmarks.smoke` command is this full interface.
   not a perfect score or an empty set of passing gates.
 - Measured wall time, allocated GPU-hours, and launch/warmup/drain breakdown.
 
-## Supplied validation evidence
+### Supplied validation evidence
 
 Public fixture families cover bursts, stalls, late first tokens, reasoning channels,
 Unicode/token-boundary behavior, missing completion, errors/drops, invalid output,

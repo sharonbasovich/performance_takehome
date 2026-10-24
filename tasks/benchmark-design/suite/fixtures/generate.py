@@ -233,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--time-scale", type=float, default=0.25)
+    parser.add_argument("--time-scale", type=float, default=1.0)
     parser.add_argument("--only", help="generate only this profile/mutation (public set)")
     parser.add_argument("--skip-heldout", action="store_true")
     parser.add_argument("--heldout-salt", default="abstract-t1-heldout-v1")

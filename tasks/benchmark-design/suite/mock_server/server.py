@@ -202,6 +202,7 @@ class MockServer:
             _rng_for(self.seed, request_id),
             self.model_id,
             prompt_tokens,
+            request_index=self._counter,
         )
         self.oracle[request_id] = plan.oracle
         if plan.http_status != 200:

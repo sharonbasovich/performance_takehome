@@ -57,6 +57,7 @@ class FaultProfile:
     usage_multiplier: float | None = None
     models_ready_after_s: float = 0.0
     inference_ready_after_s: float = 0.0
+    clean_first_n: int = 0
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -127,6 +128,7 @@ PROFILES: dict[str, FaultProfile] = {
             family="missing_completion",
             description="finish_reason sent but the [DONE] sentinel is never emitted.",
             omit_done=True,
+            clean_first_n=3,
         ),
         replace(
             _BASE,
@@ -134,6 +136,7 @@ PROFILES: dict[str, FaultProfile] = {
             family="missing_completion",
             description="[DONE] emitted but finish_reason stays null.",
             omit_finish_reason=True,
+            clean_first_n=3,
         ),
         replace(
             _BASE,
@@ -157,6 +160,7 @@ PROFILES: dict[str, FaultProfile] = {
             family="invalid_output",
             description="Required codes/numbers altered; stream otherwise clean.",
             wrong_text=True,
+            clean_first_n=3,
         ),
         replace(
             _BASE,
@@ -164,6 +168,7 @@ PROFILES: dict[str, FaultProfile] = {
             family="invalid_output",
             description="Replacement characters and mojibake injected into the text.",
             garble_text=True,
+            clean_first_n=3,
         ),
         replace(
             _BASE,
@@ -171,6 +176,7 @@ PROFILES: dict[str, FaultProfile] = {
             family="invalid_output",
             description="Stops at 40% of the answer but reports finish_reason=stop.",
             truncate_fraction=0.4,
+            clean_first_n=3,
         ),
         replace(
             _BASE,
@@ -178,6 +184,7 @@ PROFILES: dict[str, FaultProfile] = {
             family="false_usage",
             description="usage.completion_tokens reports 3x the true count.",
             usage_multiplier=3.0,
+            clean_first_n=3,
         ),
         replace(
             _BASE,
@@ -298,11 +305,18 @@ def plan_stream(
     rng: Any,
     model_id: str,
     prompt_tokens: int,
+    request_index: int = 10**9,
 ) -> StreamPlan:
-    """Deterministically plan the SSE stream and oracle for one chat completion."""
-    affected = rng.random() < profile.severity
+    """Deterministically plan the SSE stream and oracle for one chat completion.
+
+    ``request_index`` is the server's 1-based request counter: the first ``clean_first_n``
+    requests of a profile are served clean (a server that degrades after start-up), so
+    startup probes can succeed and the fault shows up in the measured population.
+    """
+    affected = request_index > profile.clean_first_n and rng.random() < profile.severity
     answer = answer_for(body.get("messages", []))
-    if profile.unicode_tail:
+    if profile.unicode_tail and "CODE-" in answer:
+        # Only chat answers tolerate extra text; integer lists must stay exact.
         answer += UNICODE_TAIL
     text = corrupt_text(answer, profile, rng) if affected else answer
     max_tokens = body.get("max_tokens")
@@ -400,7 +414,7 @@ def plan_stream(
                 max(0, int(len(content_chunks) * profile.drop_after_fraction) - 1)
             ]
     true_tokens = len(content_tokens)
-    usage_tokens = true_tokens
+    usage_tokens = true_tokens + len(reasoning_tokens)  # OpenAI usage counts reasoning too
     if affected and profile.usage_multiplier is not None:
         usage_tokens = int(round(true_tokens * profile.usage_multiplier))
     finish = None if (affected and profile.omit_finish_reason) else finish_reason

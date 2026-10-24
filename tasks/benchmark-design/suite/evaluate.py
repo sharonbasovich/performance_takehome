@@ -216,11 +216,15 @@ class Evaluator:
                     Counter(r.split(":", 1)[0] for _, v in items for r in v.reasons)
                 ),
                 "flags": dict(Counter(f for _, v in items for f in v.flags)),
-                "enough_evidence": len(completed) >= min_n,
+                "enough_evidence": len(items)
+                - sum(1 for _, v in items if v.category == "evidence_invalid")
+                >= min_n,
+                "latency_sample_sufficient": len(completed) >= min_n,
             }
-            if len(completed) < min_n:
+            if not row["enough_evidence"]:
                 self.inconclusive.append(
-                    f"{key}: {len(completed)} completed < min_requests_per_cell={min_n}"
+                    f"{key}: {row['offered'] - row['categories'].get('evidence_invalid', 0)} "
+                    f"trustworthy requests < min_requests_per_cell={min_n}"
                 )
             row["ttft_s"] = {
                 "n": len(ttfts),
@@ -433,6 +437,7 @@ def compare_groups(
             False,
         ),
     }
+    min_n = cfg["min_requests_per_cell"]
     out: dict[str, Any] = {"label": label, "confidence_adjusted": conf, "metrics": {}}
     for i, (name, (key, stat, min_effect, relative, higher_better)) in enumerate(metrics.items()):
         a, b = s_a.get(key, []), s_b.get(key, [])
@@ -445,6 +450,15 @@ def compare_groups(
             seed=ev_a.seed + salt + i,
         )
         baseline = stat(a) if a else None
+        if len(a) < min_n or len(b) < min_n:
+            out["metrics"][name] = {
+                "a": baseline,
+                "b": stat(b) if b else None,
+                "difference": diff,
+                "decision": "inconclusive",
+                "why": f"underpowered: n_a={len(a)}, n_b={len(b)} < min_requests_per_cell={min_n}",
+            }
+            continue
         out["metrics"][name] = {
             "a": baseline,
             "b": stat(b) if b else None,
