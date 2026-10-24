@@ -7,6 +7,7 @@ import time
 import unittest
 from argparse import Namespace
 from pathlib import Path
+from unittest import mock
 
 import httpx
 from bench.plan import load_plan
@@ -103,10 +104,14 @@ class LoopbackTests(unittest.TestCase):
                     )
                     runner._requests_fh = (Path(tmp) / "requests.jsonl").open("w", encoding="utf-8")
                     async with httpx.AsyncClient(timeout=10.0) as client:
-                        # Client/TLS initialization can exceed the scaled fault window,
-                        # particularly on Windows. Start the simulated boot after it.
+                        # Reject the first generation deterministically. An elapsed-time
+                        # fault window can expire during HTTP initialization on a busy host.
+                        readiness = iter((False, True))
                         server.started_mono = time.monotonic()
-                        await runner.startup(client, 0)
+                        with mock.patch.object(
+                            server, "inference_ready", side_effect=lambda: next(readiness, True)
+                        ):
+                            await runner.startup(client, 0)
                     runner._requests_fh.close()
                     with (Path(tmp) / "requests.jsonl").open(encoding="utf-8") as captured:
                         probes = sum(1 for _ in captured)
