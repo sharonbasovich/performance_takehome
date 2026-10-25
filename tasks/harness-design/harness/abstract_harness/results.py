@@ -283,18 +283,26 @@ def read_rows(path: Path) -> list[ResultRow]:
 def validate_file(path: Path) -> list[ResultRow]:
     """Validate the whole file including ordering rules; return the rows.
 
-    Beyond per-row checks: baseline first and only once, experiment ids unique,
+    Beyond per-row checks: one successful baseline before candidate attempts,
+    explicitly named failed baseline attempts may precede it; experiment ids unique,
     no byte-identical duplicate rows, timestamps non-decreasing.
     """
     rows = read_rows(path)
-    if rows and rows[0].outcome != "baseline":
-        raise ResultsError("first row must be the baseline")
+    baseline_seen = False
     seen_ids: set[str] = set()
     seen_lines: set[str] = set()
     previous_ts = ""
     for number, row in enumerate(rows, start=2):
-        if number > 2 and row.outcome == "baseline":
-            raise ResultsError("only the first row may be the baseline")
+        if row.outcome == "baseline":
+            if baseline_seen:
+                raise ResultsError("only one successful baseline is allowed")
+            baseline_seen = True
+        elif not baseline_seen and not (
+            (row.experiment == "baseline" or re.fullmatch(r"\d+-baseline", row.experiment))
+            and row.outcome in {"error", "interrupted"}
+            and row.kept == "0"
+        ):
+            raise ResultsError("first successful row must be the baseline")
         if row.experiment in seen_ids:
             raise ResultsError(f"{path}:{number}: duplicate experiment id {row.experiment!r}")
         seen_ids.add(row.experiment)

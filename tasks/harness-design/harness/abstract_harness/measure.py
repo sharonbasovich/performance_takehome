@@ -438,12 +438,14 @@ def ftgr_for_traces(
     """
     usable = [t for t in traces if t.ok and len(t.arrival_times_s) >= 2]
     dropped = sum(1 for t in traces if t.ok) - len(usable)
-    arrivals = [t.arrival_times_s for t in usable]
-    if not arrivals:
+    if not usable:
         return None, dropped
     try:
+        # RequestTrace stores request-relative receive times; Etalon expects
+        # TTFT followed by token-to-token intervals, not cumulative arrivals.
+        intervals = [metrics.token_intervals(t.arrival_times_s) for t in usable]
         return metrics.fluid_token_generation_rate(
-            arrivals,
+            intervals,
             max_miss_rate=float(benchmark.get("ftgr_max_miss_rate", 0.1)),
             request_quantile=float(benchmark.get("ftgr_request_quantile", 0.99)),
         ), dropped

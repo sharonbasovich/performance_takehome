@@ -10,6 +10,29 @@ Starter commit: `81aead87d78ed468c4c374fb42921471b44c3f80` (the organizer's `tak
 tag does not exist in this draft; the only upstream commit SHA is used instead and was **not**
 tagged by me). Integrity output is in the "Integrity" section below.
 
+## Final review correction: historical FTGR is invalid
+
+The review of `4887cd9` found that the measurement adapter passed cumulative
+token arrival times to Etalon's interval-based FTGR function. This can keep a
+slower decoder merely because its first token arrived earlier. The adapter now
+converts arrivals with the protected `metrics.token_intervals()` function.
+Regression tests reproduce the incorrect keep and require rejection after the fix.
+
+The original 14 rows, raw reports and patch chain below remain immutable audit
+history. Their FTGR values, FTGR speedups and resulting keep decisions are invalid
+as performance evidence; the historical narrative and tables describe what the
+old implementation recorded, not a validated improvement. No corrected replay or
+GPU result is claimed. Structural `validate-results` success cannot certify metrics.
+Any new performance claim requires fresh measurements with the corrected adapter.
+
+The same review found two restart gaps. Paid proposers now persist an unresolved
+call marker before launch, then durably record a settled cost before artifact work;
+an interruption or unknown charge blocks further calls until billing reconciliation.
+An interrupted baseline and its successful retry use distinct row/report/build-log
+identities. Results validation admits explicitly failed baseline attempts before the
+single successful baseline while still rejecting candidate attempts before it.
+The opening README invocation now explicitly selects Pi and its credential variable.
+
 ## Approach in one paragraph
 
 `harness/run.py` drives an unattended loop (`abstract_harness/loop.py`): build the baseline

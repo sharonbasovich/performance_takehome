@@ -574,7 +574,13 @@ class Harness:
                 f"{self.state.last_good.digest}"
             )
             return
+        # Keep failed baseline attempts as distinct chronological evidence. Reserve
+        # the old canonical name when unused, then use numbered retry identities.
         experiment = "baseline"
+        while results_mod.has_experiment(self.config.results_path, experiment):
+            experiment = f"{self.state.attempt_index:03d}-baseline"
+            if results_mod.has_experiment(self.config.results_path, experiment):
+                self.state.attempt_index += 1
         tag = f"{self.config.image_prefix}-{self.engine.name}:baseline"
         report_path = self._report_path(experiment)
         self.state.in_progress = InProgress(
@@ -588,7 +594,9 @@ class Harness:
             report_path=self.config.rel(report_path),
         )
         self._save()
-        log_path = self.config.state_dir / "logs" / "000-baseline.build.log"
+        log_path = (
+            self.config.state_dir / "logs" / f"{self.state.attempt_index:03d}-baseline.build.log"
+        )
         report: dict[str, Any] = {
             "experiment": experiment,
             "engine": self.engine.name,
@@ -656,6 +664,7 @@ class Harness:
                 patch_path="",
             )
             self.state.in_progress = None
+            self.state.attempt_index += 1
             self._save()
             raise
         except Exception as exc:  # noqa: BLE001 - every failure must be logged, not crash the loop
@@ -681,7 +690,7 @@ class Harness:
             raise
 
     # ------------------------------------------------------------------ attempt
-    def attempt(self, proposal: Proposal) -> str:
+    def attempt(self, proposal: Proposal, *, api_cost_accounted: bool = False) -> str:
         """Run one experiment end to end; returns the outcome string written to results.tsv."""
         assert self.state.last_good is not None
         idx = self.state.attempt_index
@@ -690,7 +699,8 @@ class Harness:
         patch_path.write_text(proposal.patch, encoding="utf-8")
         report_path = self._report_path(proposal.experiment)
         tag = f"{self.config.image_prefix}-{self.engine.name}:{experiment}"
-        self.state.api_usd_cumulative += max(0.0, proposal.api_usd)
+        if not api_cost_accounted:
+            self.state.api_usd_cumulative += max(0.0, proposal.api_usd)
         self.state.in_progress = InProgress(
             experiment,
             proposal.hypothesis,
@@ -1099,14 +1109,31 @@ class Harness:
                 if not verdict.ok:
                     self.finalize(f"budget guard: {verdict.reason}")
                     return 0
+                proposer_context = self._proposer_context(verdict)
+                paid_proposer = not isinstance(self.proposer, ScriptedProposer)
+                if paid_proposer:
+                    # Commit before the subprocess can send its first paid request.
+                    # A hard kill, signal, or unexpected exception leaves this marker
+                    # blocking every future call until billing is reconciled.
+                    self.state.api_accounting_unresolved = (
+                        f"pending proposer call at attempt {self.state.attempt_index}; "
+                        "reconcile provider billing before resuming"
+                    )
+                    self._save()
                 try:
-                    proposal = self.proposer.propose(self._proposer_context(verdict))
+                    proposal = self.proposer.propose(proposer_context)
                 except ProposerError as exc:
                     self.log(f"[harness] proposer error: {exc}")
                     self.state.api_usd_cumulative += exc.api_usd or 0.0
-                    if isinstance(exc, ProposerAccountingError):
+                    if isinstance(exc, ProposerAccountingError) or (
+                        paid_proposer and exc.api_usd is None
+                    ):
                         self.state.api_accounting_unresolved = str(exc)
-                        self._save()
+                    else:
+                        self.state.api_accounting_unresolved = ""
+                    # The settled cost and cleared marker are one durable checkpoint,
+                    # before any report/TSV write can fail or the process can die.
+                    self._save()
                     self._append_row(
                         experiment=f"{self.state.attempt_index:03d}-proposer",
                         image_digest="",
@@ -1127,9 +1154,18 @@ class Harness:
                         return 2
                     continue
                 if proposal is None:
+                    if paid_proposer:
+                        self.finalize(
+                            "API accounting unresolved; proposer returned no settled cost"
+                        )
+                        return 2
                     self.finalize("proposer exhausted")
                     return 0
-                self.attempt(proposal)
+                if paid_proposer:
+                    self.state.api_usd_cumulative += max(0.0, proposal.api_usd)
+                    self.state.api_accounting_unresolved = ""
+                    self._save()
+                self.attempt(proposal, api_cost_accounted=paid_proposer)
                 attempts += 1
         except Interrupted:
             self.finalize(f"interrupted by {self._stop_signal}")

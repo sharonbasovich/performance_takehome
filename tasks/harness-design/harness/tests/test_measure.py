@@ -11,10 +11,49 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from abstract_harness import measure
+from abstract_harness.decision import decide
 
 from . import _paths
 
 BENCHMARK = _paths.REPO_ROOT / "tasks" / "harness-design" / "harness" / "development-benchmark.json"
+
+
+class FluidRateBoundaryTest(unittest.TestCase):
+    def test_slow_decode_cannot_be_kept_for_faster_first_token(self) -> None:
+        # Before conversion at the Etalon boundary these score ~0.99 vs ~6.24,
+        # wrongly keeping a candidate with ten times slower token intervals.
+        base = measure.RequestTrace("p", True, arrival_times_s=[1.0, 1.01, 1.02])
+        candidate = measure.RequestTrace("p", True, arrival_times_s=[0.01, 0.11, 0.21])
+        base_rate, _ = measure.ftgr_for_traces([base], {})
+        candidate_rate, _ = measure.ftgr_for_traces([candidate], {})
+        self.assertIsNotNone(base_rate)
+        self.assertIsNotNone(candidate_rate)
+        self.assertGreater(base_rate, 90.0)
+        self.assertLess(candidate_rate, 11.0)
+        decision = decide(
+            {"ttft_s": {"p": [1.0] * 5}, "ftgr_tok_s": {"p": [base_rate] * 5}},
+            {"ttft_s": {"p": [0.01] * 5}, "ftgr_tok_s": {"p": [candidate_rate] * 5}},
+            gates_passed=True,
+        )
+        self.assertEqual(decision.outcome, "regressed")
+        self.assertFalse(decision.kept)
+
+    def test_first_token_offset_does_not_change_decode_rate(self) -> None:
+        rates = []
+        for offset in (0.1, 10.0):
+            trace = measure.RequestTrace(
+                "p", True, arrival_times_s=[offset, offset + 0.05, offset + 0.1]
+            )
+            rate, dropped = measure.ftgr_for_traces([trace], {})
+            self.assertEqual(dropped, 0)
+            self.assertIsNotNone(rate)
+            rates.append(rate)
+        self.assertAlmostEqual(rates[0], rates[1], places=8)
+
+    def test_invalid_arrival_order_has_no_rate(self) -> None:
+        trace = measure.RequestTrace("p", True, arrival_times_s=[0.2, 0.1])
+        rate, _ = measure.ftgr_for_traces([trace], {})
+        self.assertIsNone(rate)
 
 
 class _BrokenEngine(BaseHTTPRequestHandler):

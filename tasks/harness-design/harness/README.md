@@ -6,11 +6,14 @@ or prebuilt optimizer is supplied. The main output is an image digest, not a ben
 runs offline after submission; it is not an input to your harness. `run.py` is intentionally
 not a solved optimizer in this starter repository. All paths below are repository-root-relative.
 
-Example candidate-defined invocation:
+Example candidate-defined Pi invocation (requires the coding-provider key in
+`ANTHROPIC_API_KEY` and the installed Pi executable; see the provider setup below):
 
 ```text
 python tasks/harness-design/harness/run.py run \
   --engine llmd --model-dir /path/to/model-repo \
+  --proposer pi --pi-bin /opt/pi/node_modules/.bin/pi \
+  --pi-provider anthropic --api-key-env ANTHROPIC_API_KEY \
   --baseline baseline/lock.json \
   --development-benchmark tasks/harness-design/harness/development-benchmark.json \
   --budget-minutes 360 \
@@ -94,7 +97,8 @@ Before allocating inference/API work on a new host, run the read-only
 local Docker, resource capacity, pinned model bytes, Node/Pi artifacts and registry
 configuration, without downloading weights or making provider calls.
 
-The contract above is the organizer's draft and is kept verbatim. The implementation lives
+The contract above is the organizer's draft; its example now explicitly selects the Pi
+proposer and provider setup required by this implementation. The implementation lives
 next to it:
 
 | Path | What it is |
