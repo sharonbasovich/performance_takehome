@@ -73,5 +73,68 @@
     "compute_report": "tasks/benchmark-design/validation/timing.md (measured CPU/mock wall time) and tasks/benchmark-design/validation/dry_run_full.json (planned GPU arithmetic)",
     "gpu_hours_used": 0,
     "gpu_runs": "none: no GPU was available; every measurement is from the CPU mock"
+  },
+  "execution_revision": {
+    "revision": "2026-10-25",
+    "status": "UNMEASURED_GPU",
+    "source": {
+      "commit": "b0eba2d94230e52c75ccdde9db9b50cd02f0158e",
+      "suite_tree_sha": "6da654fe8965a9ab73707389edfb26266f8f14ba",
+      "branch": "codex/abstract-benchmark-audit",
+      "note": "Exact implementation commit verified below; the following commit adds execution metadata and proof receipts only."
+    },
+    "implementation": "Self-contained candidate recorder, frozen raw-event schema, calibration, evaluator, timing audit and bounded lifecycle/export wrapper",
+    "entrypoints": {
+      "execution_guide": "tasks/benchmark-design/EXECUTION.md",
+      "capture": "tasks/benchmark-design/suite/capture.py",
+      "runner": "tasks/benchmark-design/suite/runner/run.py",
+      "calibration": "tasks/benchmark-design/suite/bench/calibration.py",
+      "evaluator": "tasks/benchmark-design/suite/evaluate.py",
+      "independent_timing": "tasks/benchmark-design/suite/audit_timing.py",
+      "receiver_verification": "python -B tasks/benchmark-design/suite/capture.py verify-export <archive> <byte-cap>"
+    },
+    "workload": {
+      "path": "tasks/benchmark-design/suite/workload.efficient.json",
+      "sha256": "3360446ba00399278b10a65989da3545827d2c2f9b6752d34c97cd6e8e0e621a",
+      "digest_scope": "Exact committed canonical LF bytes; the raw run plan digest must match its actual file bytes",
+      "calibration_policy": "Separate complete baseline capture; freeze a new hash-bound plan before fresh scored captures; observed envelope with no extrapolation"
+    },
+    "planning_unmeasured": {
+      "calibration_minutes": 16.3,
+      "quick_minutes": 38.8,
+      "full_minutes": 145.5,
+      "sum_of_separate_modes_minutes": 200.6,
+      "full_suite_wall_ceiling_seconds": 10800,
+      "qualification": "Arithmetic only. Calibration, quick and full are separate experiments; their combined allocation consumes the controller cash/deletion envelope. Actual full-suite timing includes setup, capture, analysis, export and cleanup."
+    },
+    "validation": {
+      "report": "tasks/benchmark-design/validation/execution-revision-20261025/committed-verification.json",
+      "report_sha256": "4e930dcf70ad29f304d586cb6763e4f036414f549c129d8214e63c283405df43",
+      "full_tests_log": "tasks/benchmark-design/validation/execution-revision-20261025/full-tests.txt",
+      "full_tests_log_sha256": "65a383b0537895e25d1ca16cdfecd2f49c940a83ee345da897003b20ad5ffa01",
+      "tests_run": 158,
+      "passed": 157,
+      "skipped": 1,
+      "skip_reason": "existing opaque held-out fixture key unavailable",
+      "elapsed_s": 80.762,
+      "environment": "Fresh native Linux clone of Windows Git bundle, no source overlay; pinned Tokenizers 0.22.2 and both protected-model tokenizer snapshots",
+      "locked_ruff": "0.16.10 PASS; binary SHA-256 recorded in proof",
+      "protected_integrity": {
+        "base": "81aead87d78ed468c4c374fb42921471b44c3f80",
+        "status": "PASS"
+      },
+      "provenance_check": "tasks/benchmark-design/validation/execution-revision-20261025/manifest-provenance.json",
+      "qualification": "Candidate CPU software validation and independent JSON/hash/provenance checks; no official schema acceptance or grading result"
+    },
+    "measurement": {
+      "gpu_status": "UNMEASURED_GPU",
+      "gpu_hours_used": 0,
+      "real_target_captures": [],
+      "historical_mock_evidence_rebound_to_this_revision": false,
+      "historical_raw_fixtures_regenerated": false,
+      "required_next": "Retain real baseline calibration and independent evidence verification, freeze measured time/noise/sample-count policy, then collect fresh controls and justified full scoring data."
+    },
+    "official_result": false,
+    "official_interface_digest": "NOT_CLAIMED: candidate-defined interfaces; no organizer release digest supplied"
   }
 }
