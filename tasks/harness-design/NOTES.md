@@ -321,11 +321,12 @@ This corrects reproduction metadata only. The historical source commit
 ID, raw rows, measurement reports and timing/resource figures above are unchanged.
 No experiment was rerun for this correction.
 
-The later harness implementation at `5bbd559f1e44da5ebb0fe2ca65cdaa00c356fa83`
-passed 205/205 tests in a fresh LF Linux clone (Python 3.14.4; zero skips), locked
+The later harness implementation at `c9ccf31281cb4bcd80239c73e0fcf5fb51a1ef2b`
+passed 207/207 tests in a fresh LF Linux clone (Python 3.14.4; zero skips), locked
 Ruff 0.16.10 and protected-file integrity checks. Those checks cover promotion
 transactions, resumed queues, Docker deadlines/isolation, clock accounting,
-complete measurement populations, patch-chain metadata and nested cgroup limits.
+complete measurement populations, patch-chain metadata, nested cgroup limits and
+recursive state-directory placement (rejected before disk work or builds).
 The actual pinned Pi 1.0 CLI also passed scripted loopback tool/usage tests; no model
 inference or provider charge occurred. These implementation checks are separate
 from the historical CPU measurements and establish no MI355X/LLMD performance result.
