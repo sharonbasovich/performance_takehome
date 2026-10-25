@@ -256,12 +256,23 @@ def render_report(results: dict[str, Any]) -> str:
     )
     qa = r["quantity_adjustment"]
     add(
-        f"**Quantity factor:** {_p(qa['factor'])} — {qa['note']}. Node-sized reserved quotes are "
-        "divided by this factor so they are comparable "
-        "with the 1-GPU reference; the raw per-GPU price "
-        "is kept alongside.\n"
+        f"**Quantity factor:** {_p(qa['factor'])} — {qa['note']}. "
+        + (
+            "No quantity translation is applied. Differing quantities without supported "
+            "calibration are excluded from the comparable curve; "
+            "raw per-GPU prices remain visible.\n"
+            if qa["factor"] is None
+            else f"Supported quotes at the calibrated node size are divided by this factor to "
+            f"match the reference quantity ({ref['gpu_count']} GPU); other sizes are excluded "
+            "when no translation is supported. Raw per-GPU prices remain visible.\n"
+        )
     )
-    add("### All quotes, one row each\n")
+    add(f"### Quote table ({len(r['quotes']['rows'])} of {r['quotes']['count']} shown)\n")
+    if r["quotes"]["truncated"]:
+        add(
+            f"{r['quotes']['truncated']} quote rows are omitted from these examples; "
+            "`normalization.csv` contains the complete table.\n"
+        )
     rows = []
     for q in r["quotes"]["rows"]:
         done, why = _quote_treatment(q)
@@ -455,17 +466,16 @@ def render_report(results: dict[str, Any]) -> str:
         )
         add("")
     add("### Scarcity anchor: choice and bias\n")
+    scarcity_anchor = r["config"]["scenarios"].get("scarcity", {}).get("anchor")
+    scarcity_kind = r["config"]["anchors"].get(scarcity_anchor, {}).get("kind", "unavailable")
     add(
         "The scarcity scenario reverts toward "
-        f"{_p(curve['scenario_anchor_levels'].get('scarcity'))}, the highest valid "
-        "same-hardware ask at as-of across *all* contract classes — in this pack the "
-        "cancel-anytime single-GPU on-demand ask. That price embeds a cancellation option "
-        "and single-GPU granularity, so as an anchor for non-cancellable reserved capacity it "
-        "is biased **upward**: the scenario is deliberately a stress ('forwards re-price to "
-        "today's dearest flexible access'), not a central estimate. Reserved-class evidence "
-        "alone would give a lower anchor (the highest reserved ask) and a milder stress; the "
-        "choice is a declared config "
-        "parameter (`anchors.scarcity.kind`) and can be switched without code changes.\n"
+        f"{_p(curve['scenario_anchor_levels'].get('scarcity'))}. Selection: "
+        f"`anchors.{scarcity_anchor}.kind={scarcity_kind}`. "
+        f"{curve['scenario_anchor_notes'].get('scarcity', 'No anchor source is identified')}. "
+        "This is a declared scenario assumption. When its source includes flexible access, "
+        "cancellation options, quantity and provider differences can affect comparability "
+        "with reserved capacity; the anchor's actual source governs that interpretation.\n"
     )
     add("### Why the current on-demand asks are context, not the 1-month node\n")
     fp = xc["flexibility_premium"]
@@ -484,8 +494,12 @@ def render_report(results: dict[str, Any]) -> str:
     )
     first_node = nodes[0] if nodes else None
     add(
-        "The reference contract is non-cancellable reserved capacity. Cancel-anytime hourly asks "
-        f"({flex_text or 'none in this pack'}) embed a cancellation option and do not guarantee "
+        "The reference contract is non-cancellable reserved capacity. Displayed cancel-anytime "
+        f"hourly quote examples: {flex_text or 'none among displayed examples'}. "
+        "The current flexible ask at the reference quantity from the full input is "
+        f"{_p(xc['current_flexible_reference_ask_usd_per_gpu_hour'])} USD/GPU-hour "
+        "(n/a means no supported quote is identified). Cancel-anytime asks embed a "
+        "cancellation option and do not guarantee "
         "capacity in a future month, so they bound a one-month reservation from above rather than "
         "price it. "
         + (
@@ -578,16 +592,31 @@ def render_report(results: dict[str, Any]) -> str:
     obs_text = ", ".join(
         f"{n['delivery_month']} {_p(n['usd_per_gpu_hour_mid'])}" for n in obs_nodes
     )
+    if obs_nodes:
+        ordered = sorted(obs_nodes, key=lambda n: n["tenor_months"])
+        add(
+            f"Observed market mids: {obs_text}. Full-cost breakeven is "
+            f"{_p(cost['breakeven_usd_per_gpu_hour'])} at declared "
+            f"{cost['utilization']:.0%} utilization; the cheap-compute anchor is "
+            f"{_p(curve['scenario_anchor_levels']['cheap_compute'])}.\n"
+        )
+        if len(ordered) >= 2:
+            change = ordered[-1]["usd_per_gpu_hour_mid"] - ordered[0]["usd_per_gpu_hour_mid"]
+            direction = "rises" if change > 0 else "falls" if change < 0 else "is unchanged"
+            add(
+                f"The first-to-last observed mid {direction} from "
+                f"{_p(ordered[0]['usd_per_gpu_hour_mid'])} ({ordered[0]['delivery_month']}) to "
+                f"{_p(ordered[-1]['usd_per_gpu_hour_mid'])} ({ordered[-1]['delivery_month']}); "
+                "intermediate observations may vary.\n"
+            )
+    else:
+        add(
+            "No requested curve tenor is directly observed; these nodes do not identify "
+            "an observed market-to-cost gap or slope.\n"
+        )
     add(
-        f"The observed market nodes ({obs_text}) "
-        "sit well above the full-cost breakeven "
-        f"{_p(cost['breakeven_usd_per_gpu_hour'])} at the operator's "
-        f"declared {cost['utilization']:.0%} utilization, "
-        "and above even the breakeven of a fully utilized "
-        f"reserved GPU ({_p(curve['scenario_anchor_levels']['cheap_compute'])}). "
-        "The near curve slopes down "
-        "toward cost, which is why the model reverts toward "
-        "it rather than extrapolating the slope.\n\n"
+        "Reversion toward the configured anchor is a modeling choice, independent of an "
+        "assumed direction for the observed slope.\n\n"
         "**Why they disagree, and why cost is neither a "
         "floor nor a cap.** Capacity is not storable, so "
         "there is no cash-and-carry arbitrage tying forward "

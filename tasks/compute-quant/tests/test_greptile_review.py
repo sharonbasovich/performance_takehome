@@ -10,6 +10,60 @@ from .support import CaseBuilder, quote_row, run_cli, run_demo
 
 
 class GreptileReviewTests(unittest.TestCase):
+    def test_market_cost_memo_handles_cheap_rising_quotes(self):
+        result = (
+            CaseBuilder(self)
+            .set("q04", price="2")
+            .set("q05", price="2.9")
+            .set("q06", price="2.8")
+            .run()
+        )
+        observed = [
+            n["usd_per_gpu_hour_mid"] for n in result["curve"]["nodes"] if n["status"] == "observed"
+        ]
+        self.assertEqual(observed, [1.85, 2.85])
+        self.assertGreater(
+            result["supply_cost"]["base"]["breakeven_usd_per_gpu_hour"], max(observed)
+        )
+        report = render_report(result)
+        self.assertFalse("sit well above the full-cost breakeven" in report)
+        self.assertFalse("The near curve slopes down" in report)
+        self.assertTrue("first-to-last observed mid rises" in report)
+
+    def test_fixed_scarcity_anchor_memo_uses_its_actual_source(self):
+        config = load_config(None)
+        config["anchors"]["scarcity"] = {"kind": "fixed", "usd_per_gpu_hour": 9}
+        result = CaseBuilder(self).run(config)
+        self.assertEqual(
+            result["curve"]["scenario_anchor_notes"]["scarcity"], "fixed anchor 9.0000"
+        )
+        report = render_report(result)
+        self.assertTrue("fixed anchor 9.0000" in report)
+        self.assertFalse("in this pack the cancel-anytime single-GPU on-demand ask" in report)
+        self.assertFalse("Reserved-class evidence alone would give a lower anchor" in report)
+
+    def test_capped_quote_examples_do_not_claim_flexible_evidence_is_absent(self):
+        builder = CaseBuilder(self)
+        builder.quotes.sort(key=lambda q: q["id"] != "q04")
+        config = load_config(None)
+        config["output"] = {"max_quote_rows_in_valuation_json": 1}
+        result = builder.run(config)
+        self.assertEqual([q["id"] for q in result["quotes"]["rows"]], ["q04"])
+        self.assertEqual(
+            result["cross_checks"]["current_flexible_reference_ask_usd_per_gpu_hour"], 5.2
+        )
+        report = render_report(json.loads(render_json(result)))
+        self.assertFalse("none in this pack" in report)
+        self.assertTrue("none among displayed examples" in report)
+        self.assertTrue("1 of 11 shown" in report)
+
+    def test_missing_quantity_factor_memo_does_not_claim_a_translation(self):
+        result = CaseBuilder(self).drop("q02").run()
+        self.assertIsNone(result["quantity_adjustment"]["factor"])
+        report = render_report(result)
+        self.assertFalse("Node-sized reserved quotes are divided by this factor" in report)
+        self.assertTrue("No quantity translation is applied" in report)
+
     def test_missing_usage_writes_finite_outputs_and_report(self):
         builder = CaseBuilder(self)
         builder.case["reservation"].pop("expected_buyer_used_fraction")
