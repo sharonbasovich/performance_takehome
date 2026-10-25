@@ -39,7 +39,7 @@ A curve node prices capacity reserved for the whole delivery month, paid at mont
 | quotes | `tasks/compute-quant/data/demo-quotes.csv` | `558ff39df4ec4bd8b8683bc053f26b12243883b3cee2948bff25423cdbbcd91f` | 2410 |
 | performance | `tasks/compute-quant/data/demo-performance.csv` | `794e22b2dbc398e8ef2baa1aeddb02d04d7df51bbb6247243644f978f1111933` | 366 |
 
-Input-pack digest (sha256 over sorted '<role>:<sha256>\n' lines (candidate-defined)): `63ece891d056ae2bd28480b9894279b65b3a91dcd1e2451dffc31e0e162a6daa`. The organizer has not published a digest definition; `submission.json` records this one until the real one exists.
+Input-pack digest (sha256 over sorted '<role>:<sha256>\n' lines (candidate-defined)): `63ece891d056ae2bd28480b9894279b65b3a91dcd1e2451dffc31e0e162a6daa`. The organizer has not published a digest definition; `submission.json` records this candidate-defined convention for this self-contained synthetic exercise; no official digest standard is implied.
 
 ### Classification rules
 
@@ -103,7 +103,7 @@ currency → unit (`gpu_hour` as is; `node_hour` ÷ GPUs; `node_month` ÷ GPUs �
 
 ### Method
 
-1. **Observed nodes.** A two-sided tenor uses the mid as the point and the bid–ask as the interval. A one-sided tenor keeps the quoted side as one interval edge and estimates the other with max(15% of the quote, widest observed two-sided spread = 0.5000). A one-sided quote is an interval edge, not a mid; the anchor table shows which sides are actually present in this case.
+1. **Observed nodes.** A two-sided tenor uses the mid as the point and the bid–ask as the interval. A one-sided tenor keeps the quoted side as one interval edge and estimates the other with max(15% of the quote, widest observed two-sided spread = 0.5000). A one-sided quote is an interval edge, not a mid; the anchor table shows which sides are actually present in this case. `OBSERVED` identifies the quote evidence, not a directly observed midpoint: a one-sided node's midpoint is estimated.
 2. **Implied nodes.** Linear interpolation between bracketing anchors, or anchors built only from quantity-adjusted / strip quotes (the classification follows the evidence in the anchor table).
 3. **Modeled / forecast nodes.** Beyond the last anchor the mid follows `F(t) = A + (F_L − A)·exp(−κ·(t − t_L))` toward the base anchor A = full-cost breakeven 2.9878 (supply-cost view below). κ = 0.1010/month, fitted-least-squares-log-deviation on observed forward tenors [1, 3]. Nodes within 6 months of the last anchor are MODELED; further out they are FORECAST (judgmental).
 4. **Bands.** The interval beyond the last anchor is the union over the three scenario anchors and κ ∈ [0.0, 0.3] (so it always contains the flat extension of the last anchor interval and the fast reversion to each anchor), plus a random-walk band of 0.08·√(months)·(anchor high). The band depends only on anchor intervals and declared parameters, never on the fitted κ. The demo's individual forward-quote removals widen these bands, but this is **not a universal removal invariant**: removing quantity-pair evidence or the last anchor can change the price scale, scenarios, and node identification. Widths can then narrow despite weaker evidence; these judgmental scenario ranges are not statistical confidence intervals. A node-sized quote with no supported quantity translation is excluded rather than promoted to direct evidence.
@@ -164,7 +164,7 @@ The first-to-last observed mid falls from 4.5325 (2026-11) to 4.2500 (2027-01); 
 
 Reversion toward the configured anchor is a modeling choice, independent of an assumed direction for the observed slope.
 
-**Why they disagree, and why cost is neither a floor nor a cap.** Capacity is not storable, so there is no cash-and-carry arbitrage tying forward prices to cost. In oversupply the relevant floor is the short-run marginal cost (0.4100): capex is sunk and an operator keeps renting below full cost rather than idle. In scarcity prices exceed full cost for as long as new supply (lead times, power, financing) takes to arrive. Full cost is only where entry and exit decisions balance over the economic life — a long-run attractor, so we use it as a soft anchor with a fitted reversion speed and explicit bands, not as a bound.
+**Why they disagree, and why cost is neither a floor nor a cap.** Capacity is not storable, so there is no cash-and-carry arbitrage tying forward prices to cost. In oversupply the short-run marginal cost (0.4100) is an operating reference, not a guaranteed market-price floor: capex is sunk and an operator may rent below full cost. In scarcity prices can exceed full cost for as long as new supply (lead times, power, financing) takes to arrive. Full cost is only where entry and exit decisions balance over the economic life — a long-run attractor, so we use it as a soft anchor with a fitted reversion speed and explicit bands, not as a bound.
 
 ### Cross-checks (never curve inputs)
 
@@ -273,7 +273,7 @@ Valuation assumptions:
 
 **Evidence that would reduce uncertainty.** Firm two-sided quotes for requested delivery months not directly observed (2027-04, 2027-10), and for modeled reservation months; a second provider's reserved quote at the same quantity; archived bid/ask time series to estimate κ and the band volatility instead of declaring them; the provider's credit profile; and actual SLA attainment history.
 
-**Falsifiable checks.** New firm quotes outside a modeled interval challenge its scenario assumptions; if firm long-tenor quotes print below the full-utilization breakeven, the cheap scenario is too mild; if cancellable on-demand prints below reserved capacity at the same quantity, the flexibility-premium reading is wrong.
+**Falsifiable checks.** New firm quotes outside a modeled interval challenge its scenario assumptions; if firm long-tenor quotes print below the full-utilization breakeven, the cheap scenario needs a lower-price stress. A cancellable quote below a matched non-cancellable current-month quote challenges the measured flexibility-premium reading only when hardware, quantity, delivery window, service and payment terms match. A current flexible price below a future reservation price is not that test.
 
 ## Limitations
 
@@ -286,18 +286,20 @@ Valuation assumptions:
 - Energy is charged per allocated hour at full draw; idle draw and the case's 'includes_energy' nuance for quoted prices are not modeled separately.
 - One-sided anchor tenors [0, 1] have estimated opposite sides; requested delivery months not directly observed are ['2027-04', '2027-10']. The decision and interval must be read from this case's valuation, not a fixed demo conclusion.
 
-## Organizer-supplied vs candidate-built vs still missing
+## Supplied inputs and candidate-defined interfaces
 
-| Piece | Organizer-supplied | Candidate-built stand-in | Still missing |
+This is a complete engineering exercise against the supplied synthetic pack. The declarations below separate supplied material from our reproducible choices; unavailable organizer interfaces are limitations, not prerequisites for running it.
+
+| Piece | Organizer-supplied | Candidate-defined | Interpretation / limit |
 | --- | --- | --- | --- |
-| Input pack | `data/demo-case.json`, `demo-quotes.csv`, `demo-performance.csv`, `data/README.md` (synthetic) | — | frozen, licensed, dated evidence pack with source documents |
-| Input schema | `schema_version` 1 fields in `data/README.md` | optional `fee_usd_per_gpu_hour`, `one_time_fee_usd` columns and `fx_rates_to_usd` (documented in `research/README.md`) | organizer confirmation of extensions; frozen validation commands |
-| Input-pack digest | placeholder in `submission.example.json` | deterministic sha256 over per-file digests (`loader.py`) | organizer definition |
-| Output schema | artifact names only | `curve.csv` columns, `valuation.json`/`run-manifest.json`/`normalization.csv` with `schema_version` | organizer schema, if any |
-| Model parameters | economic assumptions in the case | `research/config/default.json` (declared, versioned) | calibration data |
-| Held-out perturbations | described in the rubric | `standins/perturbations/` fixtures exercised by the tests | the organizer's actual perturbations |
-| Starter tag | commit only, no `takehome-start` tag | integrity check run against the commit SHA | the tag |
-| Receipts / profile digests | — | `UNAVAILABLE_IN_DRAFT` literals in `submission.json` | organizer receipts |
+| Input pack | `data/demo-case.json`, `demo-quotes.csv`, `demo-performance.csv`, `data/README.md` (synthetic) | — | Complete for this synthetic exercise; cannot establish real market FV |
+| Input schema | `schema_version` 1 fields in `data/README.md` | optional `fee_usd_per_gpu_hour`, `one_time_fee_usd` columns and `fx_rates_to_usd` (documented in `research/README.md`) | Optional extensions are declared, not organizer-certified |
+| Input-pack digest | placeholder in `submission.example.json` | deterministic sha256 over per-file digests (`loader.py`) | Candidate convention; no official digest standard is claimed |
+| Output schema | artifact names only | `curve.csv` columns, `valuation.json`/`run-manifest.json`/`normalization.csv` with `schema_version` | Versioned schemas documented in `research/README.md` |
+| Model parameters | economic assumptions in the case | `research/config/default.json` (declared, versioned) | Judgmental parameters; scenarios/sensitivities expose the resulting risk |
+| Held-out perturbations | described in the rubric | `standins/perturbations/` fixtures exercised by the tests | Development fixtures only; no official held-out result is claimed |
+| Starter tag | commit only, no `takehome-start` tag | integrity check run against the commit SHA | Recorded starter SHA is used; no release tag is invented |
+| Receipts / profile digests | — | `UNAVAILABLE_IN_DRAFT` literals in `submission.json` | No official receipt or grading result is claimed |
 
 ## Issues found in supplied infrastructure
 

@@ -1,18 +1,17 @@
 {
   "schema_version": 1,
   "task": "compute-quant",
-  "status": "draft-synthetic-inputs-verified-local",
+  "status": "complete-synthetic-reproduced-and-independently-audited",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "commit": "a7e7027e05156b8680d75f5db2b10cba61f8a411",
-    "commit_note": "Committed source verified after the first Greptile review. The separate artifact commit regenerates evidence without changing this research tree. No official organizer submission has been made.",
-    "research_tree_sha": "0334b0103670d6a5f195ae632b1d369a1ee5232b",
+    "commit": "fef4a2f91faab65665578db44eb56fccd714f14b",
+    "commit_note": "Clean committed source used for final synthetic reproduction and independent audit. A later artifact commit records generated outputs without changing this research tree.",
+    "research_tree_sha": "42c02f2868f7abc104836d58800684c79f197bb3",
     "branch": "codex/abstract-quant-audit",
     "pull_request": "https://github.com/sharonbasovich/performance_takehome/pull/1",
-    "source_sha256": "8b9c5cdca806489ead81f27ae8154f2d6582db8f327dd40db9ebbc7d1297a554",
+    "source_sha256": "5f4ff3df99524ab9e35bf711a4ec5dcb84a3052a2ff8c6efc9313ceafa36b71e",
     "source_bytes": "canonical LF checkout of the recorded Git commit",
-    "working_tree_dirty": false,
-    "verified_archive": "output/abstract-audit/quant-context-verified-lf.zip"
+    "working_tree_dirty": false
   },
   "inputs": {
     "case": "tasks/compute-quant/data/demo-case.json",
@@ -38,12 +37,15 @@
     "curve": "tasks/compute-quant/curve.csv",
     "reservation_valuation": "tasks/compute-quant/valuation.json",
     "tests": "tasks/compute-quant/tests/",
-    "test_command": "python -m unittest discover -s tasks/compute-quant/tests -t tasks/compute-quant -v"
+    "test_command": "python -m unittest discover -s tasks/compute-quant/tests -t tasks/compute-quant -v",
+    "delivery_guide": "tasks/compute-quant/DELIVERY.md",
+    "independent_check": "tasks/compute-quant/audit/independent_cashflows.py",
+    "independent_check_command": "python -B tasks/compute-quant/audit/independent_cashflows.py"
   },
   "integrity": {
     "starter_commit": "81aead87d78ed468c4c374fb42921471b44c3f80",
     "starter_tag": "UNAVAILABLE_IN_DRAFT: the organizer has not created a takehome-start tag; the only upstream commit SHA was used instead",
     "command": "python -B -m tools.check_integrity --base 81aead87d78ed468c4c374fb42921471b44c3f80"
   },
-  "organizer_receipt": "UNAVAILABLE_IN_DRAFT: no private submission channel or receipt exists for Task 3 in this draft"
+  "organizer_receipt": "NOT_CLAIMED: self-contained synthetic engineering exercise; no official submission receipt or grading result."
 }

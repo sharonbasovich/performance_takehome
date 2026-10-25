@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "task": "compute-quant",
-  "generated_at": "2026-10-25T07:24:59Z",
+  "generated_at": "2026-10-25T20:04:49Z",
   "generated_at_source": "SOURCE_DATE_EPOCH",
   "code": {
     "package": "tasks/compute-quant/research",
     "version": "1.0.0",
-    "source_sha256": "8b9c5cdca806489ead81f27ae8154f2d6582db8f327dd40db9ebbc7d1297a554",
-    "git_commit": "a7e7027e05156b8680d75f5db2b10cba61f8a411",
+    "source_sha256": "5f4ff3df99524ab9e35bf711a4ec5dcb84a3052a2ff8c6efc9313ceafa36b71e",
+    "git_commit": "fef4a2f91faab65665578db44eb56fccd714f14b",
     "git_commit_note": "HEAD when generated; git_tree_research is the committed HEAD tree only. If research_working_tree_dirty is true, source_sha256 identifies the actual uncommitted code and the HEAD tree is not its source identity.",
-    "git_tree_research": "0334b0103670d6a5f195ae632b1d369a1ee5232b",
+    "git_tree_research": "42c02f2868f7abc104836d58800684c79f197bb3",
     "research_working_tree_dirty": false
   },
   "python": {
@@ -20,9 +20,9 @@
     "--case",
     "tasks/compute-quant/data/demo-case.json",
     "--out",
-    "tasks/compute-quant/",
+    "/var/tmp/abstract-quant-final-20261025-outputs",
     "--report",
-    "tasks/compute-quant/REPORT.md"
+    "/var/tmp/abstract-quant-final-20261025-outputs/REPORT.md"
   ],
   "case": "tasks/compute-quant/data/demo-case.json",
   "config": "research/config/default.json",
