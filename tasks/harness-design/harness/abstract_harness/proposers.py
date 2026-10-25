@@ -413,6 +413,9 @@ class PiProposer(Proposer):
                 "PI_CODING_AGENT_DIR": str(self.config.agent_dir),
                 "PI_SKIP_VERSION_CHECK": "1",
                 "PI_TELEMETRY": "0",
+                # Pi offline mode freezes startup catalog/extension network work;
+                # it still permits requests to the configured coding-model provider.
+                "PI_OFFLINE": "1",
                 **self.config.extra_env,
             },
             keep=(self.config.api_key_env,),

@@ -174,6 +174,7 @@ class PiProposerTest(unittest.TestCase):
             "OTHER_API_KEY": "leak",
             "GITHUB_TOKEN": "leak",
             "AWS_SECRET_ACCESS_KEY": "leak",
+            "PI_OFFLINE": "0",
         }
         with mock.patch.dict(os.environ, fake, clear=True):
             env = self.proposer.build_env()
@@ -182,6 +183,7 @@ class PiProposerTest(unittest.TestCase):
             self.assertNotIn(leaked, env)
         self.assertEqual(env["PI_CODING_AGENT_DIR"], str(self.cfg.agent_dir))
         self.assertTrue(env["PI_CODING_AGENT_DIR"].startswith(self.tmp.name))
+        self.assertEqual(env["PI_OFFLINE"], "1")
 
     def test_propose_without_key_fails_fast_and_offline(self) -> None:
         with mock.patch.dict(os.environ, {"PATH": "/usr/bin"}, clear=True):
