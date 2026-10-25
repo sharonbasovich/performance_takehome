@@ -222,7 +222,8 @@ def render_report(results: dict[str, Any]) -> str:
         f"Input-pack digest ({r['inputs']['input_pack_digest_definition']}): "
         f"`{r['inputs']['input_pack_digest']}`. The "
         "organizer has not published a digest definition; "
-        "`submission.json` records this one until the real one exists.\n"
+        "`submission.json` records this candidate-defined convention for this self-contained "
+        "synthetic exercise; no official digest standard is implied.\n"
     )
     add("### Classification rules\n")
     add(
@@ -393,7 +394,8 @@ def render_report(results: dict[str, Any]) -> str:
         "of the quote, widest observed two-sided spread "
         f"= {_p(curve['reference_two_sided_spread'])}). "
         "A one-sided quote is an interval edge, not a mid; the anchor table shows "
-        "which sides are actually present in this case.\n"
+        "which sides are actually present in this case. `OBSERVED` identifies the quote "
+        "evidence, not a directly observed midpoint: a one-sided node's midpoint is estimated.\n"
         "2. **Implied nodes.** Linear interpolation between "
         "bracketing anchors, or anchors built only "
         "from quantity-adjusted / strip quotes (the "
@@ -621,11 +623,10 @@ def render_report(results: dict[str, Any]) -> str:
         "**Why they disagree, and why cost is neither a "
         "floor nor a cap.** Capacity is not storable, so "
         "there is no cash-and-carry arbitrage tying forward "
-        "prices to cost. In oversupply the relevant "
-        "floor is the short-run marginal cost "
-        f"({_p(cost['short_run_marginal_cost_usd'])}): capex is sunk and "
-        "an operator keeps renting below full cost rather "
-        "than idle. In scarcity prices exceed full cost "
+        "prices to cost. In oversupply the short-run marginal cost "
+        f"({_p(cost['short_run_marginal_cost_usd'])}) is an operating reference, not a "
+        "guaranteed market-price floor: capex is sunk and an operator may rent below full "
+        "cost. In scarcity prices can exceed full cost "
         "for as long as new supply (lead times, power, "
         "financing) takes to arrive. Full cost is only "
         "where entry and exit decisions balance over the "
@@ -992,10 +993,11 @@ def render_report(results: dict[str, Any]) -> str:
         "profile; and actual SLA attainment history.\n\n"
         "**Falsifiable checks.** New firm quotes outside a modeled interval challenge its "
         "scenario assumptions; if firm long-tenor quotes print "
-        "below the full-utilization breakeven, the cheap "
-        "scenario is too mild; if cancellable on-demand prints "
-        "below reserved capacity at the same quantity, "
-        "the flexibility-premium reading is wrong.\n"
+        "below the full-utilization breakeven, the cheap scenario needs a lower-price stress. "
+        "A cancellable quote below a matched non-cancellable current-month quote challenges "
+        "the measured flexibility-premium reading only when hardware, quantity, delivery "
+        "window, service and payment terms match. A current flexible price below a future "
+        "reservation price is not that test.\n"
     )
 
     # ---- Limitations
@@ -1025,62 +1027,67 @@ def render_report(results: dict[str, Any]) -> str:
         "and interval must be read from this case's valuation, not a fixed demo conclusion.\n"
     )
 
-    # ---- Gap table
-    add("## Organizer-supplied vs candidate-built vs still missing\n")
+    # ---- Interface declarations
+    add("## Supplied inputs and candidate-defined interfaces\n")
+    add(
+        "This is a complete engineering exercise against the supplied synthetic pack. "
+        "The declarations below separate supplied material from our reproducible choices; "
+        "unavailable organizer interfaces are limitations, not prerequisites for running it.\n"
+    )
     add(
         _table(
-            ["Piece", "Organizer-supplied", "Candidate-built stand-in", "Still missing"],
+            ["Piece", "Organizer-supplied", "Candidate-defined", "Interpretation / limit"],
             [
                 [
                     "Input pack",
                     "`data/demo-case.json`, `demo-quotes.csv`, "
                     "`demo-performance.csv`, `data/README.md` (synthetic)",
                     "—",
-                    "frozen, licensed, dated evidence pack with source documents",
+                    "Complete for this synthetic exercise; cannot establish real market FV",
                 ],
                 [
                     "Input schema",
                     "`schema_version` 1 fields in `data/README.md`",
                     "optional `fee_usd_per_gpu_hour`, `one_time_fee_usd` columns "
                     "and `fx_rates_to_usd` (documented in `research/README.md`)",
-                    "organizer confirmation of extensions; frozen validation commands",
+                    "Optional extensions are declared, not organizer-certified",
                 ],
                 [
                     "Input-pack digest",
                     "placeholder in `submission.example.json`",
                     "deterministic sha256 over per-file digests (`loader.py`)",
-                    "organizer definition",
+                    "Candidate convention; no official digest standard is claimed",
                 ],
                 [
                     "Output schema",
                     "artifact names only",
                     "`curve.csv` columns, `valuation.json`/`run-manifest.json`/`normalization.csv` "
                     "with `schema_version`",
-                    "organizer schema, if any",
+                    "Versioned schemas documented in `research/README.md`",
                 ],
                 [
                     "Model parameters",
                     "economic assumptions in the case",
                     "`research/config/default.json` (declared, versioned)",
-                    "calibration data",
+                    "Judgmental parameters; scenarios/sensitivities expose the resulting risk",
                 ],
                 [
                     "Held-out perturbations",
                     "described in the rubric",
                     "`standins/perturbations/` fixtures exercised by the tests",
-                    "the organizer's actual perturbations",
+                    "Development fixtures only; no official held-out result is claimed",
                 ],
                 [
                     "Starter tag",
                     "commit only, no `takehome-start` tag",
                     "integrity check run against the commit SHA",
-                    "the tag",
+                    "Recorded starter SHA is used; no release tag is invented",
                 ],
                 [
                     "Receipts / profile digests",
                     "—",
                     "`UNAVAILABLE_IN_DRAFT` literals in `submission.json`",
-                    "organizer receipts",
+                    "No official receipt or grading result is claimed",
                 ],
             ],
         )
