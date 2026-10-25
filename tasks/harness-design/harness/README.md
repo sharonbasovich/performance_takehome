@@ -167,6 +167,29 @@ same command resumes from `state.json`.
 uv run --frozen python -m unittest discover -s tasks/harness-design/harness/tests -t tasks/harness-design/harness -v
 ```
 
+To check the **actual pinned Pi CLI**, rather than the test suite's fake Pi executable,
+use the optional protocol smoke below on Linux with Node >=22.19.0. Install Pi into a
+separate directory and verify its archive integrity against `agent-harness/profiles.json`;
+retain the resolved package lock. The script checks Pi's reported version before running.
+
+```sh
+npm install --prefix /tmp/abstract-pi-smoke --ignore-scripts --no-audit --no-fund \
+  --save-exact @earendil-works/pi-coding-agent@1.0.0
+uv run --frozen python tasks/harness-design/harness/pi_protocol_smoke.py \
+  --node /path/to/node \
+  --pi-cli /tmp/abstract-pi-smoke/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js \
+  --out /tmp/abstract-pi-protocol-evidence
+```
+
+The output directory must be new. A deterministic loopback HTTP fixture supplies two
+scripted responses; Pi's real `write` tool changes a scratch Dockerfile, and the production
+adapter must recover the diff and terminal usage events. It asserts the exact stock tool
+set and that the original context is unchanged. A fresh agent directory and startup
+offline mode prevent personal configuration/catalog loading. No inference model,
+credentials, GPU or Docker run is used. The reported $0.00072 is fixture usage arithmetic;
+actual provider spend is zero. This validates the CLI/tool/event interface, not a coding
+model's optimization ability or the real provider's billing behavior.
+
 ## Validate the log
 
 ```sh
