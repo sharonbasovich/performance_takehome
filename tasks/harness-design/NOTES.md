@@ -358,3 +358,21 @@ These code checks preserve the historical 14 measurements, source/input identiti
 image config IDs and kept-patch chain 001 → 013 described above. They add no target
 performance measurements or published registry manifest digest. The earlier
 207-test packet remains a frozen historical artifact.
+
+## Remote regression merge and committed-source verification
+
+Merge `749438ffec910b07129feb545fae0b592bfd0918` retains remote commit
+`d508ea05cdd617087d8a62217b4a9afcc22404e6`, including its fake-Pi binary mode
+and real-subprocess regression test. The broader output-recovery cost handling
+and exact saved-container cleanup remain intact.
+
+A fresh, clean LF Linux checkout of that committed merge passed **219/219 tests,
+zero skips, in 22.514 seconds** on Python 3.14.4. The remote subprocess regression
+also passed separately. Ruff 0.16.10 and protected-file integrity passed. The Pi
+adapter implementation is unchanged from the source used for the zero-spend
+separated-credential gateway fixture above. Re-review of the merged head is pending.
+
+The 218-test receipts and earlier packet remain historical. The merge changes
+neither the 14 historical measurements and their source/input identities nor the
+ordered kept-patch chain 001 → 013. Target GPU validation and the final registry
+manifest digest remain outstanding.
