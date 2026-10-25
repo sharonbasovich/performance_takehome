@@ -389,3 +389,21 @@ passed separately. Ruff 0.16.10 and protected-file integrity passed. The product
 harness module tree is unchanged from `c61748a`, including the Pi adapter tested
 by the earlier zero-spend gateway fixture. The 218/219-test receipts and all
 historical measurements remain unchanged. Re-review of the new head is pending.
+
+## Healthy GPU preflight producer correction
+
+An independent producer/consumer check found that the GPU inventory's `name`
+evidence collided with `Report.add`'s first parameter. A healthy GPU observation
+therefore raised `TypeError` and became a failed preflight. The parameter is now
+`check_name`; the public `evidence.name` field remains unchanged. A regression
+uses fake sysfs/devices and actual report production for both ROCm-SMI and the
+AMD-SMI fallback, including the subsequent driver check.
+
+Committed source `bed51c38c81afe79fd6041cbc6eed430c3a03749` passed **221/221 tests,
+zero skips, in 20.073 seconds** in a fresh native Linux checkout on Python 3.14.4.
+Ruff 0.16.10, protected-file integrity and validation of all 14 historical rows
+passed. The checkout preserves committed bytes, including the protected third-party
+CRLF notice; harness Python source is LF. The earlier remote fixes remain ancestors.
+These are local software checks with simulated GPU inventory, not target inference.
+Historical measurements and earlier frozen packets remain unchanged. Review of
+the new head is pending.
