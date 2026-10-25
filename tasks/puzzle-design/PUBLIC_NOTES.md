@@ -13,8 +13,15 @@ No official Astra profile, authoritative organizer clock or private receipt was 
 - Complete bundle frozen: 2026-10-24 19:01:17 UTC, **932 seconds / 15 minutes 32 seconds**.
 - Local deadline: 2026-10-24 19:05:45 UTC.
 - Transport receipt finalized at 19:02:14 UTC, also before the deadline.
-- Statement: 2,826 bytes; SHA-256
+- Frozen ZIP statement (CRLF line endings): 2,826 bytes; SHA-256
   `e364a36b193fbb0e3e5d241c0f9eb539a0012cc606091e09569abb2c5a526df1`.
+- Public Git blob `puzzle.md` (LF line endings): 2,777 bytes; SHA-256
+  `8eb9bd6005ef4a46711983b1a255d64945f9bff9e4a36f1be93ed35b9d479d7e`.
+  Git's line-ending normalization removes the 49 carriage returns; normalizing the
+  frozen statement from CRLF to LF gives exactly this public blob. A Windows checkout
+  may restore CRLF. Use the frozen ZIP bytes for the authoring receipt and the Git blob
+  bytes for a public-file hash check. The statement text, frozen ZIP and timed receipt
+  have not been changed.
 - Known answer: 8,036 bytes. Any valid strategy/equivalent leaf ordering is accepted.
 - Complete private bundle: 109,702 uncompressed bytes / 19,346 ZIP bytes; both fit 256 KiB.
 - ZIP: `codex-fresh-attempt.zip`; SHA-256
