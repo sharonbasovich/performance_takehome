@@ -337,7 +337,10 @@ class Runner:
         for event in events:
             try:
                 decoded = decode_payload(event["raw"])
-            except StreamProtocolError as exc:
+            except (ValueError, RecursionError) as exc:
+                # JSON's bounded integer conversion and nesting limits can fail
+                # before the shared codec wraps a JSONDecodeError. Keep the raw
+                # event and classify the server request without aborting the run.
                 error = error or {"kind": "protocol", "message": str(exc)}
                 continue
             if decoded is None:

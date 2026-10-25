@@ -8,6 +8,7 @@ from pathlib import Path
 import httpx
 from audit_timing import audit
 from bench.calibration import CalibrationError, calibrate
+from bench.gates import judge
 from bench.plan import plan_digest
 from bench.prompts import make_prompt
 from bench.records import Evidence, RequestRecord, RunRecord
@@ -55,7 +56,10 @@ class CompleteCalibrationTests(unittest.TestCase):
 
 class MalformedStreamAuditTests(unittest.IsolatedAsyncioTestCase):
     async def record(self, payload):
-        body = ("data: " + json.dumps(payload) + "\n\ndata: [DONE]\n\n").encode()
+        return await self.record_raw(json.dumps(payload))
+
+    async def record_raw(self, raw):
+        body = ("data: " + raw + "\n\ndata: [DONE]\n\n").encode()
 
         class Bytes(httpx.AsyncByteStream):
             async def __aiter__(self):
@@ -114,6 +118,53 @@ class MalformedStreamAuditTests(unittest.IsolatedAsyncioTestCase):
             )
         )
         self.assertEqual(result["status"], "PASS", result["failures"])
+
+    async def test_error_envelope_never_contributes_valid_looking_text_or_finish(self):
+        for error in (None, {}, {"message": "failed"}):
+            with self.subTest(error=error):
+                record = await self.record(
+                    {
+                        "error": error,
+                        "choices": [{"delta": {"content": "discarded"}, "finish_reason": "stop"}],
+                    }
+                )
+                self.assertEqual(record["error"]["kind"], "protocol")
+                self.assertEqual(record["text"]["content"], "")
+                self.assertIsNone(record["finish_reason"])
+                result = audit(
+                    Evidence(
+                        Path("."),
+                        RunRecord(make_run([record])),
+                        [RequestRecord(record)],
+                        [],
+                        "native",
+                    )
+                )
+                self.assertEqual(result["status"], "PASS", result["failures"])
+                self.assertEqual(result["requests"][0]["protocol_faults"], 1)
+
+    async def test_bounded_json_parser_limits_preserve_failed_request_evidence(self):
+        payloads = [
+            '{"nested":' + "[" * 10000 + "0" + "]" * 10000 + "}",
+            '{"unused_integer":' + "9" * 5000 + "}",
+        ]
+        for raw in payloads:
+            with self.subTest(bytes=len(raw)):
+                record = await self.record_raw(raw)
+                self.assertEqual(record["error"]["kind"], "protocol")
+                self.assertEqual(record["events"][0]["raw"], raw)
+                self.assertEqual(judge(record, plan(), []).category, "failed")
+                result = audit(
+                    Evidence(
+                        Path("."),
+                        RunRecord(make_run([record])),
+                        [RequestRecord(record)],
+                        [],
+                        "native",
+                    )
+                )
+                self.assertEqual(result["status"], "PASS", result["failures"])
+                self.assertEqual(result["requests"][0]["protocol_faults"], 1)
 
 
 if __name__ == "__main__":

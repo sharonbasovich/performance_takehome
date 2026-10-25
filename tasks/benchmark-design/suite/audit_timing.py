@@ -74,6 +74,8 @@ def audit(evidence: Evidence) -> dict[str, Any]:
                 payload = json.loads(event["raw"])
                 if not isinstance(payload, dict):
                     raise ValueError("payload is not an object")
+                if "error" in payload:
+                    raise ValueError("server error envelope")
                 choices = payload.get("choices", [])
                 if not isinstance(choices, list) or len(choices) > 1:
                     raise ValueError("expected at most one streaming choice")
@@ -100,7 +102,7 @@ def audit(evidence: Evidence) -> dict[str, Any]:
                             first = t
                 if choice.get("finish_reason"):
                     finish = str(choice["finish_reason"])
-            except (AttributeError, KeyError, TypeError, ValueError):
+            except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
                 # A malformed server payload is retained as a protocol fault, not
                 # converted into a fabricated content or timing observation.
                 protocol_errors += 1

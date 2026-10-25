@@ -80,7 +80,7 @@ def _reparse(
     for event in events:
         try:
             decoded = decode_payload(str(event["raw"]))
-        except StreamProtocolError as exc:
+        except (ValueError, RecursionError) as exc:
             errors.append(f"protocol_error:{exc}")
             continue
         if decoded is None:
