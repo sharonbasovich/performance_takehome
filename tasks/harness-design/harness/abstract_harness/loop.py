@@ -15,14 +15,17 @@ Resilience properties (each is covered by a test under ``harness/tests``):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import traceback
+import uuid
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
@@ -40,10 +43,11 @@ from .proposers import (
     Proposer,
     ProposerAccountingError,
     ProposerError,
+    ScriptedProposer,
     apply_patch,
     escaping_symlinks,
 )
-from .state import HarnessState, ImageRef, InProgress, load_state, save_state, utc_ts
+from .state import HarnessState, ImageRef, InProgress, StateError, load_state, save_state, utc_ts
 
 
 class Interrupted(Exception):
@@ -130,6 +134,34 @@ class Harness:
             lease_start_ts=config.budget.lease_start_ts,
             lease_deadline_ts=config.budget.lease_deadline_ts,
         )
+        if prior_state and self.clock() < prior_state.last_clock_ts:
+            self._release_locks()
+            raise StateError("wall clock is behind saved accounting time; reconcile the lease")
+        self._budget_wall_origin = max(self.clock(), self.state.last_clock_ts)
+        self._budget_monotonic_origin = time.monotonic()
+        if not self.state.run_id:
+            self.state.run_id = hashlib.sha256(
+                str(config.state_dir.resolve()).encode()
+            ).hexdigest()[:12]
+        if len(self.state.run_id) != 12 or any(
+            c not in "0123456789abcdef" for c in self.state.run_id
+        ):
+            self._release_locks()
+            raise StateError("invalid Docker run namespace")
+        try:
+            self._run_lock = procs.acquire_lock(
+                Path(tempfile.gettempdir())
+                / "abstract-harness-runs"
+                / (self.state.run_id + ".lock")
+            )
+        except BaseException:
+            self._release_locks()
+            raise
+        suffix = "-" + self.state.run_id
+        for key in ("container_prefix", "image_prefix", "network_name"):
+            value = getattr(config, key)
+            if not value.endswith(suffix):
+                setattr(config, key, value + suffix)
         if prior_state is not None:
             # A restart resumes the same allocation; it must not grant fresh GPU-hours
             # or move the lease window forward. Older checkpoints did not carry the
@@ -168,7 +200,7 @@ class Harness:
 
     def _release_locks(self) -> None:
         # Lock files are never unlinked: unlinking races a second holder onto a new inode.
-        for name in ("_results_lock", "_lock"):
+        for name in ("_run_lock", "_results_lock", "_lock"):
             fh = getattr(self, name, None)
             if fh is not None:
                 fh.close()
@@ -273,10 +305,14 @@ class Harness:
         return budget_mod.gpu_hours_used(self.config.budget, self.now())
 
     def now(self) -> float:
-        """Wall clock for budgets, clamped so it never moves backwards across checkpoints."""
-        ts, went_back = budget_mod.monotone_now(self.clock(), self.state.last_clock_ts)
-        if went_back:
-            self.log("[harness] wall clock went backwards; budgets use the last seen timestamp")
+        """Budget time advances by monotonic elapsed time even when wall time rolls back."""
+        ts, _ = budget_mod.monotone_now(
+            self.clock(),
+            self.state.last_clock_ts,
+            monotonic_floor_ts=self._budget_wall_origin
+            + time.monotonic()
+            - self._budget_monotonic_origin,
+        )
         self.state.last_clock_ts = ts
         return ts
 
@@ -311,8 +347,15 @@ class Harness:
 
     def _is_alive(self, container: str) -> Callable[[float], bool]:
         return lambda timeout_s: docker.container_running(
-            container, timeout_s=timeout_s, should_abort=self._should_abort
+            container, **self._docker_active_options(timeout_s)
         )
+
+    def _docker_active_options(self, timeout_s: float) -> dict[str, Any]:
+        return {
+            "timeout_s": self._stage_timeout(timeout_s),
+            "should_abort": self._should_abort,
+            "deadline_monotonic": self._attempt_deadline,
+        }
 
     def _stop_active_container(self) -> None:
         if self._active_container:
@@ -328,17 +371,64 @@ class Harness:
     @property
     def last_good_context(self) -> Path:
         """Build context that produced the last-good image (kept patches accumulate here)."""
+        if self.state.last_good and self.state.last_good.context_path:
+            return self.config.repo_root / self.state.last_good.context_path
         return self.config.state_dir / "last-good-context"
 
-    def _promote_context(self, source: Path) -> None:
-        target = self.last_good_context
+    def _promote_context(self, source: Path) -> Path:
+        """Prepare an immutable snapshot; the authoritative state pointer is changed later."""
+        target = self.config.state_dir / "contexts" / uuid.uuid4().hex
+        target.parent.mkdir(parents=True, exist_ok=True)
         tmp = target.with_name(target.name + ".tmp")
-        if tmp.exists():
-            shutil.rmtree(tmp)
-        shutil.copytree(source, tmp)
-        if target.exists():
-            shutil.rmtree(target)
+        shutil.copytree(source, tmp, symlinks=True, ignore=shutil.ignore_patterns(".git"))
         os.replace(tmp, target)
+        return target
+
+    def _commit_promotion(
+        self,
+        reference: ImageRef,
+        samples: dict[str, Any],
+        row: dict[str, str],
+        *,
+        golden: dict[str, str] | None = None,
+    ) -> None:
+        """Atomically checkpoint image + immutable context + replayable completed row."""
+        if self.state.in_progress is None:
+            raise RuntimeError("promotion requires an in-progress transaction")
+        if (
+            not reference.context_path
+            or not (self.config.repo_root / reference.context_path).is_dir()
+        ):
+            raise RuntimeError("promotion context snapshot is missing")
+        docker.retag(
+            reference.tag,
+            f"{self.config.image_prefix}-{self.engine.name}:last-good",
+            **self._docker_active_options(60),
+        )
+        previous = (
+            self.state.last_good,
+            self.state.baseline_samples,
+            self.state.golden,
+            self.state.in_progress.stage,
+            self.state.in_progress.completed_row,
+        )
+        self.state.last_good = reference
+        self.state.baseline_samples = samples
+        if golden is not None:
+            self.state.golden = golden
+        self.state.in_progress.stage = "promoted"
+        self.state.in_progress.completed_row = row
+        try:
+            self._save()
+        except BaseException:
+            (
+                self.state.last_good,
+                self.state.baseline_samples,
+                self.state.golden,
+                self.state.in_progress.stage,
+                self.state.in_progress.completed_row,
+            ) = previous
+            raise
 
     def build(self, context_dir: Path, tag: str, log_path: Path) -> docker.BuildResult:
         """Build a fresh image from ``context_dir`` (digest resolved from the result)."""
@@ -367,8 +457,10 @@ class Harness:
             self.log(f"[harness] host idle unknown before {label}: {quiet.get('reason')}")
         elif not quiet["quiet"]:
             self.log(f"[harness] host did not go quiet before {label} (idle={quiet['idle']})")
-        docker.ensure_internal_network(self.config.network_name)
-        runtime_args = self.engine.full_runtime_args(docker.image_cmd(image))
+        docker.ensure_internal_network(self.config.network_name, **self._docker_active_options(60))
+        runtime_args = self.engine.full_runtime_args(
+            docker.image_cmd(image, **self._docker_active_options(60))
+        )
         command = self.engine.run_command(
             image, container, self.config.network_name, runtime_args=runtime_args
         )
@@ -384,17 +476,23 @@ class Harness:
             "runtime_args": runtime_args,
         }
         try:
-            docker.run_detached(command)
+            docker.run_detached(command, **self._docker_active_options(120))
             ip = None
             deadline = time.monotonic() + self._stage_timeout(30.0)
             while ip is None and time.monotonic() < deadline:
                 self._checkpoint()
-                ip = docker.container_ip(container, self.config.network_name)
+                ip = docker.container_ip(
+                    container,
+                    self.config.network_name,
+                    **self._docker_active_options(max(0, min(60, deadline - time.monotonic()))),
+                )
                 if ip is None:
-                    if not docker.container_running(container):
+                    if not docker.container_running(container, **self._docker_active_options(10)):
                         raise measure_mod.MeasurementError(
                             "container exited immediately: "
-                            + docker.container_logs(container, 40)[-1500:]
+                            + docker.container_logs(
+                                container, 40, **self._docker_active_options(5)
+                            )[-1500:]
                         )
                     time.sleep(0.2)
             if ip is None:
@@ -436,7 +534,7 @@ class Harness:
             measurement = measure_mod.Measurement(**data)
             return measurement, info
         finally:
-            info["container_log_tail"] = docker.container_logs(container, 60)[-4000:]
+            info["container_log_tail"] = docker.container_logs(container, 60, timeout_s=5)[-4000:]
             self._stop_active_container()
 
     # ------------------------------------------------------------------ baseline
@@ -484,16 +582,16 @@ class Harness:
                     "baseline failed its own correctness gates: "
                     + "; ".join(f"{g.name}: {g.detail}" for g in measurement.gates if not g.passed)
                 )
-            self.state.baseline_samples = measurement.samples()
-            self.state.golden = measure_mod.golden_from(measurement)
-            self.state.last_good = ImageRef(
+            reference = ImageRef(
                 tag, build.digest, build.image_id, experiment, self.config.rel(report_path)
             )
-            docker.retag(tag, f"{self.config.image_prefix}-{self.engine.name}:last-good")
-            self._promote_context(self.engine.spec.build_context)
+            reference.context_path = self.config.rel(
+                self._promote_context(self.engine.spec.build_context)
+            )
             report["decision"] = {"outcome": "baseline", "kept": True}
+            report["promotion_prepared"] = asdict(reference)
             self._write_report(report_path, report)
-            self._append_row(
+            row = dict(
                 experiment=experiment,
                 image_digest=build.digest,
                 kept="1",
@@ -507,6 +605,10 @@ class Harness:
                 development_report=self.config.rel(report_path),
                 patch_path="",
             )
+            self._commit_promotion(
+                reference, measurement.samples(), row, golden=measure_mod.golden_from(measurement)
+            )
+            self._append_row(**row)
             self.state.in_progress = None
             self.state.attempt_index += 1
             self._save()
@@ -527,6 +629,8 @@ class Harness:
             self._save()
             raise
         except Exception as exc:  # noqa: BLE001 - every failure must be logged, not crash the loop
+            if self.state.in_progress and self.state.in_progress.stage == "promoted":
+                raise  # Recovery must finish the committed keep, never erase its transaction.
             report["error"] = f"{type(exc).__name__}: {exc}"
             report["traceback"] = traceback.format_exc()
             self._write_report(report_path, report)
@@ -600,7 +704,9 @@ class Harness:
             bad_links = escaping_symlinks(source_context)
             if bad_links:
                 raise RuntimeError(f"build context has symlinks escaping it: {bad_links}")
-            shutil.copytree(source_context, scratch, symlinks=True)
+            shutil.copytree(
+                source_context, scratch, symlinks=True, ignore=shutil.ignore_patterns(".git")
+            )
             ok, output = apply_patch(proposal.patch, scratch)
             report["patch_apply"] = {"ok": ok, "output": output[-2000:]}
             if not ok:
@@ -617,7 +723,7 @@ class Harness:
             # A/B: require a valid current control. Historical samples cannot replace
             # a failed/missing control without confounding the promotion decision.
             assert self.state.last_good is not None
-            if not docker.image_exists(self.state.last_good.tag):
+            if not docker.image_exists(self.state.last_good.tag, **self._docker_active_options(60)):
                 raise measure_mod.MeasurementError("last-good control image is unavailable")
             base_measurement, base_info = self.measure_image(
                 self.state.last_good.tag, golden=self.state.golden, label=f"{idx:03d}-ab"
@@ -646,6 +752,9 @@ class Harness:
                 min_effect=self.config.min_effect,
                 min_samples=self.config.min_samples,
                 startup_regression_limit=self.config.startup_regression_limit,
+                expected_samples={
+                    p["id"]: self.benchmark["repetitions"] for p in self.benchmark["prompts"]
+                },
             )
             report["decision"] = _decision_summary(decision)
             outcome = decision.outcome
@@ -654,8 +763,7 @@ class Harness:
             ftgr = results_mod.format_metric(_speedup(decision, "ftgr_tok_s"))
             startup = results_mod.format_metric(measurement.startup_s, 3)
             if decision.kept:
-                kept = "1"
-                self.state.last_good = ImageRef(
+                reference = ImageRef(
                     tag,
                     build.digest,
                     build.image_id,
@@ -663,9 +771,24 @@ class Harness:
                     self.config.rel(report_path),
                     self.config.rel(patch_path),
                 )
-                self.state.baseline_samples = measurement.samples()
-                docker.retag(tag, f"{self.config.image_prefix}-{self.engine.name}:last-good")
-                self._promote_context(scratch)
+                reference.context_path = self.config.rel(self._promote_context(scratch))
+                report["promotion_prepared"] = asdict(reference)
+                self._write_report(report_path, report)
+                row = dict(
+                    experiment=experiment,
+                    image_digest=digest,
+                    kept="1",
+                    outcome=outcome,
+                    local_ttft_speedup=ttft,
+                    local_ftgr_speedup=ftgr,
+                    local_startup_s=startup,
+                    hypothesis=proposal.hypothesis,
+                    notes=notes[:900],
+                    development_report=self.config.rel(report_path),
+                    patch_path=self.config.rel(patch_path),
+                )
+                self._commit_promotion(reference, measurement.samples(), row)
+                kept = "1"
                 self.log(f"[harness] KEPT {experiment} -> {build.digest}")
             else:
                 self.log(f"[harness] reverted {experiment}: {outcome} ({notes})")
@@ -683,6 +806,8 @@ class Harness:
             OSError,
             ValueError,
         ) as exc:
+            if self.state.in_progress and self.state.in_progress.stage == "promoted":
+                raise
             if self._stop_requested:
                 outcome = "interrupted"
                 notes = f"interrupted by {self._stop_signal} ({type(exc).__name__}: {exc})"
@@ -692,7 +817,11 @@ class Harness:
                 notes = f"{type(exc).__name__}: {exc}"
                 report["error"] = notes
                 report["traceback"] = traceback.format_exc()
-            if not self.config.keep_candidate_images and docker.image_exists(tag):
+            if (
+                not self.config.keep_candidate_images
+                and tag != (self.state.last_good.tag if self.state.last_good else "")
+                and docker.image_exists(tag, timeout_s=5)
+            ):
                 docker.remove_image(tag)
         finally:
             self._stop_active_container()
@@ -728,7 +857,36 @@ class Harness:
         ip = self.state.in_progress
         if ip is None:
             return
+        if ip.stage == "promoted":
+            reference = self.state.last_good
+            if (
+                not reference
+                or reference.experiment != ip.experiment
+                or not reference.context_path
+                or not (self.config.repo_root / reference.context_path).is_dir()
+                or ip.completed_row.get("experiment") != ip.experiment
+                or ip.completed_row.get("image_digest") != reference.digest
+            ):
+                raise RuntimeError(
+                    "committed promotion cannot be reconciled with its image/context"
+                )
+            self._append_row(**ip.completed_row)
+            self.state.in_progress = None
+            self.state.attempt_index = max(self.state.attempt_index, ip.attempt_index + 1)
+            self._save()
+            return
         if results_mod.has_experiment(self.config.results_path, ip.experiment):
+            row = next(
+                r
+                for r in results_mod.read_rows(self.config.results_path)
+                if r.experiment == ip.experiment
+            )
+            if row.kept == "1" and (
+                not self.state.last_good or row.image_digest != self.state.last_good.digest
+            ):
+                raise RuntimeError(
+                    "completed keep differs from saved image/context; recovery blocked"
+                )
             self.log(
                 f"[harness] results.tsv already records {ip.experiment}; the previous process "
                 "died after writing the row - clearing the in-progress marker only"
@@ -792,6 +950,7 @@ class Harness:
             prefix = row.experiment.split("-", 1)[0]
             if prefix.isdigit():
                 highest = max(highest, int(prefix))
+        self.state.history = [asdict(row) for row in rows]
         if rows and self.state.attempt_index <= highest:
             self.log(
                 f"[harness] attempt index {self.state.attempt_index} is behind results.tsv "
@@ -809,6 +968,8 @@ class Harness:
         self.install_signal_handlers()
         try:
             self.recover_from_previous_run()
+            if isinstance(self.proposer, ScriptedProposer):
+                self.proposer.resume_from_attempt_index(self.state.attempt_index)
             if self.state.api_accounting_unresolved:
                 self.finalize(
                     "API accounting unresolved; reconcile provider billing before resuming"
@@ -913,8 +1074,10 @@ class Harness:
             self.finalize(f"fatal: {type(exc).__name__}: {exc}")
             return 2
         finally:
-            self._release_locks()
-            self.cleanup()
+            try:
+                self.cleanup()
+            finally:
+                self._release_locks()
 
     def _proposer_context(self, verdict: budget_mod.BudgetVerdict) -> Any:
         from .proposers import ProposerContext

@@ -260,6 +260,7 @@ def decide(
     confidence: float = 0.90,
     seed: int = 0,
     startup_regression_limit: float = 1.5,
+    expected_samples: Mapping[str, int] | None = None,
 ) -> Decision:
     """Apply the keep/revert rule.
 
@@ -293,6 +294,19 @@ def decide(
         return Decision(
             "gate_failed", False, gate_summary or "correctness gate failed", comparisons
         )
+    if expected_samples is not None:
+        for metric in PRIMARY_METRICS:
+            for side in (baseline, candidate):
+                groups = _groups(side.get(metric, ()))
+                if groups.keys() != expected_samples.keys() or any(
+                    len(groups[prompt]) != count for prompt, count in expected_samples.items()
+                ):
+                    return Decision(
+                        "no_change",
+                        False,
+                        f"incomplete configured prompt/repetition evidence for {metric}",
+                        comparisons,
+                    )
     by_metric = {c.metric: c for c in comparisons}
     primary = [by_metric[m] for m in PRIMARY_METRICS]
     secondary = [by_metric[m] for m in SECONDARY_METRICS]

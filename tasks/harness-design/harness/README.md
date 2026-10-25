@@ -167,10 +167,24 @@ must enforce its own spending limit within an agent's multiple model/tool turns.
 Promotion requires a valid same-attempt last-good control and complete comparable
 evidence for both primary metrics. Missing control images or failed control correctness
 end that attempt as `error`; missing/invalid metric groups or repetitions cannot turn into
-a keep by being filtered out. Each prompt needs at least `--min-samples` observations
-per side. Stage process groups are cleaned after exit as well as on timeout, including
+a keep by being filtered out. Every configured prompt must have exactly the configured
+repetitions for both primary metrics on each arm, in addition to `--min-samples`.
+Stage process groups are cleaned after exit as well as on timeout, including
 background descendants whose direct parent has already exited. Termination has a bounded
 SIGTERM grace period before SIGKILL; cleanup is included in the configured reserve.
+
+Kept contexts are immutable snapshots. An atomic state checkpoint changes the image,
+context pointer and replayable completed row together; recovery finishes a committed
+keep after a crash instead of pairing a new context with an old image. The manifest
+emits the ordered chain of kept patches and marks whether it is complete. Git metadata
+is excluded from snapshots/diffs; unchanged binary files are compared as bytes, while
+changed binary files are rejected by the text-patch interface.
+
+Each persisted run has distinct container, image and network names. A separate run lock
+also prevents copied state from reusing that namespace concurrently. Locks remain held
+until cleanup finishes. Queue position is aligned after interruption recovery. Budget
+time advances with monotonic elapsed time even if wall time moves backward; a restart
+with wall time behind its saved accounting checkpoint stops for lease reconciliation.
 
 Send `SIGTERM` at any time: the loop finishes the current step boundary, logs the attempt
 as `interrupted`, keeps the last-good image, writes the manifest and exits 3. Re-running the

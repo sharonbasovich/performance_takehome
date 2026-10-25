@@ -103,15 +103,19 @@ def check_before_attempt(
     )
 
 
-def monotone_now(now_ts: float, last_seen_ts: float) -> tuple[float, bool]:
-    """Clamp a wall-clock reading so budget arithmetic never runs backwards.
+def monotone_now(
+    now_ts: float, last_seen_ts: float, *, monotonic_floor_ts: float | None = None
+) -> tuple[float, bool]:
+    """Combine wall time, persisted accounting time, and a process-monotonic floor.
 
     Returns ``(timestamp, clock_went_back)``; the caller persists the larger
-    value so a host clock step (NTP, VM restore) cannot extend the lease.
+    value. A wall-clock clamp alone freezes charges during rollback, so running
+    allocations must pass an advancing monotonic floor. A restart whose wall
+    clock is behind the saved checkpoint needs separate lease reconciliation.
     """
-    if now_ts < last_seen_ts:
-        return last_seen_ts, True
-    return now_ts, False
+    return max(
+        now_ts, last_seen_ts, monotonic_floor_ts if monotonic_floor_ts is not None else last_seen_ts
+    ), now_ts < last_seen_ts
 
 
 def worst_case_attempt_s(

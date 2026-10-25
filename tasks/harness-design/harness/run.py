@@ -364,17 +364,12 @@ def cmd_run(args: argparse.Namespace) -> int:
         estimated_attempt_s=args.estimated_attempt_minutes * 60,
         keep_candidate_images=args.keep_candidate_images,
     )
-    # A scripted proposer resumes at the on-disk attempt index so queue entries are not replayed.
+    # Harness aligns the scripted queue after interruption recovery while holding its locks.
     try:
         harness = Harness(config, engine, proposer)
     except (StateError, LockError) as exc:
         print(f"[run] {exc}", file=sys.stderr)
         return 4
-    if isinstance(proposer, ScriptedProposer) and harness.state.attempt_index > 1:
-        proposer = ScriptedProposer.from_file(
-            args.experiments, skip=harness.state.attempt_index - 1
-        )
-        harness.proposer = proposer
     if args.manifest_only:
         try:
             manifest = harness.finalize(harness.state.finish_reason or "manifest-only")

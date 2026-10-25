@@ -58,6 +58,21 @@ def build_manifest(
     )
     engine = harness.engine
     last_good = state.last_good
+    kept_patches: list[str] = []
+    patch_chain_complete = last_good is None or last_good.experiment == "baseline"
+    history = list(state.history) if last_good and last_good.experiment != "baseline" else []
+    if state.in_progress and state.in_progress.stage == "promoted":
+        pending_row = state.in_progress.completed_row
+        if not any(row.get("experiment") == pending_row.get("experiment") for row in history):
+            history.append(pending_row)
+    for row in history:
+        if str(row.get("kept")) == "1" and row.get("patch_path"):
+            kept_patches.append(row["patch_path"])
+        if last_good and row.get("experiment") == last_good.experiment:
+            patch_chain_complete = True
+            break
+    if not patch_chain_complete:
+        kept_patches = [last_good.patch] if last_good and last_good.patch else []
     image_ref = (
         f"{last_good.tag.split(':')[0]}@{last_good.digest}"
         if last_good
@@ -89,7 +104,8 @@ def build_manifest(
                 "LLMD source is closed; baseline/lock.json engine_source_revision is null"
             )
         ),
-        "patches": [last_good.patch] if last_good and last_good.patch else [],
+        "patches": kept_patches,
+        "patch_chain_complete": patch_chain_complete,
         "provenance_path": cfg.rel(cfg.reports_dir / "build-provenance.json"),
         "harness_tree_sha256": state.harness_tree_sha256,
         "image_identity_kind": IMAGE_IDENTITY_KIND,

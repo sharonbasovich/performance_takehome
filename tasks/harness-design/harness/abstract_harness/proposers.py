@@ -112,23 +112,30 @@ def unified_diff_for_dirs(old_dir: Path, new_dir: Path) -> str:
     """Unified diff (``a/`` / ``b/`` prefixes, applies with ``patch -p1``) between two trees."""
     chunks: list[str] = []
     files = sorted(
-        {p.relative_to(old_dir) for p in old_dir.rglob("*") if p.is_file()}
-        | {p.relative_to(new_dir) for p in new_dir.rglob("*") if p.is_file()}
+        {
+            p.relative_to(old_dir)
+            for p in old_dir.rglob("*")
+            if p.is_file() and ".git" not in p.relative_to(old_dir).parts
+        }
+        | {
+            p.relative_to(new_dir)
+            for p in new_dir.rglob("*")
+            if p.is_file() and ".git" not in p.relative_to(new_dir).parts
+        }
     )
     for rel in files:
         old_path, new_path = old_dir / rel, new_dir / rel
-        old_lines = (
-            old_path.read_text(encoding="utf-8").splitlines(keepends=True)
-            if old_path.exists()
-            else []
-        )
-        new_lines = (
-            new_path.read_text(encoding="utf-8").splitlines(keepends=True)
-            if new_path.exists()
-            else []
-        )
-        if old_lines == new_lines:
+        old_bytes = old_path.read_bytes() if old_path.exists() else b""
+        new_bytes = new_path.read_bytes() if new_path.exists() else b""
+        if old_bytes == new_bytes:
             continue
+        if b"\0" in old_bytes or b"\0" in new_bytes:
+            raise ProposerError(f"binary changes are unsupported in a text patch: {rel}")
+        try:
+            old_lines = old_bytes.decode("utf-8").splitlines(keepends=True)
+            new_lines = new_bytes.decode("utf-8").splitlines(keepends=True)
+        except UnicodeDecodeError as exc:
+            raise ProposerError(f"binary changes are unsupported in a text patch: {rel}") from exc
         diff = difflib.unified_diff(
             old_lines, new_lines, fromfile=f"a/{rel.as_posix()}", tofile=f"b/{rel.as_posix()}"
         )
@@ -276,6 +283,10 @@ class ScriptedProposer(Proposer):
         """Experiments left in the queue."""
         return max(0, len(self._queue) - self._index)
 
+    def resume_from_attempt_index(self, attempt_index: int) -> None:
+        """Align only after recovery: attempt 1 consumes queue item 0 after baseline."""
+        self._index = max(self._index, max(0, attempt_index - 1))
+
     def propose(self, context: ProposerContext) -> Proposal | None:
         """Pop the next experiment and render its patch against ``context.context_dir``."""
         if self._index >= len(self._queue):
@@ -295,7 +306,9 @@ class ScriptedProposer(Proposer):
             raise ProposerError(f"build context has symlinks escaping it: {bad_links}")
         with tempfile.TemporaryDirectory(prefix="scripted-", dir=context.work_dir) as tmp:
             new_dir = Path(tmp) / "new"
-            shutil.copytree(context.context_dir, new_dir, symlinks=True)
+            shutil.copytree(
+                context.context_dir, new_dir, symlinks=True, ignore=shutil.ignore_patterns(".git")
+            )
             for edit in edits:
                 try:
                     target = contained_path(new_dir, str(edit["file"]))
@@ -487,7 +500,9 @@ class PiProposer(Proposer):
             raise ProposerError(f"build context has symlinks escaping it: {bad_links}")
         attempt_dir = Path(tempfile.mkdtemp(prefix="pi-attempt-", dir=context.work_dir))
         scratch = attempt_dir / "context"
-        shutil.copytree(context.context_dir, scratch, symlinks=True)
+        shutil.copytree(
+            context.context_dir, scratch, symlinks=True, ignore=shutil.ignore_patterns(".git")
+        )
         patch_out = attempt_dir / "proposal.patch"
         meta_out = attempt_dir / "proposal.json"
         prompt_path = attempt_dir / "prompt.md"

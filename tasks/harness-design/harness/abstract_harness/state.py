@@ -24,6 +24,7 @@ class ImageRef:
     experiment: str = ""
     report: str = ""
     patch: str = ""
+    context_path: str = ""
 
 
 @dataclass
@@ -40,6 +41,7 @@ class InProgress:
     attempt_index: int = 0
     report_path: str = ""
     row_written: bool = False
+    completed_row: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -54,6 +56,7 @@ class HarnessState:
     attempt_index: int = 0
     api_usd_cumulative: float = 0.0
     api_accounting_unresolved: str = ""
+    run_id: str = ""
     last_good: ImageRef | None = None
     baseline_samples: dict[str, Any] = field(default_factory=dict)
     golden: dict[str, str] = field(default_factory=dict)
