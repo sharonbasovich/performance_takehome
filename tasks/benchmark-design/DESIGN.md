@@ -171,8 +171,10 @@ verdict.
 infinity, overflowing JSON numeric literals and structurally invalid nested records before
 analysis, and bounds run metadata to 16 MiB as well as bounding request evidence. Both a
 finite lag maximum and actual lag samples are required. For quick/full modes, declared
-unit counts/identities are checked against the resolved workload plan; an omitted planned
+unit counts/identities, prompt source and deadline profile are checked against the resolved
+workload plan; an omitted planned
 unit remains visible and makes the result inconclusive, even if omitted from `run.json`.
+Missing planned warmup requests also make the result inconclusive.
 Compact fixture mode permits partial synthetic cell sets for isolated gate tests. Request
 identity must agree with declared unit metadata in every mode. Startup uses only actual
 startup-phase probes sent after the corresponding launch, never reused across launches;

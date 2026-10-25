@@ -44,6 +44,9 @@ class EvidenceBoundaryTests(unittest.TestCase):
 
     def test_bad_run_shape_and_nested_request_are_named_invalid_evidence(self):
         self.assertEqual(self.evaluate([])[0]["status"], "invalid")
+        run = copy.deepcopy(self.run)
+        del run["mode"]
+        self.assertEqual(self.evaluate(run)[0]["status"], "invalid")
         records = copy.deepcopy(self.records)
         records[0]["events"] = {"unexpected": "object"}
         report = self.evaluate(records=records)[0]
@@ -101,10 +104,29 @@ class EvidenceBoundaryTests(unittest.TestCase):
         self.plan["modes"]["quick"]["cells"] = ["chat_short_open"]
         unit = resolve_mode(self.plan, "quick")[0]
         records = clean_cell(self.plan, unit.cell_id, unit.requests)
+        for index in range(unit.warmup):
+            record = copy.deepcopy(records[0])
+            record["phase"] = "warmup"
+            record["request_id"] = f"{unit.unit_id}/warmup/{index}"
+            records.append(record)
         run = make_run(records)
         run["mode"] = "quick"
         run["units"][0]["planned_warmup"] = unit.warmup
         self.assertEqual(self.evaluate(run, records)[0]["status"], "valid")
+        relabelled = copy.deepcopy(run)
+        relabelled["units"][0]["prompt_source"] = "rag_long"
+        relabelled["units"][0]["deadline_profile"] = "rag"
+        relabelled_records = copy.deepcopy(records)
+        for record in relabelled_records:
+            if record["phase"] != "startup_probe":
+                record["prompt"]["source"] = "rag_long"
+        report = self.evaluate(relabelled, relabelled_records)[0]
+        self.assertEqual(report["status"], "invalid")
+        self.assertIn("prompt_source differs from workload plan", " ".join(report["reasons"]))
+        no_warmup = [r for r in records if r["phase"] != "warmup"]
+        report = self.evaluate(run, no_warmup)[0]
+        self.assertEqual(report["status"], "inconclusive")
+        self.assertIn("incomplete warmup evidence", " ".join(report["inconclusive_reasons"]))
         run["units"][0]["planned_requests"] = 0
         report = self.evaluate(run, records)[0]
         self.assertEqual(report["status"], "invalid")
@@ -114,6 +136,13 @@ class EvidenceBoundaryTests(unittest.TestCase):
         report = self.evaluate(run, records)[0]
         self.assertEqual(report["status"], "inconclusive")
         self.assertEqual(report["population"]["units"][unit.unit_id]["not_offered"], unit.requests)
+
+    def test_prompt_source_cannot_bypass_declared_workload_identity(self):
+        records = copy.deepcopy(self.records)
+        records[0]["prompt"]["source"] = "generation_long"
+        report = self.evaluate(records=records)[0]
+        self.assertEqual(report["status"], "invalid")
+        self.assertIn("prompt source differs", " ".join(report["reasons"]))
 
     def test_request_identity_must_agree_with_its_declared_unit(self):
         records = copy.deepcopy(self.records)

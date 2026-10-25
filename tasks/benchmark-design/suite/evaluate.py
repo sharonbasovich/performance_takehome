@@ -133,6 +133,8 @@ class Evaluator:
                     ("cell_id", expected.cell_id), ("load_label", expected.load_label),
                     ("repetition", expected.repetition), ("arrival_type", expected.arrival_type),
                     ("load", expected.load), ("role", expected.role),
+                    ("prompt_source", expected.prompt_source),
+                    ("deadline_profile", expected.deadline_profile),
                 ):
                     if unit[key] != value:
                         self.reasons.append(f"unit {unit_id!r}: {key} differs from workload plan")
@@ -149,6 +151,15 @@ class Evaluator:
                     self.reasons.append(
                         f"request {rec.request_id}: {key} differs from unit metadata"
                     )
+            source = self.plan["prompt_sources"].get(meta["prompt_source"], {})
+            allowed_sources = (
+                {c[0] for c in source["components"]} if source.get("kind") == "mixture"
+                else {meta["prompt_source"]}
+            )
+            if raw["prompt"]["source"] not in allowed_sources:
+                self.reasons.append(
+                    f"request {rec.request_id}: prompt source differs from unit metadata"
+                )
 
     REQUIRED_KEYS = (
         "request_id",
@@ -196,6 +207,7 @@ class Evaluator:
                 "planned": meta["planned_requests"],
                 "offered": 0,
                 "warmup_offered": 0,
+                "warmup_planned": meta["planned_warmup"],
                 **{c: 0 for c in CATEGORIES},
                 "cell_id": meta["cell_id"],
                 "load_label": meta["load_label"],
@@ -204,6 +216,7 @@ class Evaluator:
         for unit_id, unit in self.expected_units.items():
             table.setdefault(unit_id, {
                 "planned": unit.requests, "offered": 0, "warmup_offered": 0,
+                "warmup_planned": unit.warmup,
                 **{c: 0 for c in CATEGORIES}, "cell_id": unit.cell_id,
                 "load_label": unit.load_label, "role": unit.role,
             })
@@ -219,6 +232,7 @@ class Evaluator:
                     "planned": 0,
                     "offered": 0,
                     "warmup_offered": 0,
+                    "warmup_planned": 0,
                     **{c: 0 for c in CATEGORIES},
                     "cell_id": raw["cell_id"],
                     "load_label": raw["load_label"],
@@ -231,6 +245,11 @@ class Evaluator:
             row["offered"] += 1
             row[self.verdicts[rec.request_id].category] += 1
         for unit_id, row in table.items():
+            if row["warmup_offered"] < row["warmup_planned"]:
+                self.inconclusive.append(
+                    f"unit {unit_id} has incomplete warmup evidence: "
+                    f"{row['warmup_offered']} offered < {row['warmup_planned']} planned"
+                )
             row["not_offered"] = max(0, row["planned"] - row["offered"])
             if row["not_offered"]:
                 self.inconclusive.append(
@@ -641,16 +660,16 @@ def evaluate(
             None,
             {},
         )
-    ev = Evaluator(plan, evidence, plan_digest_hex)
     # Do not calculate on structurally invalid records: a type error must produce
     # a named invalid-evidence verdict, rather than crash or silently coerce data.
     if evidence.schema_errors:
         return (
             {"status": "invalid", "reasons": [f"schema: {e}" for e in evidence.schema_errors],
              "events_dir": str(events_dir)},
-            ev,
+            None,
             {},
         )
+    ev = Evaluator(plan, evidence, plan_digest_hex)
     ev.run_gates()
     ev.judge_all()
     population = ev.population()
