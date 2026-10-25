@@ -559,7 +559,7 @@ class Evaluator:
             if launch["startup_to_first_valid_generation_s"] is not None
         ]
         planned = self.ev.run.raw.get("planned_startup_launches")
-        if self.ev.run.mode in ("quick", "full"):
+        if self.ev.run.mode in ("quick", "full", "calibration"):
             expected = self.plan["modes"][self.ev.run.mode]["startup_launches"]
             if planned != expected:
                 self.reasons.append("startup: planned launch count differs from workload plan")

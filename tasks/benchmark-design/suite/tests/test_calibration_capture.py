@@ -121,6 +121,7 @@ class CalibrationEvidenceTests(unittest.TestCase):
             records.append(item)
         run = make_run(records)
         run["mode"] = "calibration"
+        run["planned_startup_launches"] = 1
         run["plan"]["digest"] = plan_digest(path)
         events = root / "events"
         events.mkdir()

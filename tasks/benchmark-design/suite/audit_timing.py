@@ -72,21 +72,34 @@ def audit(evidence: Evidence) -> dict[str, Any]:
                 continue
             try:
                 payload = json.loads(event["raw"])
-                choices = payload.get("choices") or []
+                if not isinstance(payload, dict):
+                    raise ValueError("payload is not an object")
+                choices = payload.get("choices", [])
+                if not isinstance(choices, list) or len(choices) > 1:
+                    raise ValueError("expected at most one streaming choice")
                 if not choices:
                     continue
                 choice = choices[0]
-                delta = choice.get("delta") or {}
+                if not isinstance(choice, dict) or choice.get("index", 0) != 0:
+                    raise ValueError("invalid streaming choice object or index")
+                delta = choice.get("delta", {})
+                if not isinstance(delta, dict):
+                    raise ValueError("delta is not an object")
+                # Validate the whole chunk before consuming any channel. The
+                # recorder discards all generated text from a malformed chunk.
+                if any(
+                    delta.get(key) is not None and not isinstance(delta[key], str)
+                    for key in ("content", "reasoning_content")
+                ):
+                    raise ValueError("non-text delta")
                 for key, target in (("content", content), ("reasoning_content", reasoning)):
                     text = delta.get(key)
-                    if text is not None and not isinstance(text, str):
-                        raise ValueError("non-text delta")
                     if text:
                         target.append(text)
                         if key == "content" and first is None:
                             first = t
                 if choice.get("finish_reason"):
-                    finish = choice["finish_reason"]
+                    finish = str(choice["finish_reason"])
             except (AttributeError, KeyError, TypeError, ValueError):
                 # A malformed server payload is retained as a protocol fault, not
                 # converted into a fabricated content or timing observation.

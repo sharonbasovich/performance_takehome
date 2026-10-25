@@ -126,8 +126,12 @@ def calibrate(
     evaluator.run_gates()
     evaluator.judge_all()
     evaluator.startup()
-    if evaluator.reasons:
-        raise CalibrationError("; ".join(evaluator.reasons[:4]))
+    evaluator.population()
+    # A fit must not bless an incomplete baseline simply because its measurement
+    # rows happen to be complete. Startup and warmup are part of the frozen plan.
+    issues = evaluator.reasons + evaluator.inconclusive
+    if issues:
+        raise CalibrationError("; ".join(issues[:4]))
     by_unit: dict[str, list[Any]] = {}
     ids: set[str] = set()
     points = []
