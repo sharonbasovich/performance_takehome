@@ -1087,6 +1087,7 @@
     ]
   },
   "cross_checks": {
+    "current_flexible_reference_ask_usd_per_gpu_hour": 5.2,
     "performance_translation": {
       "count": 1,
       "examples": [
@@ -1308,6 +1309,7 @@
       "low": 3.550255,
       "high": 4.786101
     },
+    "fair_fixed_price_identified": true,
     "scenario_marks_usd": {
       "base": -762.32,
       "cheap_compute": -1407.43,
@@ -1446,15 +1448,21 @@
     "default_probability": [
       {
         "p_default": 0.0,
-        "mark_adjusted_usd": -775.82342334
+        "mark_adjusted_usd": -775.82342334,
+        "fair_fixed_price_identified": true,
+        "fair_fixed_price_usd_per_gpu_hour": 4.13308346
       },
       {
         "p_default": 0.02,
-        "mark_adjusted_usd": -762.32407895
+        "mark_adjusted_usd": -762.32407895,
+        "fair_fixed_price_identified": true,
+        "fair_fixed_price_usd_per_gpu_hour": 4.13334536
       },
       {
         "p_default": 0.1,
-        "mark_adjusted_usd": -708.32670137
+        "mark_adjusted_usd": -708.32670137,
+        "fair_fixed_price_identified": true,
+        "fair_fixed_price_usd_per_gpu_hour": 4.1344884
       }
     ],
     "horizon_vol_multiplier": [

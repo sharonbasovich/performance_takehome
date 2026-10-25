@@ -4,15 +4,15 @@
   "status": "draft-synthetic-inputs-verified-local",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "commit": "a37a1f8865ea8a06996aef68888fbe8dc435d61c",
-    "commit_note": "Verified committed source for the independent audit corrections. The later artifact-only commit does not change research_tree_sha. Local branch changes have not been pushed to the existing PR or officially submitted.",
-    "research_tree_sha": "39651b28319cb60064a8b8f2c863c02e3c09a065",
+    "commit": "e8c32a69a3b520a4892a6a44b0e6dbe540e652ac",
+    "commit_note": "Committed source verified after the first Greptile review. The separate artifact commit regenerates evidence without changing this research tree. No official organizer submission has been made.",
+    "research_tree_sha": "9c4e89e2b0643241c1df79abdc094c857544a83e",
     "branch": "codex/abstract-quant-audit",
     "pull_request": "https://github.com/sharonbasovich/performance_takehome/pull/1",
-    "source_sha256": "453605b790ea27ecc3a0c68bfb7b6ec55256394ec689525b46f5cf4a423f4ff6",
+    "source_sha256": "462fe56fe15c28820d2b078c4252ceb55adc47c9786a39e1abeb12065057a6ed",
     "source_bytes": "canonical LF checkout of the recorded Git commit",
     "working_tree_dirty": false,
-    "verified_archive": "output/abstract-audit/quant-continuation-verified-lf.zip"
+    "verified_archive": "output/abstract-audit/quant-greptile-verified-lf.zip"
   },
   "inputs": {
     "case": "tasks/compute-quant/data/demo-case.json",
