@@ -126,12 +126,12 @@ class ProvenanceTest(unittest.TestCase):
         import json
         import tarfile
 
-        from abstract_harness import manifest as manifest_mod
-
         task_dir = _paths.HARNESS_DIR.parent
         sub = json.loads((task_dir / "submission.json").read_text(encoding="utf-8"))
         source = sub["source"]
-        self.assertEqual(source["image_identity_kind"], manifest_mod.IMAGE_IDENTITY_KIND)
+        # This immutable artifact keeps the label written by its historical source.
+        # Newly generated manifests use a conservative store-independent label.
+        self.assertEqual(source["image_identity_kind"], "docker-image-config-id")
         commit = source["commit"].removesuffix("-dirty")
         try:
             archive = subprocess.run(
