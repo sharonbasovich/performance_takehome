@@ -99,7 +99,15 @@ class Report:
     def guarded(self, name: str, action: str, check: Any) -> None:
         try:
             check()
-        except (OSError, ValueError, KeyError, TypeError, tarfile.TarError):
+        except (
+            OSError,
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+            IndexError,
+            tarfile.TarError,
+        ):
             # Exception text can contain private configuration values. Keep it out.
             self.add(name, "FAIL", "Input inaccessible, malformed, or inconsistent", action)
 
@@ -136,47 +144,32 @@ def gpu_records(data: Any) -> list[dict[str, str]]:
     """Accept ROCm-SMI card maps and AMD-SMI per-GPU nested JSON records."""
     records: list[dict[str, str]] = []
 
-    def flatten(node: Any, out: dict[str, str]) -> None:
-        if isinstance(node, dict):
-            for key, value in node.items():
-                if isinstance(value, (str, int, float)):
-                    out[str(key).lower().replace("_", " ")] = str(value)
-                else:
-                    flatten(value, out)
+    def fields(node: Any) -> dict[str, str]:
+        if not isinstance(node, dict):
+            return {}
+        return {
+            str(k).lower().replace("_", " "): str(v)
+            for k, v in node.items()
+            if isinstance(v, (str, int, float))
+        }
 
     def visit(node: Any) -> None:
         if isinstance(node, list):
             for value in node:
                 visit(value)
         elif isinstance(node, dict):
-            flat: dict[str, str] = {}
-            flatten(node, flat)
+            flat = fields(node)
+            # Only merge documented sections of a single AMD-SMI device record.
+            # Recursively flattening arbitrary maps can combine two partial GPUs.
+            for key, value in node.items():
+                if str(key).lower() in {"asic", "bus"}:
+                    flat.update(fields(value))
             # A record must have both a model name and a PCI address. Never infer
             # MI355X from a device node, aggregate text, or an unrelated GPU.
-            names = [
-                v for k, v in flat.items() if k in {"market name", "card series", "card model"}
-            ]
-            buses = [v for k, v in flat.items() if k in {"bdf", "pci bus", "pci bus id"}]
+            names = [flat[k] for k in ("market name", "card series", "card model") if k in flat]
+            buses = [flat[k] for k in ("bdf", "pci bus", "pci bus id") if k in flat]
             children = [v for v in node.values() if isinstance(v, (dict, list))]
-            nested_record = False
-            for child in children:
-                child_flat: dict[str, str] = {}
-                flatten(child, child_flat)
-                nested_record = nested_record or (
-                    any(k in child_flat for k in ("market name", "card series", "card model"))
-                    and any(k in child_flat for k in ("bdf", "pci bus", "pci bus id"))
-                )
-            if (
-                names
-                and buses
-                and not nested_record
-                and not any(
-                    isinstance(v, list)
-                    or isinstance(v, dict)
-                    and any(str(k).startswith("card") for k in v)
-                    for v in children
-                )
-            ):
+            if names and buses:
                 records.append({"name": names[0], "bdf": normalize_bdf(buses[0])})
             else:
                 for value in children:
@@ -727,10 +720,14 @@ def main(argv: list[str] | None = None) -> int:
             "Choose an organizer-accessible OCI repository and supply --registry",
         )
     result = report.result()
+    try:
+        manifest_digest = digest(args.model_manifest)
+    except OSError:
+        manifest_digest = None
     result["protected_input_sha256"] = {
         "baseline_lock": digest(ROOT / "baseline/lock.json"),
         "agent_profiles": digest(ROOT / "agent-harness/profiles.json"),
-        "model_manifest": digest(args.model_manifest) if args.model_manifest.is_file() else None,
+        "model_manifest": manifest_digest,
     }
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["status"] == "PASS" else 1

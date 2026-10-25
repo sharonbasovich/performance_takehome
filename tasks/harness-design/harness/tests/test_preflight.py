@@ -46,6 +46,31 @@ class InventoryTest(unittest.TestCase):
         }
         self.assertEqual(preflight.gpu_records(data), [{"name": "MI300X", "bdf": "0000:01:00.0"}])
 
+    def test_two_partial_gpu_records_never_combine_identity(self):
+        data = {"gpu0": {"market_name": "AMD Instinct MI355X"}, "gpu1": {"bdf": "0000:01:00.0"}}
+        self.assertEqual(preflight.gpu_records(data), [])
+
+    def test_wrong_type_json_becomes_redacted_structured_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "config.json").write_text("[]")
+            (root / ".abstract-model.json").write_text("[]")
+            report = preflight.Report()
+            report.guarded(
+                "registry",
+                "Correct JSON",
+                lambda: preflight.registry_readiness(root, "registry.example/team/image"),
+            )
+            report.guarded(
+                "model", "Correct JSON", lambda: preflight.model_inventory(root, {}, None, False)
+            )
+
+            def empty_inspect():
+                json.loads("[]")[0]
+
+            report.guarded("docker", "Correct JSON", empty_inspect)
+            self.assertEqual([c["status"] for c in report.checks], ["FAIL"] * 3)
+
     def test_registry_credentials_and_exception_values_are_not_reported(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -231,6 +256,26 @@ class InspectionCommandTest(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertEqual(report["status"], "FAIL")
             self.assertIsNone(report["protected_input_sha256"]["model_manifest"])
+
+    def test_unreadable_manifest_digest_keeps_the_final_json_report(self):
+        output = io.StringIO()
+        original = preflight.digest
+
+        def digest(path, algorithm="sha256"):
+            if path.name == "unreadable-manifest":
+                raise PermissionError("sentinel-private-value")
+            return original(path, algorithm)
+
+        with (
+            mock.patch.object(preflight.platform, "system", return_value="Other"),
+            mock.patch.object(preflight, "digest", side_effect=digest),
+            redirect_stdout(output),
+        ):
+            code = preflight.main(["--model-manifest", "/unreadable-manifest"])
+        report = json.loads(output.getvalue())
+        self.assertEqual(code, 1)
+        self.assertIsNone(report["protected_input_sha256"]["model_manifest"])
+        self.assertNotIn("sentinel-private-value", output.getvalue())
 
     def test_command_drops_provider_secrets_and_bounds_hangs(self):
         with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "sentinel-private"}):
