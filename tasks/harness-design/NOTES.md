@@ -306,3 +306,26 @@ was an uncached llama.cpp compile (`--no-cache`): 101-111 s per attempt image, 3
 image, 16.6 s into the `007` build when SIGTERM arrived. Per attempt ~2.5 min including the quiet-host
 wait (3 s each arm), A/B re-measure and candidate measurement; 95 s extra for the readiness-timeout fault. Cut: Pi end-to-end run (no key),
 LLMD execution (no GPU), more repetitions (time).
+
+## 2026-10-25 metadata correction and implementation verification
+
+The committed `submission.json` now lists the complete ordered kept-patch chain:
+`001-threads-8.patch`, then `013-openmp-off-cold-rebuild.patch`. This is derived from
+the two non-baseline kept rows in the historical 14-row `results.tsv`; rejected,
+failed and interrupted patches are excluded. Applying that chain to the recorded
+stand-in source retains both the eight-thread runtime settings and OpenMP-off build.
+
+This corrects reproduction metadata only. The historical source commit
+`45fc163eba7cdc34f27d377fbd4387ffe17b3627`, harness input hash
+`f4a25e8e51d8b619672e5dcae9b0debe1e029518fad32d382f15de2741d30e81`, image config
+ID, raw rows, measurement reports and timing/resource figures above are unchanged.
+No experiment was rerun for this correction.
+
+The later harness implementation at `5bbd559f1e44da5ebb0fe2ca65cdaa00c356fa83`
+passed 205/205 tests in a fresh LF Linux clone (Python 3.14.4; zero skips), locked
+Ruff 0.16.10 and protected-file integrity checks. Those checks cover promotion
+transactions, resumed queues, Docker deadlines/isolation, clock accounting,
+complete measurement populations, patch-chain metadata and nested cgroup limits.
+The actual pinned Pi 1.0 CLI also passed scripted loopback tool/usage tests; no model
+inference or provider charge occurred. These implementation checks are separate
+from the historical CPU measurements and establish no MI355X/LLMD performance result.
