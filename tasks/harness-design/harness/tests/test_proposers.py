@@ -19,6 +19,7 @@ from abstract_harness.proposers import (
     PI_VERSION,
     PiLaunchConfig,
     PiProposer,
+    ProposerAccountingError,
     ProposerContext,
     ProposerError,
     ScriptedProposer,
@@ -282,12 +283,14 @@ class FakePiEndToEndTest(unittest.TestCase):
             self._propose("error")
         self.assertIn("insufficient_quota", str(ctx.exception))
         self.assertEqual(ctx.exception.api_usd, 0.0)
+        self.assertIsInstance(ctx.exception, ProposerAccountingError)
 
     def test_nonzero_exit_is_an_error(self) -> None:
         with self.assertRaises(ProposerError) as ctx:
             self._propose("exit")
         self.assertIn("exited 2", str(ctx.exception))
-        self.assertIsNone(ctx.exception.api_usd)
+        self.assertEqual(ctx.exception.api_usd, 0.0)
+        self.assertIsInstance(ctx.exception, ProposerAccountingError)
 
     def test_hang_is_killed_at_timeout(self) -> None:
         start = time.monotonic()

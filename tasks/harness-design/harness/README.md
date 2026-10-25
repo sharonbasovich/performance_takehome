@@ -154,6 +154,16 @@ The key variable must have the provider's native name: `ANTHROPIC_API_KEY` for A
 or `OPENAI_API_KEY` with `--pi-provider openai`. `--api-key-env` selects the variable to
 forward; it does not rename an arbitrary alias into a provider credential.
 
+For a compatible custom provider, put a `models.json` in the task's Pi agent directory
+with an explicit nonzero price table and an `apiKey` environment reference. Validate
+streamed tool calls and terminal usage before optimization. Pi initializes missing
+usage to zero: the harness rejects zero-priced, missing or invalid assistant usage,
+preserves the known subtotal, records `api_accounting_unresolved` in state/provenance,
+and exits 2. A restart remains blocked until billing is reconciled. Timeout or an
+unexplained process exit also leaves accounting unresolved; an error response does
+not prove a request was free. The pre-attempt estimate is advisory, so the API proxy
+must enforce its own spending limit within an agent's multiple model/tool turns.
+
 Promotion requires a valid same-attempt last-good control and complete comparable
 evidence for both primary metrics. Missing control images or failed control correctness
 end that attempt as `error`; missing/invalid metric groups or repetitions cannot turn into

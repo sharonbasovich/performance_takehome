@@ -35,7 +35,14 @@ from . import procs
 from . import results as results_mod
 from .decision import Decision, decide
 from .engines import CONTAINER_PORT, Engine
-from .proposers import Proposal, Proposer, ProposerError, apply_patch, escaping_symlinks
+from .proposers import (
+    Proposal,
+    Proposer,
+    ProposerAccountingError,
+    ProposerError,
+    apply_patch,
+    escaping_symlinks,
+)
 from .state import HarnessState, ImageRef, InProgress, load_state, save_state, utc_ts
 
 
@@ -802,6 +809,11 @@ class Harness:
         self.install_signal_handlers()
         try:
             self.recover_from_previous_run()
+            if self.state.api_accounting_unresolved:
+                self.finalize(
+                    "API accounting unresolved; reconcile provider billing before resuming"
+                )
+                return 2
             if self.state.finished:
                 self.log(
                     f"[harness] state marked finished ({self.state.finish_reason}); "
@@ -866,6 +878,9 @@ class Harness:
                 except ProposerError as exc:
                     self.log(f"[harness] proposer error: {exc}")
                     self.state.api_usd_cumulative += exc.api_usd or 0.0
+                    if isinstance(exc, ProposerAccountingError):
+                        self.state.api_accounting_unresolved = str(exc)
+                        self._save()
                     self._append_row(
                         experiment=f"{self.state.attempt_index:03d}-proposer",
                         image_digest="",
@@ -879,6 +894,11 @@ class Harness:
                     self.state.attempt_index += 1
                     self._save()
                     attempts += 1
+                    if self.state.api_accounting_unresolved:
+                        self.finalize(
+                            "API accounting unresolved; reconcile provider billing before resuming"
+                        )
+                        return 2
                     continue
                 if proposal is None:
                     self.finalize("proposer exhausted")

@@ -153,6 +153,7 @@ def build_manifest(
         },
         "finish_reason": state.finish_reason,
         "api_usd_cumulative": round(state.api_usd_cumulative, 4),
+        "api_accounting_unresolved": state.api_accounting_unresolved,
     }
     return manifest
 
@@ -190,6 +191,7 @@ def write_manifest(harness: Harness) -> dict[str, Any]:
         **_pi_pins(cfg.repo_root),
         "pi_used_for_these_rows": harness.proposer.name == "pi",
         "api_usd_cumulative": round(state.api_usd_cumulative, 4),
+        "api_accounting_unresolved": state.api_accounting_unresolved,
         "note": "ScriptedProposer rows involve no coding-model calls; "
         "API spend is 0 by construction."
         if harness.proposer.name != "pi"

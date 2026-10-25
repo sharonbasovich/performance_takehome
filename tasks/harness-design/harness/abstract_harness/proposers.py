@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import difflib
 import json
+import math
 import os
 import re
 import shutil
@@ -56,6 +57,13 @@ class ProposerError(RuntimeError):
     def __init__(self, message: str, *, api_usd: float | None = None) -> None:
         super().__init__(message)
         self.api_usd = api_usd
+
+
+class ProposerAccountingError(ProposerError):
+    """Model usage cannot be reconciled; stop instead of making another paid proposal.
+
+    ``api_usd`` is only the known subtotal, not a claim that unknown usage was free.
+    """
 
 
 @dataclass(frozen=True)
@@ -511,10 +519,33 @@ class PiProposer(Proposer):
             log_path=transcript,
             should_abort=context.should_abort,
         )
-        api_usd = self._cost_from_events(transcript)
+        model_error = self._error_from_events(transcript)
+        accounting_error = None
+        try:
+            api_usd = self._cost_from_events(transcript)
+        except ProposerAccountingError as exc:
+            api_usd = exc.api_usd
+            accounting_error = str(exc)
         if api_usd is not None:
             self._max_observed_usd = max(self._max_observed_usd, api_usd)
-        model_error = self._error_from_events(transcript)
+        if result.timed_out or (not result.ok and model_error is None):
+            accounting_error = (
+                accounting_error or "Pi terminated without a reconciled terminal response"
+            )
+        if accounting_error:
+            failure = (
+                f"pi timed out after {timeout_s:.2f}s; "
+                if result.timed_out
+                else f"pi model call failed: {model_error}; "
+                if model_error
+                else f"pi exited {result.returncode}; "
+                if not result.ok
+                else ""
+            )
+            raise ProposerAccountingError(
+                f"{failure}unresolved API accounting: {accounting_error} (transcript {transcript})",
+                api_usd=api_usd,
+            )
         if result.timed_out:
             raise ProposerError(
                 f"pi timed out after {timeout_s:.2f}s (transcript {transcript})",
@@ -553,8 +584,8 @@ class PiProposer(Proposer):
         )
 
     @staticmethod
-    def _cost_from_events(transcript: Path) -> float | None:
-        """Sum ``message.usage.cost.total`` over ``message_end`` events; ``None`` if none.
+    def _cost_from_events(transcript: Path) -> float:
+        """Sum complete terminal assistant usage; reject unknown or zero-priced usage.
 
         Pi's JSON mode (``dist/modes/json-event.js``) also attaches the running
         ``usage`` to every ``message_update`` delta, so only the terminal
@@ -562,16 +593,52 @@ class PiProposer(Proposer):
         """
         total = 0.0
         seen = False
+        problems = []
+        assistant_in_progress = False
         for event in _iter_events(transcript):
+            message = event.get("message")
+            if (
+                event.get("type") == "message_start"
+                and isinstance(message, dict)
+                and message.get("role") == "assistant"
+            ):
+                assistant_in_progress = True
             if event.get("type") != "message_end":
                 continue
-            message = event.get("message")
-            if not isinstance(message, dict):
+            if not isinstance(message, dict) or message.get("role") != "assistant":
                 continue
-            for cost in _find_costs(message.get("usage")):
-                total += cost
-                seen = True
-        return total if seen else None
+            assistant_in_progress = False
+            seen = True
+            usage = message.get("usage")
+            if not isinstance(usage, dict):
+                problems.append("assistant response omitted usage")
+                continue
+            counts = [usage.get(k) for k in ("input", "output", "cacheRead", "cacheWrite")]
+            cost = usage.get("cost")
+            value = cost.get("total") if isinstance(cost, dict) else None
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or value <= 0
+            ):
+                problems.append("assistant usage has no finite positive price")
+                continue
+            if not math.isfinite(total + value):
+                problems.append("assistant usage subtotal overflowed")
+                continue
+            total += value
+            if any(isinstance(n, bool) or not isinstance(n, int) or n < 0 for n in counts):
+                problems.append("assistant usage has invalid or missing token counts")
+            elif sum(counts) <= 0:
+                problems.append("assistant usage has no token counts")
+        if not seen:
+            problems.append("no terminal assistant usage was captured")
+        if assistant_in_progress:
+            problems.append("a partial assistant response has no terminal usage")
+        if problems:
+            raise ProposerAccountingError("; ".join(dict.fromkeys(problems)), api_usd=total)
+        return total
 
     @staticmethod
     def _error_from_events(transcript: Path) -> str | None:

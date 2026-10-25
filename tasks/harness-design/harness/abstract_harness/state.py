@@ -53,6 +53,7 @@ class HarnessState:
     lease_deadline_ts: float = 0.0
     attempt_index: int = 0
     api_usd_cumulative: float = 0.0
+    api_accounting_unresolved: str = ""
     last_good: ImageRef | None = None
     baseline_samples: dict[str, Any] = field(default_factory=dict)
     golden: dict[str, str] = field(default_factory=dict)
