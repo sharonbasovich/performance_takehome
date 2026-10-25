@@ -575,19 +575,30 @@ class PiProposer(Proposer):
             raise ProposerError(
                 f"pi exited {result.returncode} (transcript {transcript})", api_usd=api_usd
             )
-        patch = (
-            patch_out.read_text(encoding="utf-8")
-            if patch_out.exists()
-            else unified_diff_for_dirs(context.context_dir, scratch)
-        )
-        if not patch.strip():
-            raise ProposerError(f"pi produced no patch (transcript {transcript})", api_usd=api_usd)
-        meta: dict[str, Any] = {}
-        if meta_out.exists():
-            try:
-                meta = json.loads(meta_out.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                meta = {}
+        # Usage is reconciled before recovering artifacts. A rejected binary diff
+        # or unreadable output still belongs to this paid call, so its failure
+        # must reach the loop with the same charge as a successful proposal.
+        try:
+            patch = (
+                patch_out.read_text(encoding="utf-8")
+                if patch_out.exists()
+                else unified_diff_for_dirs(context.context_dir, scratch)
+            )
+            if not patch.strip():
+                raise ProposerError(f"pi produced no patch (transcript {transcript})")
+            meta: dict[str, Any] = {}
+            if meta_out.exists():
+                try:
+                    meta = json.loads(meta_out.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    meta = {}
+                if not isinstance(meta, dict):
+                    raise ProposerError("pi proposal metadata must be a JSON object")
+        except (ProposerError, OSError, UnicodeError) as exc:
+            raise ProposerError(
+                f"pi proposal recovery failed: {exc} (transcript {transcript})",
+                api_usd=api_usd,
+            ) from exc
         experiment = _slug(str(meta.get("experiment") or f"pi-{attempt_dir.name}"))
         return Proposal(
             experiment=experiment,

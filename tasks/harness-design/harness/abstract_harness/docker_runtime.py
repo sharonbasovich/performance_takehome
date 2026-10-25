@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import shutil
 import time
 from collections.abc import Callable, Mapping, Sequence
@@ -411,6 +412,27 @@ def run_detached(
     if not result.ok:
         raise DockerError(f"docker run failed: {result.stderr.strip() or result.stdout.strip()}")
     return result.stdout.strip()
+
+
+def container_absent(name: str, *, timeout_s: float = 30.0) -> bool:
+    """Prove exact-name absence from a successful complete daemon enumeration.
+
+    A failed ``inspect`` cannot distinguish absence from an unavailable daemon.
+    Recovery uses this separate, bounded probe and leaves unknown state blocked.
+    """
+    valid_name = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,254}")
+    if not isinstance(name, str) or not valid_name.fullmatch(name):
+        raise DockerError("invalid container name for absence check")
+    try:
+        result = _docker(["ps", "-a", "--format", "{{.Names}}"], timeout_s=timeout_s)
+    except OSError as exc:
+        raise DockerError("container absence could not be established") from exc
+    if not result.ok:
+        raise DockerError("container absence could not be established")
+    names = result.stdout.splitlines()
+    if any(not valid_name.fullmatch(value) for value in names):
+        raise DockerError("container enumeration returned invalid names")
+    return name not in names
 
 
 def container_state(

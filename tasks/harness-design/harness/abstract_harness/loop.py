@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -171,6 +172,7 @@ class Harness:
             self._release_locks()
             raise
         suffix = "-" + self.state.run_id
+        self._original_container_prefix = config.container_prefix
         for key in ("container_prefix", "image_prefix", "network_name"):
             value = getattr(config, key)
             if not value.endswith(suffix):
@@ -900,6 +902,17 @@ class Harness:
         ip = self.state.in_progress
         if ip is None:
             return
+        if ip.container:
+            # Older checkpoints predate per-run namespaces. Remove only the exact
+            # saved server, never every container sharing the old global prefix.
+            allowed_prefixes = (self._original_container_prefix, self.config.container_prefix)
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,254}", ip.container) or not any(
+                ip.container.startswith(prefix + "-") for prefix in allowed_prefixes
+            ):
+                raise StateError("saved recovery container is outside the run namespace")
+            docker.stop_container(ip.container, grace_s=self.config.timeouts.stop_grace_s)
+            if not docker.container_absent(ip.container):
+                raise StateError("saved recovery container still exists; recovery blocked")
         if ip.stage == "promoted":
             reference = self.state.last_good
             if (
