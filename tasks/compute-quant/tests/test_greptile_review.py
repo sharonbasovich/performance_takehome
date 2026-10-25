@@ -10,6 +10,17 @@ from .support import CaseBuilder, quote_row, run_cli, run_demo
 
 
 class GreptileReviewTests(unittest.TestCase):
+    def test_current_flexible_quote_does_not_bound_guaranteed_forward_prices(self):
+        result = CaseBuilder(self).set("q04", price="8").run()
+        flexible = result["cross_checks"]["current_flexible_reference_ask_usd_per_gpu_hour"]
+        forward = next(n for n in result["curve"]["nodes"] if n["tenor_months"] == 1)
+        self.assertGreater(forward["ask"], flexible)
+        report = render_report(result)
+        self.assertFalse("so they bound a one-month reservation from above" in report)
+        self.assertTrue("do not establish an upper bound" in report)
+        note = result["cross_checks"]["flexibility_premium"]["note"]
+        self.assertTrue("no future price bound" in note)
+
     def test_market_cost_memo_handles_cheap_rising_quotes(self):
         result = (
             CaseBuilder(self)

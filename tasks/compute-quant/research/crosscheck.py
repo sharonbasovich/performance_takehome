@@ -228,9 +228,10 @@ def flexibility_premium(
         "flexible_over_reserved": float(flexible.usd_per_gpu_hour)
         / float(reserved.usd_per_gpu_hour),
         "note": (
-            "price of cancel-anytime hourly access relative to a non-cancellable reserved month at "
-            "the same quantity; the embedded cancellation option is why flexible asks bound "
-            "reserved prices from above rather than equal them"
+            "contextual as-of price ratio of cancel-anytime hourly access to a non-cancellable "
+            "reserved month at the same quantity; different rights and continuity assumptions "
+            "prevent interpreting it as a pure option price. There is no future price bound "
+            "without assumptions about future hourly prices and capacity availability"
         ),
     }
 
