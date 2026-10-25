@@ -121,7 +121,8 @@ class ModelTokenizer:
             encoding = self.backend.encode(normalized, add_special_tokens=False)
             ends = [end for _, end in encoding.offsets]
             if (
-                self.backend.decode(encoding.ids, skip_special_tokens=False) != normalized
+                self.backend.encode(text, add_special_tokens=False).ids != encoding.ids
+                or self.backend.decode(encoding.ids, skip_special_tokens=False) != normalized
                 or len(ends) != len(encoding.ids)
                 or any(not 0 <= start < end <= len(normalized) for start, end in encoding.offsets)
                 or ends != sorted(ends)
