@@ -11,8 +11,14 @@ from unittest import mock
 
 from abstract_harness import loop, measure, results
 from abstract_harness.docker_runtime import BuildResult
-from abstract_harness.proposers import Proposal, Proposer, ProposerAccountingError, ProposerError
-from abstract_harness.state import InProgress, load_state
+from abstract_harness.proposers import (
+    Proposal,
+    Proposer,
+    ProposerAccountingError,
+    ProposerError,
+    ScriptedProposer,
+)
+from abstract_harness.state import InProgress, backup_path, load_state
 
 from .test_recovery import make_harness
 
@@ -85,6 +91,24 @@ class PendingPaidCallTest(unittest.TestCase):
             attempted.assert_called_once()
             self.assertEqual(load_state(harness.state_path).api_usd_cumulative, 0.02)
 
+    def test_corrupt_main_fallback_cannot_drop_pending_paid_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+
+            def crash(_context):
+                saved_backup = load_state(backup_path(root / "state/state.json"))
+                self.assertIn("pending proposer call", saved_backup.api_accounting_unresolved)
+                raise KeyboardInterrupt("paid call interrupted before terminal usage")
+
+            harness = self.prepare(root, crash)
+            with self.assertRaises(KeyboardInterrupt):
+                self.run_without_runtime(harness)
+            harness.state_path.write_text("{truncated", encoding="utf-8")
+            next_call = mock.Mock()
+            restarted = self.prepare(root, next_call)
+            self.assertEqual(self.run_without_runtime(restarted), 2)
+            next_call.assert_not_called()
+
     def test_known_error_cost_settles_but_unknown_error_cost_stays_blocked(self):
         for error, unresolved in (
             (ProposerError("known", api_usd=0.02), False),
@@ -122,6 +146,7 @@ class BaselineRetryTest(unittest.TestCase):
             root / "build.log",
         )
         measurement = measure.Measurement("model", 1.0, 3, [], [], [], [], True)
+
         def build_retry(_context, _tag, log_path):
             log_path.parent.mkdir(parents=True, exist_ok=True)
             log_path.write_bytes(b"successful retry log")
@@ -189,6 +214,39 @@ class BaselineRetryTest(unittest.TestCase):
             rows = results.validate_file(root / "results.tsv")
             self.assertEqual([row.outcome for row in rows], ["interrupted", "baseline"])
             self.assertEqual(len({row.experiment for row in rows}), 2)
+
+    def test_baseline_retry_does_not_skip_first_scripted_queue_item_on_restart(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            harness = make_harness(root)
+            harness.state.in_progress = InProgress(
+                "baseline", "baseline", 1.0, "", stage="building"
+            )
+            harness._save()
+            harness._release_locks()
+            retried = make_harness(root)
+            with mock.patch.object(loop.docker, "kill_containers_with_prefix"):
+                retried.recover_from_previous_run()
+            self.successful_retry(retried, root)
+            retried._release_locks()
+            restarted = make_harness(root)
+            restarted.config.max_attempts = 1
+            restarted.proposer = ScriptedProposer(
+                [
+                    {"experiment": "first", "patch": "first patch"},
+                    {"experiment": "second", "patch": "second patch"},
+                ]
+            )
+            with (
+                mock.patch.object(restarted, "install_signal_handlers"),
+                mock.patch.object(restarted, "establish_baseline"),
+                mock.patch.object(restarted, "_proposer_context", return_value=None),
+                mock.patch.object(restarted, "finalize"),
+                mock.patch.object(restarted, "cleanup"),
+                mock.patch.object(restarted, "attempt", return_value="error") as attempted,
+            ):
+                self.assertEqual(restarted.run(), 0)
+            self.assertEqual(attempted.call_args.args[0].experiment, "first")
 
     def test_ordering_still_rejects_candidate_before_successful_baseline(self):
         with tempfile.TemporaryDirectory() as tmp:

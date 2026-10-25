@@ -1044,7 +1044,19 @@ class Harness:
         try:
             self.recover_from_previous_run()
             if isinstance(self.proposer, ScriptedProposer):
-                self.proposer.resume_from_attempt_index(self.state.attempt_index)
+                # Baseline retries consume global evidence IDs, not queue entries.
+                failed_baselines = 0
+                for row in self.state.history:
+                    if row.get("outcome") == "baseline":
+                        break
+                    if row.get("outcome") in {"error", "interrupted"} and (
+                        row.get("experiment") == "baseline"
+                        or re.fullmatch(r"\d+-baseline", row.get("experiment", ""))
+                    ):
+                        failed_baselines += 1
+                self.proposer.resume_from_attempt_index(
+                    max(0, self.state.attempt_index - failed_baselines)
+                )
             if self.state.api_accounting_unresolved:
                 self.finalize(
                     "API accounting unresolved; reconcile provider billing before resuming"
@@ -1119,6 +1131,9 @@ class Harness:
                         f"pending proposer call at attempt {self.state.attempt_index}; "
                         "reconcile provider billing before resuming"
                     )
+                    self._save()
+                    # Corrupt-main recovery loads the previous checkpoint. Make
+                    # that backup fail closed too before a paid request can start.
                     self._save()
                 try:
                     proposal = self.proposer.propose(proposer_context)

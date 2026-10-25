@@ -19,8 +19,10 @@ from . import procs
 if TYPE_CHECKING:
     from .loop import Harness
 
-# `docker buildx build --load` yields the image config ID, not a registry manifest digest.
-IMAGE_IDENTITY_KIND = "docker-image-config-id"
+# Build metadata, RepoDigests and local IDs resolve different Docker identities.
+# In particular containerd stores can report an index/manifest as .Id. This label
+# deliberately makes no unverified claim about config or registry identity.
+IMAGE_IDENTITY_KIND = "docker-resolved-image-digest"
 STARTER_COMMIT = "81aead87d78ed468c4c374fb42921471b44c3f80"
 UNAVAILABLE = "UNAVAILABLE_IN_DRAFT"
 

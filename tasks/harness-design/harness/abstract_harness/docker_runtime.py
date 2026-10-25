@@ -25,10 +25,10 @@ class DockerError(RuntimeError):
 class BuildResult:
     """Result of a fresh image build.
 
-    ``digest`` is what ``buildx --load`` can resolve locally: the image *config*
-    ID (``docker image inspect --format {{.Id}}``), which is why it equals
-    ``image_id`` in every report. A registry manifest digest only exists after a
-    push; the manifest records which kind was used.
+    ``digest`` is resolved from build metadata or Docker inspection. It can
+    describe a config, image manifest or index, depending on the image store and
+    build output. ``image_id`` records Docker's local .Id separately; neither
+    value alone proves publication or an organizer-accessible registry reference.
     """
 
     tag: str

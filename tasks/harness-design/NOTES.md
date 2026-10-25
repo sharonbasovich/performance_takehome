@@ -33,6 +33,18 @@ identities. Results validation admits explicitly failed baseline attempts before
 single successful baseline while still rejecting candidate attempts before it.
 The opening README invocation now explicitly selects Pi and its credential variable.
 
+Independent follow-up reproductions also covered the supported corrupt-main backup
+fallback and scripted queue recovery after a failed baseline. Both main and backup
+checkpoints now contain the pending-call marker before launch; baseline retries consume
+evidence IDs without consuming unstarted scripted experiments. Two additional regression
+tests exercise the actual fallback and a fresh queue restart.
+
+A separate tiny Docker 29/containerd round-trip found that `.Id` identifies an
+index/manifest on that store, rather than raw config bytes. Newly generated manifests
+therefore use the conservative `docker-resolved-image-digest` label. Raw config,
+platform manifest, index and publication linkage still require explicit verification;
+historical manifest bytes and their original labels remain unchanged.
+
 ## Approach in one paragraph
 
 `harness/run.py` drives an unattended loop (`abstract_harness/loop.py`): build the baseline
