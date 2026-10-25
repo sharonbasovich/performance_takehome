@@ -32,13 +32,12 @@ class RunResult:
 
 
 def kill_process_group(proc: subprocess.Popen[str], grace_s: float = 3.0) -> None:
-    """SIGTERM the child's process group, then SIGKILL anything still alive."""
-    if proc.poll() is not None:
-        return
-    try:
-        pgid = os.getpgid(proc.pid)
-    except ProcessLookupError:
-        return
+    """Terminate a child session created with ``start_new_session=True``.
+
+    Its group ID is the original child's PID even after that child exits. Polling
+    only the direct child misses descendants that ignore SIGTERM or retain pipes.
+    """
+    pgid = proc.pid
     for sig in (signal.SIGTERM, signal.SIGKILL):
         try:
             os.killpg(pgid, sig)
@@ -46,7 +45,10 @@ def kill_process_group(proc: subprocess.Popen[str], grace_s: float = 3.0) -> Non
             return
         deadline = time.monotonic() + grace_s
         while time.monotonic() < deadline:
-            if proc.poll() is not None:
+            proc.poll()  # Reap the direct child; its exit does not end the group.
+            try:
+                os.killpg(pgid, 0)
+            except ProcessLookupError:
                 return
             time.sleep(0.05)
 
@@ -89,6 +91,7 @@ def run(
         return RunResult(tuple(args), None, "", str(exc), time.monotonic() - start, False)
     timed_out = False
     aborted = False
+    group_cleaned = False
     try:
         if should_abort is None:
             stdout, stderr = proc.communicate(input=stdin_text, timeout=timeout_s)
@@ -111,6 +114,7 @@ def run(
     except subprocess.TimeoutExpired:
         timed_out = not aborted
         kill_process_group(proc)
+        group_cleaned = True
         try:
             stdout, stderr = proc.communicate(timeout=5)
         except subprocess.TimeoutExpired:
@@ -118,8 +122,13 @@ def run(
     except BaseException:
         # e.g. the harness's SIGTERM handler raised: never leave the child running
         kill_process_group(proc)
+        group_cleaned = True
         raise
     finally:
+        # A successful CLI may also leave background children behind (particularly
+        # with log-file output, where inherited stdout does not delay communicate).
+        if not group_cleaned:
+            kill_process_group(proc)
         if log_fh:
             log_fh.close()
     duration = time.monotonic() - start

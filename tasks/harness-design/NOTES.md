@@ -68,7 +68,13 @@ last-good measurement; geometric mean across prompts; 90% percentile bootstrap r
 each prompt group (deterministic seed). `improved` requires both TTFT and FTGR not regressed,
 at least one significantly improved (CI excludes 1 and effect >= 3%) and startup not
 significantly worse; `regressed` if any primary metric's CI is entirely below 1; otherwise
-`no_change`. Insufficient samples => `no_change`.
+`no_change`. Both primary metrics must have finite positive samples for identical
+prompt groups, matching repetition counts, and at least `--min-samples` observations
+per prompt per side. Incomplete or invalid primary evidence => `no_change`, even if
+the other metric improves. A missing last-good image or a current control that fails
+correctness makes the attempt an `error`; historical baseline samples never substitute
+for that control. These stricter promotion checks were added after the historical CPU
+rows below and do not relabel those measurements as new evidence.
 
 Why A/B inside the attempt: the first evidence runs compared each candidate with a baseline
 measured many minutes earlier; background load on the shared VM drifted between the two and

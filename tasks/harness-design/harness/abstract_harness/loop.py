@@ -607,22 +607,22 @@ class Harness:
                 raise RuntimeError(f"build failed: {build.error}")
             digest = build.digest
             self._checkpoint()
-            # A/B: re-measure the last-good image in the same attempt so slow drift in
-            # host load affects both arms; the stored baseline is only a fallback.
+            # A/B: require a valid current control. Historical samples cannot replace
+            # a failed/missing control without confounding the promotion decision.
             assert self.state.last_good is not None
-            baseline_samples = self.state.baseline_samples
-            if docker.image_exists(self.state.last_good.tag):
-                base_measurement, base_info = self.measure_image(
-                    self.state.last_good.tag, golden=self.state.golden, label=f"{idx:03d}-ab"
+            if not docker.image_exists(self.state.last_good.tag):
+                raise measure_mod.MeasurementError("last-good control image is unavailable")
+            base_measurement, base_info = self.measure_image(
+                self.state.last_good.tag, golden=self.state.golden, label=f"{idx:03d}-ab"
+            )
+            report["baseline_measurement"] = base_measurement.to_json()
+            report["baseline_container"] = base_info
+            if not base_measurement.gates_passed:
+                failed = "; ".join(
+                    f"{g.name}: {g.detail}" for g in base_measurement.gates if not g.passed
                 )
-                report["baseline_measurement"] = base_measurement.to_json()
-                report["baseline_container"] = base_info
-                if base_measurement.gates_passed:
-                    baseline_samples = base_measurement.samples()
-                else:
-                    report["baseline_remeasure_note"] = (
-                        "last-good re-measure failed gates; using stored samples"
-                    )
+                raise measure_mod.MeasurementError(f"last-good control failed gates: {failed}")
+            baseline_samples = base_measurement.samples()
             self._checkpoint()
             measurement, info = self.measure_image(
                 tag, golden=self.state.golden, label=f"{idx:03d}"

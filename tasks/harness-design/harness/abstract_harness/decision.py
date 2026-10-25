@@ -92,16 +92,18 @@ def bootstrap_speedup(
 ) -> tuple[float | None, float | None, float | None]:
     """Return ``(speedup, ci_low, ci_high)`` from a seeded, stratified percentile bootstrap.
 
-    Samples are grouped (by benchmark prompt); only groups present on both sides
-    are compared. Per group the speedup is the ratio of medians; the reported
+    Samples are grouped (by benchmark prompt); both sides must contain the same
+    nonempty groups. Per group the speedup is the ratio of medians; the reported
     speedup is the geometric mean of the per-group ratios, so heterogeneous
     prompts (short vs long prefill) do not inflate the uncertainty the way a
     pooled median would. Each bootstrap iteration resamples within every group.
     """
     base_groups = _groups(baseline)
     cand_groups = _groups(candidate)
-    shared = [g for g in base_groups if g in cand_groups and base_groups[g] and cand_groups[g]]
-    if not shared:
+    if not base_groups or base_groups.keys() != cand_groups.keys():
+        return None, None, None
+    shared = list(base_groups)
+    if any(not base_groups[g] or not cand_groups[g] for g in shared):
         return None, None, None
 
     def aggregate(pick: Callable[[list[float]], list[float]]) -> float | None:
@@ -146,9 +148,31 @@ def compare_metric(
 ) -> MetricComparison:
     """Classify one metric as improved / regressed / no_change / insufficient."""
     lower_is_better = METRIC_DIRECTIONS[metric]
-    base = [v for vs in _groups(baseline).values() for v in vs]
-    cand = [v for vs in _groups(candidate).values() for v in vs]
-    if len(base) < min_samples or len(cand) < min_samples:
+    base_groups, cand_groups = _groups(baseline), _groups(candidate)
+    base = [v for vs in base_groups.values() for v in vs]
+    cand = [v for vs in cand_groups.values() for v in vs]
+    raw_sides = (
+        baseline.values() if isinstance(baseline, Mapping) else (baseline,),
+        candidate.values() if isinstance(candidate, Mapping) else (candidate,),
+    )
+    invalid = any(
+        isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v <= 0
+        for groups in raw_sides
+        for group in groups
+        for v in group
+    )
+    detail = ""
+    if invalid:
+        detail = "samples must all be finite positive numbers"
+    elif not base_groups or base_groups.keys() != cand_groups.keys():
+        detail = "baseline and candidate must cover identical nonempty prompt groups"
+    elif any(
+        len(base_groups[g]) != len(cand_groups[g])
+        or min(len(base_groups[g]), len(cand_groups[g])) < min_samples
+        for g in base_groups
+    ):
+        detail = f"need matching counts and >= {min_samples} samples per prompt on each side"
+    if detail:
         return MetricComparison(
             metric,
             len(base),
@@ -159,7 +183,7 @@ def compare_metric(
             None,
             None,
             "insufficient",
-            f"need >= {min_samples} finite samples per side",
+            detail,
         )
     speedup, lo, hi = bootstrap_speedup(
         baseline,
@@ -246,6 +270,7 @@ def decide(
       regardless of the primary metrics; with >= ``min_samples`` startups per
       side the bootstrap comparison applies as well;
     * any primary metric significantly worse -> ``regressed``;
+    * incomplete/invalid primary evidence -> ``no_change``;
     * otherwise >= 1 primary metric significantly better -> ``improved`` (kept),
       unless the startup bootstrap says it regressed significantly, which
       downgrades to ``regressed``;
@@ -279,9 +304,9 @@ def decide(
     if any(c.verdict == "regressed" for c in primary):
         bad = ", ".join(f"{c.metric} x{c.speedup:.3f}" for c in primary if c.verdict == "regressed")
         return Decision("regressed", False, f"primary metric regressed: {bad}", comparisons)
-    if all(c.verdict == "insufficient" for c in primary):
+    if any(c.verdict == "insufficient" for c in primary):
         return Decision(
-            "no_change", False, "insufficient samples for every primary metric", comparisons
+            "no_change", False, "incomplete comparable evidence for a primary metric", comparisons
         )
     if any(c.verdict == "improved" for c in primary):
         if any(c.verdict == "regressed" for c in secondary):

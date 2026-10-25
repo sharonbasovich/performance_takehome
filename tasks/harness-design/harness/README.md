@@ -149,6 +149,14 @@ The key variable must have the provider's native name: `ANTHROPIC_API_KEY` for A
 or `OPENAI_API_KEY` with `--pi-provider openai`. `--api-key-env` selects the variable to
 forward; it does not rename an arbitrary alias into a provider credential.
 
+Promotion requires a valid same-attempt last-good control and complete comparable
+evidence for both primary metrics. Missing control images or failed control correctness
+end that attempt as `error`; missing/invalid metric groups or repetitions cannot turn into
+a keep by being filtered out. Each prompt needs at least `--min-samples` observations
+per side. Stage process groups are cleaned after exit as well as on timeout, including
+background descendants whose direct parent has already exited. Termination has a bounded
+SIGTERM grace period before SIGKILL; cleanup is included in the configured reserve.
+
 Send `SIGTERM` at any time: the loop finishes the current step boundary, logs the attempt
 as `interrupted`, keeps the last-good image, writes the manifest and exits 3. Re-running the
 same command resumes from `state.json`.

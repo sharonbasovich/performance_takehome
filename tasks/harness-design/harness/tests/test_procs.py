@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -15,6 +17,53 @@ from . import _paths  # noqa: F401
 
 
 class ProcessGroupTest(unittest.TestCase):
+    def _orphaned_descendant(self, *, log_output: bool) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pidfile = root / "pid"
+            script = (
+                "import os, signal, time\n"
+                "from pathlib import Path\n"
+                "pid = os.fork()\n"
+                "if pid == 0:\n"
+                "    signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+                f"    Path({str(pidfile)!r}).write_text(str(os.getpid()))\n"
+                "    time.sleep(120)\n"
+                "else:\n"
+                f"    while not Path({str(pidfile)!r}).exists(): time.sleep(0.01)\n"
+                "    os._exit(0)\n"
+            )
+            grandchild = None
+            try:
+                start = time.monotonic()
+                result = procs.run(
+                    [sys.executable, "-c", script], timeout_s=0.5,
+                    log_path=root / "child.log" if log_output else None,
+                )
+                self.assertLess(time.monotonic() - start, 10.0)
+                grandchild = int(pidfile.read_text())
+                stat = Path(f"/proc/{grandchild}/stat")
+                # An adopted zombie may await init's reap, but cannot run or hold pipes.
+                self.assertTrue(not stat.exists() or stat.read_text().split()[2] == "Z")
+                if log_output:
+                    self.assertTrue(result.ok)
+                else:
+                    self.assertTrue(result.timed_out)
+            finally:
+                if grandchild is None and pidfile.exists():
+                    grandchild = int(pidfile.read_text())
+                if grandchild is not None:
+                    try:
+                        os.kill(grandchild, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+
+    def test_exited_parent_with_inherited_pipes_does_not_leave_child_running(self) -> None:
+        self._orphaned_descendant(log_output=False)
+
+    def test_successful_logged_cli_does_not_leave_background_child_running(self) -> None:
+        self._orphaned_descendant(log_output=True)
+
     def test_timeout_kills_child_and_grandchild(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             pidfile = Path(tmp) / "pid"
