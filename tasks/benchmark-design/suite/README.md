@@ -62,6 +62,7 @@ Against a real engine the same runner is used with the real plan and a cold-star
 ```bash
 uv run --frozen python -m runner --plan workload.json --mode full --out <events_dir> \
     --base-url http://<engine>:8000 --launch-cmd "<command that cold-starts the pinned engine>" \
+    --tokenizer-snapshot <verified_target_tokenizer_dir> \
     --stop-after-launch --gpu-count 1 --gpu-hours 3 --gpu-kind MI355X
 ```
 
@@ -179,7 +180,7 @@ decompressed) so a corrupt or hostile fixture fails fast instead of exhausting m
 | Plan / raw-event schemas | no | `workload.json` (`schema_version`), `schema/*.schema.json` | organizer schema; field mapping documented in `schema/README.md` |
 | Engine (llm-d on MI355X) | no GPU available | `mock_server/` (injected timings) | real engine; every GPU number in this suite is a planning placeholder |
 | Fault / control fixtures | no | `fixtures/public`, `fixtures/heldout` from the mock | organizer fixtures; evaluator is identity-independent (tested) |
-| Tokenizer for independent counts | no | `bench/tokens.py` regex pre-tokenizer (resolution `delta`) | pinned engine tokenizer / per-token timestamps (`resolution: token`) |
+| Tokenizer for independent counts | no | pinned model-repository assets + `bench/model_tokens.py` output adapter; regex only for mocks/approximate prompts | LLMD parity validation, exact chat-template prompt tokens and true per-token arrival timestamps |
 | Prefill deadline curve | no | placeholder intercept+slope with `prefill_calibration` cell to refit | pilot measurement on the real engine |
 | Enhanced Pi harness, profile digests, receipts | no | — | `UNAVAILABLE_IN_DRAFT` in `submission.json` |
 

@@ -321,8 +321,12 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
 ## 7. Threats to validity
 
 1. **No GPU evidence.** Every performance number here is from a mock with injected delays.
-2. **Tokenizer approximation** (§2): independent counts are regex pre-tokens, not model
-   tokens; fluidity at `delta` resolution attributes all tokens of a chunk to one instant.
+2. **Tokenizer evidence** (§2): historical mock counts are regex pre-tokens. An optional
+   pinned-model Tokenizers 0.22.2 adapter now re-encodes completed decoded output, with
+   exact snapshot/runtime identities and conservative NFC-cluster timing. Real capture
+   and evaluation require it; see `suite/README.md`. It does not recover generated token
+   IDs, stripped special tokens, exact chat-template prompt counts or individual token
+   arrivals. Prompt construction is still approximate and LLMD parity needs real validation.
 3. **Prefill deadline constants are placeholders** until `prefill_calibration` is run.
 4. **Single client host**: event-loop lag is monitored and bounded, but network jitter
    between client and engine is not separated from server behaviour; the plan assumes the
@@ -345,7 +349,7 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
 | Plan / raw-event schemas | no | `suite/workload.json`, `suite/schema/` | organizer schemas → adapter mapping |
 | Pinned engine on MI355X | no (no GPU) | `suite/mock_server/` | real engine, pilot numbers |
 | Fault / control fixtures | no | `suite/fixtures/{public,heldout}` | organizer fixtures |
-| Engine tokenizer / per-token timing | no | `bench/tokens.py` (`delta`) | pinned tokenizer, `token` resolution |
+| Engine tokenizer / per-token timing | no | pinned model assets + output re-encoding adapter (`delta`); regex for historical mocks/approximate prompts | LLMD parity, chat-template prompt adapter and true per-token arrival evidence |
 | Enhanced Pi harness, profile/release digests, receipts | no | — | `UNAVAILABLE_IN_DRAFT` |
 
 ### What changes when the organizer's runner/schema arrive
