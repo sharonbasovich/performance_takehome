@@ -12,6 +12,13 @@ The suite answers one question for an OpenAI-compatible streaming server: **is i
 (completion, text validity, independent token accounting)** — and it refuses to score
 evidence it cannot trust.
 
+The candidate interfaces are the self-contained execution path; a future organizer
+replacement is optional, not a prerequisite. See [EXECUTION.md](../EXECUTION.md) for the
+next real-target workflow: `workload.efficient.json`, separate baseline calibration,
+bounded `capture.py`, independent timing checks, owned-container cleanup and verified
+evidence export. The original plan/examples and committed mock reports below remain
+historical development evidence; no real-GPU result is claimed.
+
 ## Layout
 
 | Path | Owner | What it is |
@@ -23,6 +30,10 @@ evidence it cannot trust.
 | `mock_server/` | candidate stand-in | stdlib-asyncio OpenAI-compatible mock with 18 seeded fault profiles and a token-stream oracle |
 | `fixtures/` | candidate stand-in | `generate.py`, the small mock plan `workload.mock.json`, generated `public/<profile>/` (labeled) and `heldout/hx-*/` (opaque) event fixtures |
 | `evaluate.py` | candidate (deliverable) | the graded analysis; reads only `run.json` + `requests.jsonl[.gz]` |
+| `capture.py` | candidate | Linux suite/allocation deadline, immutable image selection, exact owned-container cleanup, evaluator/audit orchestration and allowlisted hash-verified export |
+| `bench/calibration.py` | candidate | separate baseline-only empirical prefill envelope; freezes a new plan/digest before scoring |
+| `audit_timing.py` | candidate | independent raw JSON SSE timing/text/completion and startup-linkage consistency; imports no runner/evaluator/metric code |
+| `workload.efficient.json` | candidate | pilot-ready plan; separate short/long calibration, all scored load points, repetitions/controls and explicit leading-nonce cache policy |
 | `tests/` | candidate | unittest suite covering the validation matrix |
 | `../validation/` | candidate | reports per fixture, discrimination table, control false-positive rate, held-out results, measured CPU wall time, integrity output, dry-run estimates |
 
@@ -170,7 +181,7 @@ decompressed) so a corrupt or hostile fixture fails fast instead of exhausting m
   evidence, no valid cold launch, underpowered comparison) > `valid`. Missing evidence is
   never a pass.
 
-## Gap table — organizer-supplied vs candidate-built vs still missing
+## Declared interfaces and measurement limitations
 
 | Piece | Organizer-supplied | Candidate-built stand-in | Still missing / needs organizer |
 | --- | --- | --- | --- |
@@ -178,10 +189,10 @@ decompressed) so a corrupt or hostile fixture fails fast instead of exhausting m
 | Engine lock (`baseline/lock.json`), budgets, integrity checker | yes, read only | — | `takehome-start` tag (absent; commit `81aead87…` used) |
 | Fixed measurement runner | no | `runner/` (adapter `native`, schema 1.0.0) | the real runner; its output mapped through `bench/records.py::load_events(adapter=…)` |
 | Plan / raw-event schemas | no | `workload.json` (`schema_version`), `schema/*.schema.json` | organizer schema; field mapping documented in `schema/README.md` |
-| Engine (llm-d on MI355X) | no GPU available | `mock_server/` (injected timings) | real engine; every GPU number in this suite is a planning placeholder |
+| Engine (ZML/LLMD on MI355X) | pinned image/model, not yet executed here | `mock_server/` (injected timings) | real execution remains unmeasured; planning arithmetic is not GPU evidence |
 | Fault / control fixtures | no | `fixtures/public`, `fixtures/heldout` from the mock | organizer fixtures; evaluator is identity-independent (tested) |
 | Tokenizer for independent counts | no | pinned model-repository assets + `bench/model_tokens.py` output adapter; regex only for mocks/approximate prompts | LLMD parity validation, exact chat-template prompt tokens and true per-token arrival timestamps |
-| Prefill deadline curve | no | placeholder intercept+slope with `prefill_calibration` cell to refit | pilot measurement on the real engine |
+| Prefill deadline curve | no | `bench/calibration.py` fits a separate baseline capture and freezes a new plan, with explicit approximate-length/envelope limitations | actual baseline calibration measurements remain required |
 | Enhanced Pi harness, profile digests, receipts | no | — | `UNAVAILABLE_IN_DRAFT` in `submission.json` |
 
 ## Adapter boundary

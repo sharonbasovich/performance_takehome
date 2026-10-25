@@ -48,7 +48,12 @@ from bench.plan import (  # noqa: E402
     resolve_mode,
 )
 from bench.prompts import PromptSpec, make_prompt  # noqa: E402
-from bench.records import EVENT_SCHEMA_VERSION, REQUESTS_FILE, RUN_FILE  # noqa: E402
+from bench.records import (  # noqa: E402
+    EVENT_SCHEMA_VERSION,
+    MAX_EVIDENCE_BYTES,
+    REQUESTS_FILE,
+    RUN_FILE,
+)
 from bench.tokens import TIMING_RESOLUTION, TOKENIZER_ID, count_tokens  # noqa: E402
 
 from benchmarks.streaming import (  # noqa: E402
@@ -58,8 +63,14 @@ from benchmarks.streaming import (  # noqa: E402
     sse_data,
 )
 
-RUNNER_VERSION = "1.0.0"
+RUNNER_VERSION = "1.1.0"
 ADAPTER = {"name": "native", "version": EVENT_SCHEMA_VERSION}
+MAX_STREAM_BYTES = 2 << 20
+MAX_STREAM_EVENTS = 8192
+
+
+class CaptureLimitError(RuntimeError):
+    """The immutable raw evidence reached its explicit storage/reader bound."""
 
 
 @dataclass
@@ -230,12 +241,18 @@ class Runner:
             if not args.only_unit or args.only_unit in unit.unit_id
         ]
         self._requests_fh = None
+        self._request_bytes = 0
+        self.abort_reason: str | None = None
 
     def _write_request(self, record: dict[str, Any]) -> None:
         assert self._requests_fh is not None
         # Escapes also preserve surrogateescape bytes from invalid UTF-8 evidence;
         # writing them directly to a UTF-8 text stream would lose the entire record.
-        self._requests_fh.write(json.dumps(record, ensure_ascii=True) + "\n")
+        encoded = json.dumps(record, ensure_ascii=True) + "\n"
+        if self._request_bytes + len(encoded) > MAX_EVIDENCE_BYTES:
+            raise CaptureLimitError("request evidence file byte cap reached; capture is incomplete")
+        self._requests_fh.write(encoded)
+        self._request_bytes += len(encoded)
         self._requests_fh.flush()
 
     async def execute(
@@ -272,13 +289,16 @@ class Runner:
                 http_status = response.status_code
                 content_type = response.headers.get("content-type")
                 if http_status != 200:
-                    await response.aread()
                     error = {"kind": "http_error", "message": f"HTTP {http_status}"}
                 else:
                     pending_lines: list[str] = []
                     partial = ""
                     decoder = codecs.getincrementaldecoder("utf-8")(errors="surrogateescape")
+                    stream_bytes = 0
                     async for chunk in response.aiter_bytes():
+                        stream_bytes += len(chunk)
+                        if stream_bytes > MAX_STREAM_BYTES:
+                            raise StreamProtocolError("raw SSE capture byte cap exceeded")
                         now = time.monotonic()
                         if ts["first_byte"] is None:
                             ts["first_byte"] = now
@@ -289,12 +309,18 @@ class Runner:
                             pending_lines.append(line)
                             if not line.rstrip("\r"):
                                 for payload in sse_data(pending_lines):
+                                    if len(events) >= MAX_STREAM_EVENTS:
+                                        raise StreamProtocolError(
+                                            "raw SSE capture event cap exceeded"
+                                        )
                                     events.append({"t": now, "raw": payload})
                                 pending_lines = []
                     partial += decoder.decode(b"", final=True)
                     if pending_lines or partial:
                         now = time.monotonic()
                         for payload in sse_data([*pending_lines, partial]):
+                            if len(events) >= MAX_STREAM_EVENTS:
+                                raise StreamProtocolError("raw SSE capture event cap exceeded")
                             events.append({"t": now, "raw": payload, "eof_terminated": True})
         except httpx.TimeoutException as exc:
             error = {"kind": "timeout", "message": repr(exc)}
@@ -427,9 +453,7 @@ class Runner:
             # Refuse a pre-existing responder even if a failed child has not exited
             # yet: fast probes could otherwise finish before its bind error appears.
             try:
-                await client.get(
-                    readiness_url, timeout=min(1.0, cfg["max_wait_s"] * self.scale)
-                )
+                await client.get(readiness_url, timeout=min(1.0, cfg["max_wait_s"] * self.scale))
             except httpx.HTTPError:
                 pass
             else:
@@ -610,7 +634,11 @@ class Runner:
 
     async def _cache_flush(self, client: httpx.AsyncClient) -> str:
         if not self.args.cache_flush_url:
-            return "nonce_isolation_fallback"
+            return (
+                "unique_leading_nonce_v1; shared chat-template cache not flushed"
+                if self.plan.get("cache_state", {}).get("request") == "unique_leading_nonce_v1"
+                else "uncontrolled_prefix_cache_no_flush"
+            )
         try:
             resp = await client.post(self.args.cache_flush_url, timeout=30.0)
             return "flushed" if resp.status_code < 300 else f"failed:HTTP {resp.status_code}"
@@ -627,8 +655,13 @@ class Runner:
             "created_utc": datetime.now(UTC).isoformat(),
             "suite_version": SUITE_VERSION,
             "runner_version": RUNNER_VERSION,
+            "capture_limits": {
+                "raw_sse_bytes_per_request": MAX_STREAM_BYTES,
+                "sse_events_per_request": MAX_STREAM_EVENTS,
+            },
             "mode": self.args.mode,
             "status": self.status,
+            "abort_reason": self.abort_reason,
             "plan": {
                 "plan_id": self.plan["plan_id"],
                 "digest": plan_digest(Path(self.args.plan)),
@@ -673,7 +706,11 @@ class Runner:
     async def run(self) -> None:
         """Execute the whole run; ``run.json`` is written even on abort."""
         self.out.mkdir(parents=True, exist_ok=True)
-        self._requests_fh = (self.out / REQUESTS_FILE).open("w", encoding="utf-8")
+        if any(
+            (self.out / name).exists() for name in (RUN_FILE, REQUESTS_FILE, REQUESTS_FILE + ".gz")
+        ):
+            raise FileExistsError("fresh capture output required; existing evidence is immutable")
+        self._requests_fh = (self.out / REQUESTS_FILE).open("x", encoding="utf-8", newline="\n")
         self.lag.start()
         timeout = httpx.Timeout(
             connect=10.0, read=self.args.request_timeout_s, write=10.0, pool=None
@@ -697,15 +734,18 @@ class Runner:
             self.status = "completed"
         except (KeyboardInterrupt, asyncio.CancelledError):
             self.status = "aborted"
+            self.abort_reason = "interrupted or cancelled"
+        except CaptureLimitError as exc:
+            self.status = "aborted"
+            self.abort_reason = str(exc)
         finally:
             if self.args.stop_after_launch:
                 for proc in self.launched:
                     self._stop_process(proc)
             await self.lag.stop()
             self._requests_fh.close()
-            (self.out / RUN_FILE).write_text(
-                json.dumps(self.run_record(), indent=2, ensure_ascii=False), encoding="utf-8"
-            )
+            with (self.out / RUN_FILE).open("x", encoding="utf-8") as handle:
+                handle.write(json.dumps(self.run_record(), indent=2, ensure_ascii=False))
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -775,7 +815,11 @@ def main(argv: list[str] | None = None) -> int:
     except TokenizerError as exc:
         print(str(exc), file=sys.stderr)
         return 2
-    asyncio.run(runner.run())
+    try:
+        asyncio.run(runner.run())
+    except FileExistsError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     print(
         json.dumps(
             {

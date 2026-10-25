@@ -162,6 +162,13 @@ class Evaluator:
                         self.reasons.append(f"unit {unit_id!r}: {key} differs from workload plan")
         for rec in self.ev.requests:
             raw = rec.raw
+            calibration = self.plan.get("calibration")
+            if calibration and raw["phase"] == "measure":
+                low, high = calibration["fit"]["length_domain"]
+                if not low <= raw["prompt"]["approx_prompt_tokens"] <= high:
+                    self.reasons.append(
+                        f"request {rec.request_id}: prompt length outside frozen calibration domain"
+                    )
             if raw["phase"] == "startup_probe":
                 continue
             meta = units.get(raw["unit_id"])

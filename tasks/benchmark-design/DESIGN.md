@@ -1,10 +1,17 @@
 # Task 1 — Benchmark design report
 
+**Next execution revision:** [EXECUTION.md](EXECUTION.md) describes the self-contained
+candidate recorder/schema/fixtures, separate baseline calibration and frozen efficient
+plan, bounded capture/owned cleanup/export and independent timing audit. The original
+plan and measured mock artifacts below stay immutable historical evidence. Current
+target hardware/model measurements remain outstanding; no organizer interface is being
+awaited and no official approval or target score is claimed.
+
 **Status of this report:** a complete, candidate-owned design validated end to end on a CPU
 mock. **No GPU run has happened.** Every number labelled *planned* is arithmetic from
 `suite/workload.json`; every number labelled *measured* was produced on this CPU host by
 the committed code and is stored under `validation/`. Nothing in this document describes
-llm-d or MI355X behaviour.
+ZML/LLMD or MI355X behaviour.
 
 Source identities: suite version `1.0.0` (`suite/bench/__init__.py`), plan
 `abstract-t1-llmd-mi355x-v1` schema `1.0.0`, event schema `1.0.0`, report schema `1.0.0`.
@@ -41,8 +48,8 @@ so text validity is deterministic), and any "quality" judged by another model.
 
 ### Arrival rates
 
-The rates were chosen so that the full mode fits the 3-hour cap with three repetitions
-(see §5) while still spanning from an unloaded server (0.5 rps chat, ~1 request in flight)
+The historical rates were chosen to fit the 3-hour cap in unmeasured planning arithmetic
+(see §5), with three repetitions spanning from an unloaded server (0.5 rps chat, ~1 request in flight)
 to a saturating one (4 rps chat ≈ 8–10 concurrent decodes at 30 tok/s per stream, and
 closed-loop 32). Rates are *planning* values: the first pilot replaces the planning
 assumptions in `planning_assumptions` and the `--dry-run` arithmetic re-sizes the cells.
@@ -181,7 +188,7 @@ startup-phase probes sent after the corresponding launch, never reused across la
 missing planned launch repetitions are inconclusive. Historical committed captures/reports
 are retained as evidence of the earlier implementation, not silently regenerated.
 
-## 4. Validation matrix (CPU mock fixtures — not GPU, not llm-d)
+## 4. Validation matrix (CPU mock fixtures — not GPU or ZML/LLMD)
 
 **How "detected" is decided (round-2 review F5/F6).** `validation/build_validation.py` marks a
 fixture detected only when (i) the top-level status equals the expected one **and** (ii) every
@@ -263,7 +270,8 @@ detection so that outcome is interpretable.
 Quick-mode cap note: the plan's `planned_wall_minutes_max` for quick (45 min) is *planned +
 margin by construction* — it was raised from 40 when the per-cell request floor added 52
 requests (round-2 review F7). The binding constraint is the organizer's 180-minute suite
-ceiling, which the full mode respects with 20 minutes of head-room.
+ceiling. The historical arithmetic leaves 20 minutes; this is not measured head-room or
+proof that model/dependency setup, capture, analysis and export fit that ceiling.
 
 ### Planned GPU cost (arithmetic, unmeasured — `validation/dry_run_*.json`)
 
@@ -279,10 +287,13 @@ of `max_tokens` produced.
 | quick | 8 | 242 (+28) | 1 | 31.7 | **39.6** | 45 | 0.66 |
 | full | 45 | 2541 (+96) | 2 | 128.0 | **160.0** | 180 | 2.67 |
 
-Full mode therefore fits the 3-hour suite ceiling (`docs/BUDGETS.md`) and the proposed
-4 GPU-hour grading allowance (`budgets.toml`), with ~20 minutes of head-room for the pilot
-to be slower than assumed. The first real quick run replaces every assumption with a
-measurement and the arithmetic is re-run before the full run is scheduled.
+These historical assumptions predict a run within the 3-hour suite ceiling
+(`docs/BUDGETS.md`) and proposed 4 GPU-hour grading allowance (`budgets.toml`). They do not
+establish actual feasibility. The next efficient plan and measurement/freeze policy are
+in `EXECUTION.md`; the actual full-suite clock includes setup, analysis, export and cleanup.
+The first real baseline pilot must replace the relevant assumptions before a full run is
+scheduled. Calibration, quick and full captures are separate experiments; their combined
+allocated time/cost must also fit the controller's cash/deletion envelope.
 
 ### Measured CPU/mock cost
 
@@ -339,20 +350,20 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
 7. **Planning arithmetic** assumes no retries and no failed launches; a failed cold launch
    consumes ~9 planned minutes each.
 
-## 8. Organizer-supplied vs candidate-built vs still missing
+## 8. Supplied material, candidate interfaces and remaining measurement limits
 
-| Piece | Organizer-supplied | Candidate-built stand-in | Still missing |
+| Piece | Organizer-supplied | Candidate-defined implementation | Interpretation / remaining limit |
 | --- | --- | --- | --- |
 | `benchmarks/metrics.py`, `benchmarks/streaming.py` | yes (unmodified, imported) | — | — |
 | `baseline/lock.json`, `budgets.toml`, `tools/check_integrity.py`, root tests | yes (read only) | — | `takehome-start` tag |
-| Fixed measurement runner | no | `suite/runner/` | real runner → `load_events(adapter=…)` |
-| Plan / raw-event schemas | no | `suite/workload.json`, `suite/schema/` | organizer schemas → adapter mapping |
+| Measurement recorder | no | `suite/runner/` 1.1.0; bounded streams, immutable output; `capture.py` lifecycle/export | Usable candidate recorder, not an organizer-trusted timestamp authority |
+| Plan / raw-event schemas | no | `suite/workload*.json`, frozen event schema 1.0.0 in `suite/schema/` | Reproducible as supplied; future adapters are optional |
 | Pinned engine on MI355X | no (no GPU) | `suite/mock_server/` | real engine, pilot numbers |
-| Fault / control fixtures | no | `suite/fixtures/{public,heldout}` | organizer fixtures |
+| Fault / control fixtures | no | `suite/fixtures/{public,heldout}` plus independent timing checks | Development fixtures; opaque original key is not retained locally, so its keyed check skips explicitly |
 | Engine tokenizer / per-token timing | no | pinned model assets + output re-encoding adapter (`delta`); regex for historical mocks/approximate prompts | LLMD parity, chat-template prompt adapter and true per-token arrival evidence |
-| Enhanced Pi harness, profile/release digests, receipts | no | — | `UNAVAILABLE_IN_DRAFT` |
+| Enhanced Pi harness, profile/release digests, receipts | no | Candidate execution/calibration/audit/cleanup tooling; source and run receipts | No official enhanced profile, receipt or grading result is asserted |
 
-### What changes when the organizer's runner/schema arrive
+### Optional future adapter compatibility
 
 * `bench/records.py`: add an adapter that maps their files onto `RunRecord`/`RequestRecord`;
   fields they do not provide become `null` and the gates report them as missing evidence.
@@ -367,8 +378,10 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
 * Active engineering time: one autonomous agent session; wall-clock effort was not instrumented and is not claimed.
 * GPU-hours allocated: **0**. GPU-hours used: **0**. Paid API charges: **0**.
 * CPU use: fixture generation and validation on one VM (`validation/timing.md`).
-* Cuts: no real-engine pilot (no GPU); no model-judged quality metric; no multi-turn or
-  prefix-cache-hit cells; the prefill curve is a placeholder pending the calibration cell.
+* Cuts: no real-engine pilot yet; no model-judged quality metric; no multi-turn or
+  prefix-cache-hit cells. Historical reports used placeholder prefill deadlines. The new
+  separate baseline calibration procedure is implemented, with actual pilot data still
+  required before a calibrated real-engine result can be claimed.
 
 ## 10. Issues found in supplied infrastructure
 

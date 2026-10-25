@@ -8,7 +8,7 @@ not depend on the server, the runner, or any fixture label.
 
 import hashlib
 import random
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
 from bench.tokens import count_tokens
@@ -184,12 +184,25 @@ def make_prompt(
         chosen = rng.choices(population, weights=weights, k=1)[0]
         return make_prompt(plan, chosen, cell_id, repetition, index)
     if kind == "synthetic_chat":
-        return _chat(rng, cfg, prompt_id, source)
-    if kind == "synthetic_rag":
-        return _rag(rng, cfg, prompt_id, source, forced_prompt_tokens)
-    if kind == "integer_sequence":
-        return _sequence(rng, cfg, prompt_id, source)
-    raise ValueError(f"unknown prompt source kind: {kind}")
+        spec = _chat(rng, cfg, prompt_id, source)
+    elif kind == "synthetic_rag":
+        spec = _rag(rng, cfg, prompt_id, source, forced_prompt_tokens)
+    elif kind == "integer_sequence":
+        spec = _sequence(rng, cfg, prompt_id, source)
+    else:
+        raise ValueError(f"unknown prompt source kind: {kind}")
+    if plan.get("cache_state", {}).get("request") == "unique_leading_nonce_v1":
+        # Start user content with request-specific letters, before shared instructions.
+        # This prevents identical user prefixes; common chat-template token state is
+        # still not flushed, and no claim about engine block-cache internals is made.
+        digest = hashlib.sha256(
+            f"{plan['seeds']['prompt_seed']}:{cell_id}:{repetition}:{index}".encode()
+        ).digest()
+        nonce = "".join(chr(65 + nibble) for byte in digest for nibble in (byte >> 4, byte & 15))
+        messages = [dict(message) for message in spec.messages]
+        messages[0]["content"] = nonce + "\n" + messages[0]["content"]
+        spec = replace(spec, messages=messages, approx_prompt_tokens=_count_messages(messages))
+    return spec
 
 
 def check_expected(text: str, expected: dict[str, Any]) -> list[str]:
