@@ -407,3 +407,11 @@ CRLF notice; harness Python source is LF. The earlier remote fixes remain ancest
 These are local software checks with simulated GPU inventory, not target inference.
 Historical measurements and earlier frozen packets remain unchanged. Review of
 the new head is pending.
+
+The README now correctly states that `--out` is required; the other evidence
+paths can default under `--state-dir`. Documentation source
+`f7e27dbe9a6d2037b54e145903d26aafef5d88cd` passed a fresh native Linux check:
+**221/221 tests, zero skips, in 21.313 seconds**, with locked Ruff 0.16.10,
+protected integrity and all 14 historical rows passing. Its implementation hash
+is unchanged from `bed51c3`; only the README and the preceding verification note
+differ. Earlier measurements and frozen evidence remain intact.
