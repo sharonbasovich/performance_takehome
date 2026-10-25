@@ -474,7 +474,7 @@ def check_capacity(report: Report, disk: Path, min_free: float) -> None:
         (
             "Use 24 available cores/144 GiB RAM or document approved separate client capacity"
             if limits["established"]
-            else "Expose readable current-process ancestor controls or inspect the actual Linux host"
+            else "Expose readable ancestor controls or inspect the actual Linux host"
         ),
         cpu_capacity=cpu_capacity,
         effective_memory_bytes=memory,
