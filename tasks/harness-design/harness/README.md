@@ -23,7 +23,7 @@ python tasks/harness-design/harness/run.py run \
   --overwrite-evidence
 ```
 
-(`--out`/`--results`/`--reports-dir`/`--patches-dir` default to files under `--state-dir`;
+(`--out` is required; `--results`, `--reports-dir` and `--patches-dir` default under `--state-dir`.
 pointing any of them at git-tracked files is refused with exit 2 unless `--overwrite-evidence`
 is given, so a casual run can never overwrite the committed evidence.)
 
