@@ -330,3 +330,31 @@ recursive state-directory placement (rejected before disk work or builds).
 The actual pinned Pi 1.0 CLI also passed scripted loopback tool/usage tests; no model
 inference or provider charge occurred. These implementation checks are separate
 from the historical CPU measurements and establish no MI355X/LLMD performance result.
+
+## 2026-10-25 second Greptile review corrections
+
+Source `c61748a51ba8b7f8d3c1d4ce4418b7ed1a6919eb` addresses the two P1 findings
+from the review of `95f6d3e`: rejected Pi output retains its reconciled API charge,
+and recovery removes the exact saved server from a pre-namespace checkpoint.
+Binary fallback diffs, unreadable patches and non-object metadata carry the paid
+cost into the ledger before another admission check. Container absence requires
+a successful full Docker name enumeration; a daemon error, timeout or surviving
+server blocks recovery while preserving the checkpoint. Cleanup never sweeps
+the old shared namespace.
+
+A fresh LF Linux `95f6d3e` clone with the six-file candidate overlay passed
+**218/218 tests, zero skips, in 30.275 seconds** on Python 3.14.4; the focused set
+passed 32/32. After committing, its entire native Git tree was verified equal to
+`c61748a` (`cbb1a28c881ff1a32fb23265a516e55b12e6cb3f`). Ruff 0.16.10 and protected
+integrity against `81aead87d78ed468c4c374fb42921471b44c3f80` passed. Re-review of
+the new head remains pending.
+
+Actual pinned Pi 1.0/Node 22.19 also passed the separated-credential gateway fixture
+against these tested bytes. Scripted loopback responses exercised stock tools and
+terminal usage, including rejection before another request after missing usage;
+actual provider spend for this fixture was US$0.
+
+These code checks preserve the historical 14 measurements, source/input identities,
+image config IDs and kept-patch chain 001 → 013 described above. They add no target
+performance measurements or published registry manifest digest. The earlier
+207-test packet remains a frozen historical artifact.
