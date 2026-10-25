@@ -21,7 +21,7 @@ from typing import Any
 
 from bench.model_tokens import ModelTokenizer, TokenizerError
 from bench.prompts import check_expected
-from bench.tokens import TOKENIZER_ID, count_tokens, tokenize
+from bench.tokens import TOKENIZER_ID, count_tokens, token_spans
 from benchmarks.streaming import StreamProtocolError, decode_payload, generated_deltas
 
 FAILED_REASONS = frozenset(
@@ -169,10 +169,7 @@ def token_times(
     if tokenizer is not None:
         ends = tokenizer.end_offsets(text)
     else:
-        ends, pos = [], 0
-        for token in tokenize(text):
-            pos += len(token)
-            ends.append(pos)
+        ends = [end for _, end in token_spans(text)]
     for pos in ends:
         while cursor < len(bounds) - 1 and bounds[cursor][0] < pos:
             cursor += 1
@@ -237,6 +234,12 @@ def judge(
     reasons.extend(timing)
     send = ts.get("send") if isinstance(ts.get("send"), int | float) else None
     planned = ts.get("planned_send")
+    if record.get("phase") == "measure" and (
+        not isinstance(planned, int | float)
+        or isinstance(planned, bool)
+        or not math.isfinite(planned)
+    ):
+        reasons.append("missing_timestamp:planned_send for measurement")
     max_send_lag = plan["client_integrity"]["max_send_lag_s"]
     if send is not None and isinstance(planned, int | float) and send - planned > max_send_lag:
         reasons.append(f"client_send_lag:{send - planned:.3f}s")

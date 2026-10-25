@@ -33,15 +33,25 @@ _PATTERN = re.compile(
 )
 
 
+def token_spans(text: str) -> list[tuple[str, int]]:
+    """Return pre-tokens and their end offsets in the original, unmodified text."""
+    pieces: list[tuple[str, int]] = []
+    for match in _PATTERN.finditer(text):
+        piece = match.group()
+        if any(unicodedata.category(ch) == "Lo" for ch in piece):
+            pieces.extend(
+                (ch, match.start() + index + 1)
+                for index, ch in enumerate(piece)
+                if not ch.isspace()
+            )
+        else:
+            pieces.append((piece, match.end()))
+    return pieces
+
+
 def tokenize(text: str) -> list[str]:
     """Split text into pre-tokens; characters in 'other letter' scripts (CJK) count one each."""
-    pieces: list[str] = []
-    for piece in _PATTERN.findall(text):
-        if any(unicodedata.category(ch) == "Lo" for ch in piece):
-            pieces.extend(ch for ch in piece if not ch.isspace())
-        else:
-            pieces.append(piece)
-    return pieces
+    return [piece for piece, _ in token_spans(text)]
 
 
 def count_tokens(text: str) -> int:

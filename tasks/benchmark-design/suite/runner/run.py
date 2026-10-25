@@ -19,8 +19,10 @@ import codecs
 import gc
 import hashlib
 import json
+import os
 import platform
 import shlex
+import signal
 import socket
 import statistics
 import subprocess
@@ -300,6 +302,10 @@ class Runner:
             error = {"kind": "drop", "message": repr(exc)}
         except httpx.HTTPError as exc:
             error = {"kind": "transport", "message": repr(exc)}
+        except StreamProtocolError as exc:
+            # Parser limits apply both at blank-line boundaries and at EOF. Preserve
+            # prior complete events and return a failed request instead of losing the run.
+            error = {"kind": "protocol", "message": str(exc)}
         finally:
             ts["end"] = time.monotonic()
         for event in events:
@@ -369,9 +375,38 @@ class Runner:
         """A probe is valid only if it passes every evaluator gate (single source of truth)."""
         return judge(record, self.plan, [], self.tokenizer).category == "completed"
 
+    @staticmethod
+    def _stop_process(proc: subprocess.Popen[bytes]) -> None:
+        """Stop only a foreground engine/session created by this runner, then reap it."""
+        if proc.poll() is not None:
+            return
+        if os.name == "posix":
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        elif proc.poll() is None:
+            proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            if os.name == "posix":
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            else:
+                proc.kill()
+            proc.wait(timeout=5)
+
     async def startup(self, client: httpx.AsyncClient, launch_index: int) -> None:
         """Cold start (optional launch), poll readiness, probe until the first VALID generation."""
         cfg = self.plan["startup"]
+        # Repetitions share a server address. Leaving the preceding engine alive can
+        # turn a failed bind into apparently successful probes of the warm engine.
+        for previous in self.launched:
+            self._stop_process(previous)
+        self.launched.clear()
         launch = {
             "launch_index": launch_index,
             "launch_mono_s": time.monotonic(),
@@ -387,14 +422,33 @@ class Runner:
             "status": "in_progress",
         }
         proc: subprocess.Popen[bytes] | None = None
+        readiness_url = self.base_url + self.plan["target"]["readiness_endpoint"]
         if self.args.launch_cmd:
-            proc = subprocess.Popen(shlex.split(self.args.launch_cmd))
+            # Refuse a pre-existing responder even if a failed child has not exited
+            # yet: fast probes could otherwise finish before its bind error appears.
+            try:
+                await client.get(
+                    readiness_url, timeout=min(1.0, cfg["max_wait_s"] * self.scale)
+                )
+            except httpx.HTTPError:
+                pass
+            else:
+                launch["status"] = "preexisting_server"
+                self.startups.append(launch)
+                return
+            launch["launch_mono_s"] = time.monotonic()
+            proc = subprocess.Popen(
+                shlex.split(self.args.launch_cmd), start_new_session=os.name == "posix"
+            )
+            self.launched.append(proc)
         self.startups.append(launch)
         deadline = launch["launch_mono_s"] + cfg["max_wait_s"] * self.scale
         next_probe = launch["launch_mono_s"]
         probe_index = 0
-        readiness_url = self.base_url + self.plan["target"]["readiness_endpoint"]
         while time.monotonic() < deadline:
+            if proc is not None and proc.poll() is not None:
+                launch["status"] = "process_exited"
+                break
             t = time.monotonic()
             status, ok = None, False
             try:
@@ -422,6 +476,9 @@ class Runner:
             if ok and launch["readiness_at"] is None:
                 launch["readiness_at"] = t
             if ok and time.monotonic() >= next_probe:
+                if proc is not None and proc.poll() is not None:
+                    launch["status"] = "process_exited"
+                    break
                 probe_index += 1
                 spec = make_prompt(
                     self.plan, cfg["probe_prompt_source"], "startup", launch_index, probe_index
@@ -445,6 +502,9 @@ class Runner:
                 record = await self.execute(client, spec, meta)
                 self._write_request(record)
                 launch["generation_probe_request_ids"].append(meta.request_id)
+                if proc is not None and proc.poll() is not None:
+                    launch["status"] = "process_exited"
+                    break
                 if self._is_valid_generation(record):
                     launch["first_valid_generation_at"] = record["timestamps_mono_s"]["end"]
                     launch["first_valid_request_id"] = meta.request_id
@@ -454,8 +514,6 @@ class Runner:
             await asyncio.sleep(cfg["readiness_poll_interval_s"] * self.scale)
         else:
             launch["status"] = "timeout"
-        if proc is not None:
-            self.launched.append(proc)
 
     async def _run_unit(self, client: httpx.AsyncClient, unit: ScheduledCell) -> None:
         self.units_meta.append(
@@ -544,7 +602,7 @@ class Runner:
         return make_prompt(
             self.plan,
             unit.prompt_source,
-            f"{unit.cell_id}/{phase}",
+            f"{unit.unit_id}/{phase}",
             unit.repetition,
             index,
             forced_prompt_tokens=forced,
@@ -642,8 +700,7 @@ class Runner:
         finally:
             if self.args.stop_after_launch:
                 for proc in self.launched:
-                    proc.terminate()
-                    proc.wait(timeout=10)
+                    self._stop_process(proc)
             await self.lag.stop()
             self._requests_fh.close()
             (self.out / RUN_FILE).write_text(

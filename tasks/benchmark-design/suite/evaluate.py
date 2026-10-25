@@ -455,6 +455,7 @@ class Evaluator:
                     if i is not None
                 ),
                 "mdd": mdds,
+                "mdd_unresolved": unresolved,
             }
         return out, samples
 
@@ -640,6 +641,15 @@ def compare_groups(
     }
     for i, (name, (key, stat, min_effect, relative, higher_better)) in enumerate(metrics.items()):
         a, b = s_a.get(key, []), s_b.get(key, [])
+        if key == "mdd" and (s_a.get("mdd_unresolved", 0) or s_b.get("mdd_unresolved", 0)):
+            out["metrics"][name] = {
+                "a": None,
+                "b": None,
+                "difference": None,
+                "decision": "inconclusive",
+                "why": "unresolved decode traces: all-at-once delivery cannot identify FTGR",
+            }
+            continue
         diff = difference_ci(
             a,
             b,
