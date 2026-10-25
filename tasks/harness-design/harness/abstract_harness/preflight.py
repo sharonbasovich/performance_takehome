@@ -346,14 +346,23 @@ def check_docker(report: Report, lock: dict[str, Any]) -> None:
         version=data.get("ServerVersion"),
     )
     root = Path(data["DockerRootDir"])
-    free = shutil.disk_usage(root).free
-    report.add(
-        "docker_storage",
-        "PASS" if free >= 80 * GIB else "FAIL",
-        "Docker filesystem needs working room for large unpacked LLMD layers/builds",
-        "Allow at least 80 GiB free on Docker's filesystem (planning estimate)",
-        free_bytes=free,
-    )
+    try:
+        free = shutil.disk_usage(root).free
+    except OSError:
+        report.add(
+            "docker_storage",
+            "MISSING",
+            "Cannot inspect Docker filesystem free space",
+            "Run this read-only check with approved access to Docker's storage directory",
+        )
+    else:
+        report.add(
+            "docker_storage",
+            "PASS" if free >= 80 * GIB else "FAIL",
+            "Docker filesystem needs working room for large unpacked LLMD layers/builds",
+            "Allow at least 80 GiB free on Docker's filesystem (planning estimate)",
+            free_bytes=free,
+        )
     ok, raw = command(["docker", "buildx", "version"])
     report.add(
         "buildx",

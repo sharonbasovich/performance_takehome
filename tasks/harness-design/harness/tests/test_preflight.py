@@ -81,6 +81,47 @@ class InventoryTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 preflight.registry_readiness(Path("/missing"), ref)
 
+    def test_unreadable_docker_storage_does_not_discard_other_daemon_checks(self):
+        report = preflight.Report()
+        responses = [
+            (True, '"unix:///var/run/docker.sock"'),
+            (
+                True,
+                json.dumps(
+                    {
+                        "OSType": "linux",
+                        "Architecture": "x86_64",
+                        "DockerRootDir": "/private-docker",
+                        "ServerVersion": "29.0",
+                    }
+                ),
+            ),
+            (True, "github.com/docker/buildx v0.25.0"),
+            (
+                True,
+                json.dumps(
+                    [
+                        {
+                            "Architecture": "amd64",
+                            "Os": "linux",
+                            "Config": {"Entrypoint": ["/llmd/llmd"]},
+                            "Id": "sha256:abc",
+                        }
+                    ]
+                ),
+            ),
+        ]
+        with (
+            mock.patch.dict(os.environ, {}, clear=True),
+            mock.patch.object(preflight, "command", side_effect=responses),
+            mock.patch.object(preflight.shutil, "disk_usage", side_effect=PermissionError),
+        ):
+            preflight.check_docker(report, {"image": "pinned", "entrypoint": "/llmd/llmd"})
+        statuses = {c["check"]: c["status"] for c in report.checks}
+        self.assertEqual(statuses["docker_storage"], "MISSING")
+        self.assertEqual(statuses["buildx"], "PASS")
+        self.assertEqual(statuses["pinned_image"], "PASS")
+
 
 class SnapshotTest(unittest.TestCase):
     def setUp(self):
