@@ -575,11 +575,13 @@ class PiProposer(Proposer):
             raise ProposerError(
                 f"pi exited {result.returncode} (transcript {transcript})", api_usd=api_usd
             )
-        patch = (
-            patch_out.read_text(encoding="utf-8")
-            if patch_out.exists()
-            else unified_diff_for_dirs(context.context_dir, scratch)
-        )
+        if patch_out.exists():
+            patch = patch_out.read_text(encoding="utf-8")
+        else:
+            try:
+                patch = unified_diff_for_dirs(context.context_dir, scratch)
+            except ProposerError as exc:
+                raise ProposerError(f"{exc} (transcript {transcript})", api_usd=api_usd) from exc
         if not patch.strip():
             raise ProposerError(f"pi produced no patch (transcript {transcript})", api_usd=api_usd)
         meta: dict[str, Any] = {}

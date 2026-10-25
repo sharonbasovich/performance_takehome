@@ -285,6 +285,18 @@ class FakePiEndToEndTest(unittest.TestCase):
         self.assertEqual(ctx.exception.api_usd, 0.0)
         self.assertIsInstance(ctx.exception, ProposerAccountingError)
 
+    def test_binary_change_without_patch_file_keeps_spend(self) -> None:
+        """The directory-diff fallback must keep the model spend when it rejects a binary edit."""
+        spent = self._propose("ok").api_usd
+        self.assertGreater(spent, 0.0)
+        self.tearDown()
+        self.setUp()
+        with self.assertRaises(ProposerError) as ctx:
+            self._propose("binary")
+        self.assertIn("binary changes are unsupported", str(ctx.exception))
+        self.assertIsNotNone(ctx.exception.api_usd)
+        self.assertAlmostEqual(ctx.exception.api_usd, spent)
+
     def test_nonzero_exit_is_an_error(self) -> None:
         with self.assertRaises(ProposerError) as ctx:
             self._propose("exit")
