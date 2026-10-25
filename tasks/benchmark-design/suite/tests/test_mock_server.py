@@ -99,11 +99,13 @@ class LoopbackTests(unittest.TestCase):
             await server.start()
             try:
                 with tempfile.TemporaryDirectory() as tmp:
+                    fixture_plan = load_plan(MOCK_PLAN_PATH)
+                    fixture_plan["startup"]["probe_interval_s"] = 2.0
                     runner = Runner(
-                        # The planned retry gap is 2s: scale it to 0.4s so the
+                        # Set an explicit 2s retry gap and scale it to 0.4s so the
                         # >0.2s assertion follows the fixture, not incidental host lag.
                         runner_args(base_url=server.base_url, out=tmp, time_scale=0.2),
-                        load_plan(MOCK_PLAN_PATH),
+                        fixture_plan,
                     )
                     runner._requests_fh = (Path(tmp) / "requests.jsonl").open("w", encoding="utf-8")
                     async with httpx.AsyncClient(timeout=10.0) as client:

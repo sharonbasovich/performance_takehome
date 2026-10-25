@@ -27,7 +27,8 @@ signal changes from 0.227 to 0.222 after the corrected character offsets. Its ch
 and outcome are unchanged. Other committed per-fixture reports retain their historical
 analysis source rather than being silently represented as fresh captures.
 
-The existing misleading-readiness integration fixture now explicitly scales its
-two-second retry interval to 0.4 seconds. Its unchanged `>0.2s` clock assertion
+The existing misleading-readiness integration fixture now explicitly sets its
+retry interval to two seconds and scales it to 0.4 seconds. Its unchanged `>0.2s` clock assertion
 therefore follows the intended retry schedule instead of relying on incidental
-host overhead; the former 0.1-second scaled interval could fail on a fast host.
+host overhead; the mock plan's shorter 0.3-second interval could fail after scaling
+on a fast host.
