@@ -231,7 +231,9 @@ class Runner:
 
     def _write_request(self, record: dict[str, Any]) -> None:
         assert self._requests_fh is not None
-        self._requests_fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+        # Escapes also preserve surrogateescape bytes from invalid UTF-8 evidence;
+        # writing them directly to a UTF-8 text stream would lose the entire record.
+        self._requests_fh.write(json.dumps(record, ensure_ascii=True) + "\n")
         self._requests_fh.flush()
 
     async def execute(
@@ -321,6 +323,20 @@ class Runner:
             if choices and isinstance(choices[0], dict) and choices[0].get("finish_reason"):
                 finish_reason = str(choices[0]["finish_reason"])
         content_text, reasoning_text = "".join(content), "".join(reasoning)
+        count_error = None
+        try:
+            content_count = (
+                self.tokenizer.count(content_text) if self.tokenizer else count_tokens(content_text)
+            )
+            reasoning_count = (
+                self.tokenizer.count(reasoning_text)
+                if self.tokenizer
+                else count_tokens(reasoning_text)
+            )
+        except TokenizerError as exc:
+            # Preserve raw SSE/text for invalid-evidence analysis, never regex fallback.
+            content_count = reasoning_count = 0
+            count_error = str(exc)
         return {
             "schema_version": EVENT_SCHEMA_VERSION,
             "record_type": "request",
@@ -342,12 +358,9 @@ class Runner:
             "client_tokens": {
                 "tokenizer": self.tokenizer.identifier if self.tokenizer else TOKENIZER_ID,
                 "resolution": TIMING_RESOLUTION,
-                "content": self.tokenizer.count(content_text)
-                if self.tokenizer
-                else count_tokens(content_text),
-                "reasoning_content": self.tokenizer.count(reasoning_text)
-                if self.tokenizer
-                else count_tokens(reasoning_text),
+                "content": content_count,
+                "reasoning_content": reasoning_count,
+                **({"count_error": count_error} if count_error else {}),
             },
             "error": error,
         }

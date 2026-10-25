@@ -278,6 +278,8 @@ def judge(
     except TokenizerError as exc:
         reasons.append(f"record_mismatch:tokenizer failed: {exc}")
     client = record.get("client_tokens") or {}
+    if client.get("count_error"):
+        reasons.append(f"record_mismatch:capture tokenizer failed: {client['count_error']}")
     expected_tokenizer = tokenizer.identifier if tokenizer else TOKENIZER_ID
     if client.get("tokenizer") != expected_tokenizer or client.get("resolution") != "delta":
         reasons.append("record_mismatch:tokenizer identity or timing resolution differs")

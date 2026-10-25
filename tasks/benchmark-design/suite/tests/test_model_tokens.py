@@ -2,6 +2,7 @@
 
 import asyncio
 import copy
+import json
 import os
 import shutil
 import tempfile
@@ -162,6 +163,44 @@ class PinnedTokenizerTests(unittest.TestCase):
             captured["client_tokens"]["content"], adapter.count(record["text"]["content"])
         )
         self.assertEqual(captured["client_tokens"]["resolution"], "delta")
+
+    def test_unencodable_stream_is_preserved_as_invalid_evidence_without_fallback(self):
+        adapter = self.adapters["target"]
+        record = make_record(plan())
+        original = "".join("data: " + e["raw"] + "\n\n" for e in record["events"]).encode()
+
+        async def exchange(wire, tmp):
+            runner = Runner(runner_args(out=tmp, tokenizer_snapshot=self.root / "target"), plan())
+            transport = httpx.MockTransport(
+                lambda _: httpx.Response(
+                    200,
+                    headers={"content-type": "text/event-stream"},
+                    content=wire,
+                )
+            )
+            from bench.prompts import make_prompt
+
+            spec = make_prompt(plan(), "chat_short", "test", 0, 0)
+            async with httpx.AsyncClient(transport=transport) as client:
+                captured = await runner.execute(
+                    client, spec, RequestMeta("bad-utf8", None, "startup_probe", "startup", 0)
+                )
+            path = Path(tmp) / "bad-record.jsonl"
+            with path.open("w", encoding="utf-8") as handle:
+                runner._requests_fh = handle
+                runner._write_request(captured)
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), captured)
+            return captured
+
+        for wire in (
+            original.replace(b"CODE-", b"CODE-\xff", 1),
+            original.replace(b"latency", b"latency" + "\u0301".encode() * 4097, 1),
+        ):
+            with tempfile.TemporaryDirectory() as tmp:
+                captured = asyncio.run(exchange(wire, tmp))
+            self.assertTrue(captured["client_tokens"]["count_error"])
+            self.assertEqual(captured["client_tokens"]["content"], 0)
+            self.assertEqual(judge(captured, plan(), [], adapter).category, "evidence_invalid")
 
 
 if __name__ == "__main__":
