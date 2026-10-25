@@ -85,10 +85,12 @@ class Report:
     def __init__(self) -> None:
         self.checks: list[dict[str, Any]] = []
 
-    def add(self, name: str, status: str, detail: str, action: str = "", **evidence: Any) -> None:
+    def add(
+        self, check_name: str, status: str, detail: str, action: str = "", **evidence: Any
+    ) -> None:
         self.checks.append(
             {
-                "check": name,
+                "check": check_name,
                 "status": status,
                 "detail": detail,
                 "next_action": action,

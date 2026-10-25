@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import os
+import stat
 import sys
 import tempfile
 import time
@@ -18,6 +19,85 @@ from abstract_harness import preflight
 
 
 class InventoryTest(unittest.TestCase):
+    def test_healthy_gpu_producer_preserves_name_evidence_for_both_smi_formats(self):
+        cases = (
+            (
+                {"card0": {"Card series": "AMD Instinct MI355X", "PCI Bus": "0000:01:00.0"}},
+                False,
+            ),
+            (
+                [{"asic": {"market_name": "AMD Instinct MI355X"}, "bus": {"bdf": "0000:01:00.0"}}],
+                True,
+            ),
+        )
+        for smi_data, amd_fallback in cases:
+            with self.subTest(amd_fallback=amd_fallback), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                drm = root / "sys/class/drm"
+                sysdev = drm / "renderD128/device"
+                sysdev.mkdir(parents=True)
+                (sysdev / "vendor").write_text("0x1002\n")
+                (sysdev / "mem_info_vram_total").write_text(str(288 * 1024**3))
+                devices = {
+                    name: root / name.lstrip("/") for name in ("/dev/kfd", "/dev/dri/renderD128")
+                }
+                for device in devices.values():
+                    device.parent.mkdir(parents=True, exist_ok=True)
+                    device.write_bytes(b"fake character device")
+                path_type, original_stat, original_resolve = Path, Path.stat, Path.resolve
+
+                def fake_path(value, *, drm=drm, devices=devices, path_type=path_type):
+                    return {"/sys/class/drm": drm, **devices}.get(value, path_type(value))
+
+                def fake_stat(path, *args, devices=devices, original_stat=original_stat, **kwargs):
+                    if path in devices.values():
+                        return os.stat_result((stat.S_IFCHR, 0, 0, 1, 0, 0, 0, 0, 0, 0))
+                    return original_stat(path, *args, **kwargs)
+
+                def fake_resolve(
+                    path,
+                    *args,
+                    sysdev=sysdev,
+                    root=root,
+                    original_resolve=original_resolve,
+                    **kwargs,
+                ):
+                    if path == sysdev:
+                        return root / "sys/bus/pci/devices/0000:01:00.0"
+                    return original_resolve(path, *args, **kwargs)
+
+                responses = ([(False, "")] if amd_fallback else []) + [
+                    (True, json.dumps(smi_data)),
+                    (True, "AMD GPU agent gfx950"),
+                ]
+                report = preflight.Report()
+                with (
+                    mock.patch.object(preflight, "Path", side_effect=fake_path),
+                    mock.patch.object(path_type, "stat", autospec=True, side_effect=fake_stat),
+                    mock.patch.object(
+                        path_type, "resolve", autospec=True, side_effect=fake_resolve
+                    ),
+                    mock.patch.object(preflight, "command", side_effect=responses) as command,
+                ):
+                    report.guarded(
+                        "gpu",
+                        "Inspect assigned device",
+                        lambda report=report: preflight.check_gpu(report, "/dev/dri/renderD128"),
+                    )
+                checks = {row["check"]: row for row in report.checks}
+                self.assertEqual(set(checks), {"gpu_identity", "rocm_driver"})
+                self.assertEqual(checks["gpu_identity"]["status"], "PASS")
+                self.assertEqual(
+                    checks["gpu_identity"]["evidence"],
+                    {
+                        "name": "AMD Instinct MI355X",
+                        "bdf": "0000:01:00.0",
+                        "vram_bytes": 288 * 1024**3,
+                    },
+                )
+                self.assertEqual(checks["rocm_driver"]["status"], "PASS")
+                self.assertEqual(command.call_count, 3 if amd_fallback else 2)
+
     def test_rocm_and_amd_records_do_not_mix_two_gpu_identities(self):
         cases = [
             {
