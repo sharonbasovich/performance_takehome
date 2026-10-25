@@ -66,6 +66,14 @@ The quantity factor supports only the exact alternative GPU count present in com
 arrears on-demand calibration evidence. Mixed node sizes do not identify a pooled factor,
 and an 8-GPU factor is never extrapolated to a 16-GPU quote or different hardware.
 
+Hourly quantity calibration additionally requires explicit `cancellation=anytime` on both
+asks. A label such as `current_on_demand` alone proves no cancellation right; unsupported
+or non-cancellable quotes without guaranteed reserved service are `unclassified_rights`.
+`node_month` requires exactly one aligned UTC billing month. Longer monthly-rent windows
+and advance-paid multi-month strips are explicitly excluded until a monthly payment
+schedule is provided; the model does not dilute one monthly bill over an entire strip or
+compound all payments to the last date.
+
 ## Output schema (candidate-defined, `schema_version` 1)
 
 `curve.csv` — one row per case tenor: `tenor_months, delivery_month, delivery_start,
@@ -78,6 +86,12 @@ scenario_cheap_compute, scenario_scarcity, months_beyond_last_anchor, notes`.
 normalization steps and reasons, exclusions, curve nodes/anchors/reversion fit/warnings,
 supply-cost view and grid, cross-checks, reservation terms, valuation walk, sensitivities,
 and the configuration used.
+
+Unavailable usage illustrations are JSON `null`; a zero used fraction stays zero and
+never reduces reserved fees. A valid zero-survival stress still has a computed mark,
+while its non-unique fair fixed price is `null` and marked unidentified in the default
+sensitivity. Memo claims and current flexible-price comparisons use the actual case
+results, including evidence outside the capped quote-example table.
 
 `run-manifest.json` — timestamp, code version and source digest, git commit (if available),
 Python version, command line, input hashes, parameters.

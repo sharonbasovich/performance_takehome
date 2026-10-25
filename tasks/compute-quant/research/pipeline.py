@@ -300,7 +300,10 @@ def research_working_tree_dirty(repo: Path) -> bool | None:
     try:
         out = subprocess.run(
             ["git", "-C", str(repo), "status", "--porcelain", "--", "tasks/compute-quant/research"],
-            capture_output=True, text=True, check=False, timeout=10,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -505,6 +508,21 @@ def run_pipeline(
             "sensitivity_grid": sensitivities["supply_cost_breakeven_grid"],
         },
         "cross_checks": {
+            "current_flexible_reference_ask_usd_per_gpu_hour": min(
+                (
+                    float(item.usd_per_gpu_hour)
+                    for item in normalized
+                    if item.usable
+                    and item.classification.as_of_status == AS_OF_VALID
+                    and item.classification.tier == "comparable"
+                    and item.classification.contract_class == "flexible_on_demand"
+                    and item.quote.kind == "current_on_demand"
+                    and item.quote.side == "ask"
+                    and item.quote.gpu_count == case.reference_product.gpu_count
+                    and item.quote.cancellation.strip().lower() == "anytime"
+                ),
+                default=None,
+            ),
             "performance_translation": performance_cross_check(
                 normalized, loaded.performance, case, comparable
             ),
@@ -576,13 +594,17 @@ def _sensitivities(
         }
         for b in sens["discount_rate_bumps"]
     ]
-    out["default_probability"] = [
-        {
-            "p_default": p,
-            "mark_adjusted_usd": value_reservation(model, case, p_default=p).mark_adjusted,
-        }
-        for p in sens["default_probabilities"]
-    ]
+    out["default_probability"] = []
+    for p in sens["default_probabilities"]:
+        stressed = value_reservation(model, case, p_default=p)
+        out["default_probability"].append(
+            {
+                "p_default": p,
+                "mark_adjusted_usd": stressed.mark_adjusted,
+                "fair_fixed_price_identified": stressed.fair_fixed_price is not None,
+                "fair_fixed_price_usd_per_gpu_hour": stressed.fair_fixed_price,
+            }
+        )
     out["horizon_vol_multiplier"] = [
         {
             "multiplier": m,

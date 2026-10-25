@@ -102,7 +102,7 @@ class ProductComparabilityTests(unittest.TestCase):
     def test_capacity_not_guaranteed_forward_is_not_reserved(self):
         results = CaseBuilder(self).set("q04", capacity_guaranteed="false").run()
         row = quote_row(results, "q04")
-        self.assertEqual(row["contract_class"], "flexible_on_demand")
+        self.assertEqual(row["contract_class"], "unclassified_rights")
         self.assertFalse(row["curve_eligible"])
 
 

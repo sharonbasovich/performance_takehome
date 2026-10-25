@@ -64,15 +64,15 @@ class Valuation:
     mark_adjusted: float
     mark_low: float
     mark_high: float
-    fair_fixed_price: float
-    fair_fixed_low: float
-    fair_fixed_high: float
+    fair_fixed_price: float | None
+    fair_fixed_low: float | None
+    fair_fixed_high: float | None
     scenario_marks: dict[str, float]
-    scenario_fair_prices: dict[str, float]
+    scenario_fair_prices: dict[str, float | None]
     decision: str
     decision_basis: str
     flip_conditions: list[str]
-    wrong_usage_fees: dict[str, float]
+    wrong_usage_fees: dict[str, float | None]
     assumptions: list[str] = field(default_factory=list)
 
 
@@ -100,19 +100,24 @@ def _credit_mark(spread: float, weight: float, survival: float, recovery: float)
     return spread * weight * (survival + (1 - survival) * recovery * (spread > 0))
 
 
-def _fair_fixed_price(levels: list[float], rows: list[MonthRow], recovery: float) -> float:
+def _fair_fixed_price(levels: list[float], rows: list[MonthRow], recovery: float) -> float | None:
     """Solve the piecewise-linear zero-mark price, including sign-dependent recovery."""
+
     def mark(price: float) -> float:
         return sum(
-            _credit_mark(level - price, row.hours * row.discount_factor * row.availability,
-                         row.survival, recovery)
+            _credit_mark(
+                level - price,
+                row.hours * row.discount_factor * row.availability,
+                row.survival,
+                recovery,
+            )
             for level, row in zip(levels, rows, strict=True)
         )
 
     if not any(row.availability * row.survival > 0 for row in rows):
-        raise InputError(
-            "reservation: no surviving service/payment exposure identifies a fair price"
-        )
+        # The mark still exists, but zero surviving payment exposure does not
+        # identify a unique zero-mark contract price (including under stress).
+        return None
     low, high = min(levels), max(levels)
     for _ in range(80):
         mid = (low + high) / 2
@@ -200,10 +205,14 @@ def value_reservation(
     mark_low = sum(r.value_low for r in rows)
     mark_high = sum(r.value_high for r in rows)
     scenario_fair = {
-        name: _fair_fixed_price(scenario_levels[name], rows, recovery)
-        for name in scenario_values
+        name: _fair_fixed_price(scenario_levels[name], rows, recovery) for name in scenario_values
     }
-    if mark_low > 0:
+    if fair is None and mark_low == mark_high == 0:
+        decision, basis = (
+            "indifferent_unidentified_price",
+            "zero mark under no surviving exposure; no unique fair fixed price is identified",
+        )
+    elif mark_low > 0:
         decision, basis = "sign", "mark positive across the whole interval"
     elif mark_high < 0:
         decision, basis = "do_not_sign", "mark negative across the whole interval"
@@ -214,11 +223,18 @@ def value_reservation(
             "do_not_sign_at_this_price",
             "mark negative at mid; the interval includes zero",
         )
-    flips = [
-        f"sign at or below the fair fixed price {fair:.4f} USD/GPU-hour (mid curve); "
-        f"interval {fair_low:.4f}..{fair_high:.4f}",
-    ]
+    flips = (
+        [
+            f"sign at or below the fair fixed price {fair:.4f} USD/GPU-hour (mid curve); "
+            f"interval {fair_low:.4f}..{fair_high:.4f}",
+        ]
+        if fair is not None
+        else ["no surviving service/payment exposure identifies a unique fair fixed price"]
+    )
     for name, price in scenario_fair.items():
+        if price is None:
+            flips.append(f"{name} scenario has no uniquely identified fair fixed price")
+            continue
         verdict = "favourable" if price > k else "unfavourable"
         flips.append(
             f"{name} scenario fair fixed price {price:.4f} -> "
@@ -227,13 +243,11 @@ def value_reservation(
     used = res.expected_buyer_used_fraction
     wrong = {
         "fees_owed_usd": k * hours_total,
-        "expected_used_fraction": float(used) if used is not None else float("nan"),
+        "expected_used_fraction": float(used) if used is not None else None,
         "WRONG_fees_scaled_by_usage_usd": k * hours_total * float(used)
         if used is not None
-        else float("nan"),
-        "effective_usd_per_used_gpu_hour": k / float(used)
-        if used not in (None, 0)
-        else float("nan"),
+        else None,
+        "effective_usd_per_used_gpu_hour": k / float(used) if used not in (None, 0) else None,
     }
     return Valuation(
         rows=rows,
@@ -309,8 +323,8 @@ def _unidentified(case: Case, k: float, month: str) -> Valuation:
 def valuation_as_dict(val: Valuation) -> dict[str, object]:
     """JSON-ready representation with fixed rounding."""
 
-    def r(x: float, p: int = 6) -> float:
-        return round(x, p)
+    def r(x: float | None, p: int = 6) -> float | None:
+        return None if x is None else round(x, p)
 
     if not val.identified:
         return {
@@ -320,6 +334,7 @@ def valuation_as_dict(val: Valuation) -> dict[str, object]:
             "months": [],
             "buyer_mark": None,
             "fair_fixed_price_usd_per_gpu_hour": None,
+            "fair_fixed_price_identified": False,
             "decision": val.decision,
             "decision_basis": val.decision_basis,
             "usage_is_informational_only": {k: r(v, 4) for k, v in val.wrong_usage_fees.items()},
@@ -372,6 +387,7 @@ def valuation_as_dict(val: Valuation) -> dict[str, object]:
             "low": r(val.fair_fixed_low),
             "high": r(val.fair_fixed_high),
         },
+        "fair_fixed_price_identified": val.fair_fixed_price is not None,
         "scenario_marks_usd": {k: r(v, 2) for k, v in val.scenario_marks.items()},
         "scenario_fair_fixed_price_usd_per_gpu_hour": {
             k: r(v) for k, v in val.scenario_fair_prices.items()

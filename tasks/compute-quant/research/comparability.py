@@ -38,6 +38,7 @@ CLASS_RESERVED = "reserved_capacity"
 CLASS_FLEXIBLE = "flexible_on_demand"
 CLASS_COMMITMENT = "usage_commitment"
 CLASS_SPOT = "spot"
+CLASS_UNCLASSIFIED = "unclassified_rights"
 
 NO_CANCELLATION_TERMS = {"none", "no", "non-cancellable", "noncancellable"}
 
@@ -85,9 +86,11 @@ def product_differences(quote: Quote, case: Case) -> tuple[str, ...]:
     if quote.gpu != ref.gpu:
         diffs.append(f"gpu {quote.gpu!r} != {ref.gpu!r}")
     if ref.memory_gib is not None and quote.memory_gib != ref.memory_gib:
-        diffs.append("memory_gib unknown; missing evidence is not proof of the same product"
-                     if quote.memory_gib is None else
-                     f"memory_gib {quote.memory_gib} != {ref.memory_gib}")
+        diffs.append(
+            "memory_gib unknown; missing evidence is not proof of the same product"
+            if quote.memory_gib is None
+            else f"memory_gib {quote.memory_gib} != {ref.memory_gib}"
+        )
     if quote.region != ref.region:
         diffs.append(f"region {quote.region!r} != {ref.region!r}")
     if quote.isolation != ref.isolation:
@@ -134,6 +137,11 @@ def contract_class(quote: Quote) -> tuple[str, str]:
     has_window = quote.delivery_start is not None and quote.delivery_end is not None
     if quote.capacity_guaranteed and has_window and no_cancel:
         return CLASS_RESERVED, "guaranteed capacity for a stated window, not cancellable"
+    if quote.cancellation.strip().lower() != "anytime":
+        return CLASS_UNCLASSIFIED, (
+            f"cancellation {quote.cancellation!r} does not establish supported cancel-anytime "
+            "rights; neither guaranteed reserved capacity nor flexible hourly access is proven"
+        )
     if quote.kind == "firm_forward":
         missing = []
         if not quote.capacity_guaranteed:

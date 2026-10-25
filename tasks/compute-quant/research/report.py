@@ -203,9 +203,9 @@ def render_report(results: dict[str, Any]) -> str:
     add(
         "A curve node prices capacity reserved for the whole delivery month, paid at month end. "
         "Tenor *t* means the delivery month starts *t* "
-        "calendar months after the as-of month start, "
-        "so 1/3/6/12 → 2026-11, 2027-01, 2027-04, 2027-10. Hours are actual calendar hours "
-        "(744/720/672), never a flat 720.\n"
+        "calendar months after the as-of month start: "
+        + ", ".join(f"{n['tenor_months']} → {n['delivery_month']}" for n in nodes)
+        + ". Hours use each actual UTC calendar month, never a flat 720.\n"
     )
 
     # ---- Evidence
@@ -239,7 +239,8 @@ def render_report(results: dict[str, Any]) -> str:
         "`flexible_on_demand` (it embeds a cancellation "
         "option), a spend commitment without a window or "
         "guarantee is `usage_commitment` (a discount on current usage, **not** a forward), and "
-        "preemptible capacity is `spot`.\n"
+        "preemptible capacity is `spot`. Remaining unsupported rights are "
+        "`unclassified_rights`; a kind label alone does not prove cancellation rights.\n"
         "- Only valid + comparable + reserved-capacity quotes become curve nodes.\n"
     )
     add("### Normalization ladder\n")
@@ -380,12 +381,12 @@ def render_report(results: dict[str, Any]) -> str:
         f"with max({cfg['one_sided_spread_fraction']:.0%} "
         "of the quote, widest observed two-sided spread "
         f"= {_p(curve['reference_two_sided_spread'])}). "
-        "The firm Nov-2026 ask is therefore an interval "
-        f"edge, not a mid.\n"
+        "A one-sided quote is an interval edge, not a mid; the anchor table shows "
+        "which sides are actually present in this case.\n"
         "2. **Implied nodes.** Linear interpolation between "
         "bracketing anchors, or anchors built only "
         "from quantity-adjusted / strip quotes (the "
-        "current-month tenor 0 from `q07` is such a node).\n"
+        "classification follows the evidence in the anchor table).\n"
         f"3. **Modeled / forecast nodes.** Beyond the last anchor the mid follows "
         f"`F(t) = A + (F_L − A)·exp(−κ·(t − t_L))` toward the base anchor A = full-cost breakeven "
         f"{_p(curve['scenario_anchor_levels']['base'])} (supply-cost view below). κ = "
@@ -409,8 +410,8 @@ def render_report(results: dict[str, Any]) -> str:
         "are not statistical confidence intervals. A node-sized quote with no supported "
         "quantity translation is excluded rather than promoted to direct evidence.\n"
         f"5. **Labels.** OBSERVED / IMPLIED / MODELED / FORECAST / UNIDENTIFIED are carried into "
-        "`curve.csv`; the 6- and 12-month tenors have no "
-        "firm quote and are never labelled observed.\n"
+        "`curve.csv` from the current evidence; no tenor is assumed observed solely "
+        "because it was requested.\n"
     )
     add("Monthly base-mid path used by the valuation (tenor → USD/GPU-hour):\n")
     monthly = curve["monthly_base_mid"]
@@ -429,12 +430,10 @@ def render_report(results: dict[str, Any]) -> str:
     if qs:
         add("### Quantity-factor identification and sensitivity\n")
         add(
-            f"The quantity factor {_p(qa['factor'])} is identified from a **single pair** of "
-            "flexible on-demand asks (one single-GPU, one node). It is applied only to comparable "
+            f"Quantity factor {_p(qa['factor'])}: {qa['note']}. It is applied only to comparable "
             "quotes at the calibrated node size; other sizes are not extrapolated and mixed "
-            "calibration sizes are not pooled. In this pack it affects only the current-month "
-            "anchor (tenor 0), which the "
-            "required tenors do not interpolate through. Scaling the factor shows how much of the "
+            "calibration sizes are not pooled. Calibration requires explicit cancel-anytime "
+            "rights on both hourly asks. Scaling the factor shows how much of the "
             "curve depends on it:\n"
         )
         add(
@@ -768,9 +767,11 @@ def render_report(results: dict[str, Any]) -> str:
                         "interval "
                         f"{_p(val['fair_fixed_price_usd_per_gpu_hour']['low'])}–"
                         f"{_p(val['fair_fixed_price_usd_per_gpu_hour']['high'])}; "
-                        ""
-                        ""
-                        "zeroes the adjusted mark (tested)",
+                        + (
+                            "zeroes the adjusted mark (tested)"
+                            if val["fair_fixed_price_usd_per_gpu_hour"]["mid"] is not None
+                            else "unidentified: no surviving service/payment exposure"
+                        ),
                     ],
                 ],
             )
@@ -778,34 +779,58 @@ def render_report(results: dict[str, Any]) -> str:
         add("")
         wrong = val["usage_is_informational_only"]
         add("### Expected usage does not reduce the bill\n")
-        add(
-            f"Fees owed are {_usd(wrong['fees_owed_usd'])}. "
-            "Scaling them by the expected used fraction "
-            f"{wrong['expected_used_fraction']} would give "
-            f"{_usd(wrong['WRONG_fees_scaled_by_usage_usd'])} — "
-            "**that computation is wrong** for reserved capacity "
-            "and is shown only to make the error visible "
-            "(a test asserts fees and mark are unchanged when "
-            "the usage assumption changes). What usage does "
-            "change is the buyer's effective cost per *used* hour: "
-            f"{_p(wrong['effective_usd_per_used_gpu_hour'])}, "
-            "which the buyer should compare with flexible on-demand "
-            "access if capacity certainty is not needed.\n"
-        )
+        add(f"Fees owed are {_usd(wrong['fees_owed_usd'])} regardless of expected usage.\n")
+        if wrong["expected_used_fraction"] is None:
+            add(
+                "Expected usage was not supplied; no usage-scaled illustration or effective "
+                "cost per used hour is identified.\n"
+            )
+        elif wrong["expected_used_fraction"] == 0:
+            add(
+                "With zero expected use, scaling fees by usage would wrongly report zero fees. "
+                "The effective cost per used hour is undefined, not zero; the full reserved "
+                "capacity bill remains due.\n"
+            )
+        else:
+            add(
+                "Scaling them by the expected used fraction "
+                f"{wrong['expected_used_fraction']} would give "
+                f"{_usd(wrong['WRONG_fees_scaled_by_usage_usd'])} — "
+                "**that computation is wrong** for reserved capacity "
+                "and is shown only to make the error visible "
+                "(a test asserts fees and mark are unchanged when "
+                "the usage assumption changes). What usage does "
+                "change is the buyer's effective cost per *used* hour: "
+                f"{_p(wrong['effective_usd_per_used_gpu_hour'])}, "
+                "which the buyer should compare with flexible on-demand "
+                "access if capacity certainty is not needed.\n"
+            )
         add("### Decision and when it flips\n")
         add(f"**{val['decision']}** — {val['decision_basis']}.\n")
         for line in val["flip_conditions"]:
             add(f"- {line}")
         add(
             "- Default risk makes an out-of-the-money contract "
-            "*less* negative for the buyer (release from an "
-            "above-market fee); the sensitivity table shows the size.\n"
-            "- If the buyer cannot access the forward/node "
-            "market and would otherwise pay the single-GPU "
-            "on-demand ask, the reservation is cheaper than "
-            "that alternative for every month — but it also "
-            "removes the cancellation option the on-demand product provides.\n"
+            "*less* negative for the buyer under zero recovery (release from an "
+            "above-market fee); the sensitivity table shows the effect for this case.\n"
         )
+        alternative = xc["current_flexible_reference_ask_usd_per_gpu_hour"]
+        if alternative is not None:
+            relation = (
+                "below" if fixed < alternative else "above" if fixed > alternative else "equal to"
+            )
+            add(
+                f"- The contract rate ${fixed:.4f} is {relation} the comparable current "
+                f"flexible ask at the reference quantity ${alternative:.4f}/GPU-hour. "
+                "That as-of quote "
+                "does not guarantee future availability or future prices, and flexible "
+                "access retains a cancellation option.\n"
+            )
+        else:
+            add(
+                "- No valid comparable cancel-anytime ask at the reference quantity is "
+                "available for a current flexible-price comparison.\n"
+            )
         add("Valuation assumptions:\n")
         for line in val["assumptions"]:
             add(f"- {line}")
@@ -889,9 +914,13 @@ def render_report(results: dict[str, Any]) -> str:
         add("")
         add(
             _table(
-                ["Default probability", "Mark"],
+                ["Default probability", "Mark", "Fair fixed price"],
                 [
-                    [_pct(row["p_default"]), _usd(row["mark_adjusted_usd"])]
+                    [
+                        _pct(row["p_default"]),
+                        _usd(row["mark_adjusted_usd"]),
+                        _p(row["fair_fixed_price_usd_per_gpu_hour"]),
+                    ]
                     for row in sens["default_probability"]
                 ],
             )
@@ -911,26 +940,28 @@ def render_report(results: dict[str, Any]) -> str:
             )
         )
         add("")
+    modeled_months = [
+        m["delivery_month"]
+        for m in val.get("months", [])
+        if m["curve_status"] in {"modeled", "forecast", "implied"}
+    ]
+    one_sided = [a["tenor_months"] for a in curve["anchors"] if bool(a["bids"]) != bool(a["asks"])]
+    missing_requested = [n["delivery_month"] for n in nodes if n["status"] != "observed"]
     add(
-        "**What matters most.** (1) The Feb/Mar-2027 fair "
-        "values, which are modeled one and two months "
-        "past the last firm quote — a firm Feb or Mar quote "
-        "would replace two-thirds of the modeled exposure. "
-        "(2) The long-run anchor (utilization and financing "
-        "assumptions move it by more than a dollar across "
-        "the grid above). (3) The one-sided spread estimate "
-        "at Nov-2026. Discounting and default risk are "
-        "second-order at these horizons.\n\n"
-        "**Evidence that would reduce uncertainty.** Firm "
-        "two-sided quotes for Feb–Apr 2027 and for the "
-        "6/12-month tenors; a second provider's reserved "
+        "**Case-dependent exposure.** Reservation months using implied or extrapolated "
+        f"prices: {', '.join(modeled_months) or 'none'}. One-sided anchor tenors: "
+        f"{', '.join(str(t) for t in one_sided) or 'none'}. The tables above show the "
+        "effects of discounting, default, utilization, financing and scenario assumptions; "
+        "their importance is not fixed across cases.\n\n"
+        "**Evidence that would reduce uncertainty.** Firm two-sided quotes for requested "
+        f"delivery months not directly observed ({', '.join(missing_requested) or 'none'}), "
+        "and for modeled reservation months; a second provider's reserved "
         "quote at the same quantity; archived bid/ask time "
         "series to estimate κ and the band volatility "
         "instead of declaring them; the provider's credit "
         "profile; and actual SLA attainment history.\n\n"
-        "**Falsifiable claims.** If a firm Feb-2027 ask "
-        "prints above the Nov-2026 ask, the backwardation "
-        "premise is wrong; if firm 12-month quotes print "
+        "**Falsifiable checks.** New firm quotes outside a modeled interval challenge its "
+        "scenario assumptions; if firm long-tenor quotes print "
         "below the full-utilization breakeven, the cheap "
         "scenario is too mild; if cancellable on-demand prints "
         "below reserved capacity at the same quantity, "
@@ -946,8 +977,8 @@ def render_report(results: dict[str, Any]) -> str:
         "horizon volatility and scenario anchors are declared "
         "parameters (`research/config/default.json`), "
         "informed by but not estimated from a time series.\n"
-        "- κ is fitted from two observed forward tenors — the "
-        "minimum possible; it is reported with its source.\n"
+        f"- κ source: {rev['source']}; observed forward tenors "
+        f"{rev.get('observed_forward_tenors')}. Sparse observations limit identification.\n"
         "- The quantity factor pairs quotes from different "
         "providers, so it carries provider effects.\n"
         "- The H200 translation uses one synthetic throughput "
@@ -959,9 +990,9 @@ def render_report(results: dict[str, Any]) -> str:
         "- Energy is charged per allocated hour at full draw; "
         "idle draw and the case's 'includes_energy' nuance for "
         "quoted prices are not modeled separately.\n"
-        "- No bid exists for Nov-2026, so its mid is an estimate; "
-        "no quotes exist beyond Jan-2027, so the 6- and "
-        "12-month nodes are modeled/forecast and the decision interval includes zero.\n"
+        f"- One-sided anchor tenors {one_sided} have estimated opposite sides; requested "
+        f"delivery months not directly observed are {missing_requested}. The decision "
+        "and interval must be read from this case's valuation, not a fixed demo conclusion.\n"
     )
 
     # ---- Gap table

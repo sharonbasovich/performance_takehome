@@ -19,7 +19,7 @@ from decimal import ROUND_HALF_EVEN, Decimal
 from statistics import median
 
 from .comparability import AS_OF_VALID, CLASS_FLEXIBLE, TIER_COMPARABLE, Classification
-from .months import hours_between, hours_in_month, month_start
+from .months import add_months, hours_between, hours_in_month, is_month_start, month_start
 from .schema import Case, InputError, Quote
 
 PRICE_PLACES = Decimal("0.000001")
@@ -112,6 +112,16 @@ def normalize_quote(quote: Quote, classification: Classification, case: Case) ->
             )
             result.steps.append(Step("unit", price, None, result.excluded_reason))
             return result
+        if not (
+            is_month_start(quote.delivery_start)
+            and quote.delivery_end == add_months(quote.delivery_start, 1)
+        ):
+            result.excluded_reason = (
+                "node_month requires exactly one UTC calendar month; a longer window "
+                "needs an explicit monthly billing schedule"
+            )
+            result.steps.append(Step("unit", price, None, result.excluded_reason))
+            return result
         hours = hours_between(quote.delivery_start, quote.delivery_end)
         per_gpu = price / (Decimal(quote.gpu_count) * Decimal(hours))
         result.steps.append(
@@ -164,6 +174,17 @@ def normalize_quote(quote: Quote, classification: Classification, case: Case) ->
             Step("payment_timing", price, price, "arrears matches the reference convention")
         )
     else:
+        if (
+            quote.delivery_start is not None
+            and quote.delivery_end is not None
+            and quote.delivery_end > add_months(month_start(quote.delivery_start), 1)
+        ):
+            result.excluded_reason = (
+                "advance-paid multi-month strip needs an explicit monthly payment schedule; "
+                "compounding the whole strip to its final date overstates earlier payments"
+            )
+            result.steps.append(Step("payment_timing", price, None, result.excluded_reason))
+            return result
         hours, basis = _window_hours(quote, case)
         rate = Decimal(1) + case.economics.buyer_discount_annual_rate
         factor = rate ** (Decimal(hours) / HOURS_PER_YEAR)
@@ -184,12 +205,19 @@ def normalize_quote(quote: Quote, classification: Classification, case: Case) ->
 
 def _quantity_evidence(normalized: list[NormalizedQuote]) -> list[NormalizedQuote]:
     """Valid comparable on-demand asks with the same unadjusted payment convention."""
-    return [item for item in normalized
-            if item.usable and item.classification.as_of_status == AS_OF_VALID
-            and item.classification.tier == TIER_COMPARABLE
-            and item.classification.contract_class == CLASS_FLEXIBLE
-            and item.quote.side == "ask" and item.quote.unit != "node_month"
-            and item.quote.kind == "current_on_demand" and item.quote.payment == "arrears"]
+    return [
+        item
+        for item in normalized
+        if item.usable
+        and item.classification.as_of_status == AS_OF_VALID
+        and item.classification.tier == TIER_COMPARABLE
+        and item.classification.contract_class == CLASS_FLEXIBLE
+        and item.quote.cancellation.strip().lower() == "anytime"
+        and item.quote.side == "ask"
+        and item.quote.unit != "node_month"
+        and item.quote.kind == "current_on_demand"
+        and item.quote.payment == "arrears"
+    ]
 
 
 def estimate_quantity_factor(
@@ -235,14 +263,20 @@ def apply_quantity_adjustment(
 ) -> None:
     """Express node-sized quotes as single-GPU equivalents in place (when a factor exists)."""
     ref_count = case.reference_product.gpu_count
-    supported_counts = {item.quote.gpu_count for item in _quantity_evidence(normalized)
-                        if item.quote.gpu_count != ref_count}
+    supported_counts = {
+        item.quote.gpu_count
+        for item in _quantity_evidence(normalized)
+        if item.quote.gpu_count != ref_count
+    }
     for item in normalized:
         if not item.usable or item.quote.gpu_count == ref_count:
             continue
         assert item.usd_per_gpu_hour is not None
-        supported = (len(supported_counts) == 1 and item.quote.gpu_count in supported_counts
-                     and item.classification.tier == TIER_COMPARABLE)
+        supported = (
+            len(supported_counts) == 1
+            and item.quote.gpu_count in supported_counts
+            and item.classification.tier == TIER_COMPARABLE
+        )
         if factor is None or factor == 0 or not supported:
             item.steps.append(
                 Step(
