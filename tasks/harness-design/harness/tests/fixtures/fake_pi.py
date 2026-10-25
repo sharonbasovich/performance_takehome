@@ -175,7 +175,9 @@ def main(argv: list[str]) -> int:
             "args": {"path": "Dockerfile"},
         }
     )
-    if mode != "nopatch":
+    if mode == "binary":
+        (cwd / "blob.bin").write_bytes(b"\x00\x01binary")
+    elif mode != "nopatch":
         _apply_edit(cwd, Path(patch_out.group(1)), Path(meta_out.group(1)))
     _emit(
         {
