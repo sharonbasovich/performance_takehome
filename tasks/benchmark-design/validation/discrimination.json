@@ -617,7 +617,7 @@
     "family": "unicode_splits",
     "fixture": "unicode_split",
     "observed_signals": [
-      "fluidity_strict_mean=0.227 vs clean 1.000",
+      "fluidity_strict_mean=0.222 vs clean 1.000",
       "min_decode_deadline_p99=0.0644s vs clean 0.0178s",
       "readiness_lead=1.59s vs clean 0.54s"
     ],

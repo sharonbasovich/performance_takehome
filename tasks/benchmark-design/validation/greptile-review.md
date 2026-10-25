@@ -21,3 +21,8 @@ actual serving process and must not detach it.
 
 Historical mock captures retain their original source identity. These fixes do not
 relabel or regenerate them, and do not establish LLMD/MI355X performance or parity.
+The public Unicode discrimination row was recomputed from those unchanged raw
+captures using `build_validation.discrimination_rows`: its displayed strict-fluidity
+signal changes from 0.227 to 0.222 after the corrected character offsets. Its checks
+and outcome are unchanged. Other committed per-fixture reports retain their historical
+analysis source rather than being silently represented as fresh captures.
