@@ -256,28 +256,229 @@ def check_gpu(report: Report, render: str) -> None:
     )
 
 
+def _cgroup_path(raw: str) -> PurePosixPath:
+    """Parse kernel paths without allowing traversal outside the visible mount."""
+    raw = re.sub(r"\\([0-7]{3})", lambda m: chr(int(m[1], 8)), raw)
+    if (
+        len(raw) > 4096
+        or not raw.startswith("/")
+        or "\0" in raw
+        or any(p in {".", ".."} for p in raw.split("/"))
+    ):
+        raise ValueError("unresolved cgroup namespace path")
+    return PurePosixPath(raw)
+
+
+def _cgroup_number(raw: str, *, zero: bool = False) -> int:
+    if not re.fullmatch(r"\d+", raw):
+        raise ValueError("invalid cgroup number")
+    value = int(raw)
+    if value > 2**64 - 1 or value < (0 if zero else 1):
+        raise ValueError("invalid cgroup number")
+    return value
+
+
+def _cgroup_read(path: Path) -> str:
+    value = path.read_text(encoding="utf-8").strip()
+    if len(value) > 1024:
+        raise ValueError("oversized cgroup control")
+    return value
+
+
+def cgroup_limits(
+    membership_path: Path = Path("/proc/self/cgroup"),
+    mountinfo_path: Path = Path("/proc/self/mountinfo"),
+) -> dict[str, Any]:
+    """Resolve current-process v1/v2 limits through every visible applicable ancestor.
+
+    Missing/inaccessible ancestry is uncertainty, never an unlimited allocation.
+    Mount roots are filesystem paths, not necessarily '/'. A mounted subtree hides
+    ancestors; v2 limit files at a purported '/' also reveal a namespaced subtree
+    (the kernel exposes cpu.max/memory.max only on non-root cgroups).
+    References: docs.kernel.org/admin-guide/cgroup-v2.html and
+    man7.org/linux/man-pages/man5/proc_pid_mountinfo.5.html.
+    """
+    result: dict[str, Any] = {
+        "established": False,
+        "cpu": None,
+        "memory": None,
+        "issues": [],
+        "hierarchies": [],
+    }
+    try:
+        membership = membership_path.read_text(encoding="utf-8")
+        mountinfo = mountinfo_path.read_text(encoding="utf-8")
+        if len(membership) > MAX_JSON or len(mountinfo) > MAX_JSON:
+            raise ValueError("oversized cgroup metadata")
+        groups: dict[str, PurePosixPath] = {}
+        for line in membership.splitlines():
+            hierarchy, controllers, path = line.split(":", 2)
+            if not hierarchy.isdecimal():
+                raise ValueError("malformed cgroup membership")
+            if (not controllers and hierarchy != "0") or (controllers and hierarchy == "0"):
+                raise ValueError("inconsistent cgroup version")
+            names = controllers.split(",") if controllers else ["v2"]
+            for name in names:
+                if name in groups:
+                    raise ValueError("ambiguous cgroup membership")
+                groups[name] = _cgroup_path(path)
+        mounts = []
+        for line in mountinfo.splitlines():
+            before, after = line.split(" - ", 1)
+            fields, fs = before.split(), after.split()
+            if len(fields) < 6 or len(fs) < 3:
+                raise ValueError("malformed mount metadata")
+            if fs[0] in {"cgroup", "cgroup2"}:
+                mounts.append(
+                    (fs[0], _cgroup_path(fields[3]), _cgroup_path(fields[4]), set(fs[2].split(",")))
+                )
+    except (OSError, ValueError):
+        result["issues"].append("Current-process cgroup membership or mounts are unestablished")
+        return result
+
+    for controller in ("cpu", "memory"):
+        try:
+            version = 1 if controller in groups else 2
+            group = groups[controller if version == 1 else "v2"]
+            candidates = []
+            for kind, root, point, options in mounts:
+                if (version == 2 and kind != "cgroup2") or (
+                    version == 1 and (kind != "cgroup" or controller not in options)
+                ):
+                    continue
+                if group.is_relative_to(root):
+                    candidates.append((root, point))
+            if not candidates:
+                raise ValueError("no applicable cgroup mount")
+            # Prefer a complete hierarchy over a bind-mounted, less informative view.
+            depth = min(len(root.parts) for root, _ in candidates)
+            candidates = [m for m in candidates if len(m[0].parts) == depth]
+            if len(candidates) != 1:
+                raise ValueError("ambiguous cgroup mount")
+            root, point = candidates[0]
+            relative = group.relative_to(root)
+            current = Path(str(point)).joinpath(*relative.parts)
+            stop = Path(str(point))
+            hidden = root != PurePosixPath("/")
+            if version == 2 and not hidden:
+                _cgroup_read(stop / "cgroup.controllers")
+                try:
+                    _cgroup_read(stop / "cgroup.type")
+                except FileNotFoundError:
+                    pass
+                else:
+                    hidden = True
+            elif version == 1 and not hidden:
+                # The v1 kernel exposes this marker only at the real hierarchy
+                # root (CFTYPE_ONLY_ON_ROOT), not a remounted namespace subtree.
+                try:
+                    if _cgroup_read(stop / "cgroup.sane_behavior") != "0":
+                        raise ValueError("unestablished v1 root")
+                except FileNotFoundError:
+                    hidden = True
+            values: list[int | float] = []
+            levels = 0
+            while True:
+                levels += 1
+                global_root = current == stop and root == PurePosixPath("/")
+                if version == 2:
+                    name = "cpu.max" if controller == "cpu" else "memory.max"
+                    try:
+                        raw = _cgroup_read(current / name)
+                    except FileNotFoundError:
+                        if not global_root:
+                            raise
+                    else:
+                        if global_root:
+                            hidden = True
+                        if controller == "cpu":
+                            count, period_text = raw.split()
+                            period = _cgroup_number(period_text)
+                            if not 1000 <= period <= 1_000_000:
+                                raise ValueError("invalid CPU period")
+                            if count != "max":
+                                values.append(_cgroup_number(count) / period)
+                        elif raw != "max":
+                            values.append(_cgroup_number(raw, zero=True))
+                elif controller == "cpu":
+                    count = _cgroup_read(current / "cpu.cfs_quota_us")
+                    period = _cgroup_number(_cgroup_read(current / "cpu.cfs_period_us"))
+                    if not 1000 <= period <= 1_000_000:
+                        raise ValueError("invalid CPU period")
+                    if count != "-1":
+                        values.append(_cgroup_number(count) / period)
+                else:
+                    if _cgroup_read(current / "memory.use_hierarchy") != "1":
+                        raise ValueError("memory inheritance is not established")
+                    values.append(
+                        _cgroup_number(_cgroup_read(current / "memory.limit_in_bytes"), zero=True)
+                    )
+                if current == stop:
+                    break
+                current = current.parent
+            result[controller] = min(values) if values else None
+            result["hierarchies"].append(
+                {
+                    "controller": controller,
+                    "version": version,
+                    "visible_levels": levels,
+                    "hidden_ancestors": hidden,
+                }
+            )
+            if hidden:
+                result["issues"].append(
+                    f"{controller}: ancestors outside the visible mount are unknown"
+                )
+        except (OSError, ValueError, KeyError, OverflowError):
+            result["issues"].append(
+                f"{controller}: applicable limits are inaccessible or malformed"
+            )
+    try:
+        if (
+            membership_path.read_text(encoding="utf-8") != membership
+            or mountinfo_path.read_text(encoding="utf-8") != mountinfo
+        ):
+            result["issues"].append("Cgroup membership or mounts changed during inspection")
+    except OSError:
+        result["issues"].append("Cgroup inspection could not be reconciled")
+    result["established"] = not result["issues"]
+    return result
+
+
 def check_capacity(report: Report, disk: Path, min_free: float) -> None:
     cpus = len(os.sched_getaffinity(0))
     memory = (
         int(re.search(r"^MemTotal:\s+(\d+)", Path("/proc/meminfo").read_text(), re.M)[1]) * 1024
     )
-    limit = Path("/sys/fs/cgroup/memory.max")
-    if limit.exists() and limit.read_text().strip() != "max":
-        memory = min(memory, int(limit.read_text().strip()))
-    quota = Path("/sys/fs/cgroup/cpu.max")
+    limits = cgroup_limits()
+    if limits["memory"] is not None:
+        memory = min(memory, limits["memory"])
     cpu_capacity = float(cpus)
-    if quota.exists():
-        count, period = quota.read_text().split()
-        if count != "max":
-            cpu_capacity = min(cpu_capacity, int(count) / int(period))
+    if limits["cpu"] is not None:
+        cpu_capacity = min(cpu_capacity, limits["cpu"])
     free = shutil.disk_usage(disk).free
     report.add(
         "cpu_ram",
-        "PASS" if cpu_capacity >= 24 and memory >= 144 * GIB else "FAIL",
-        "Planning capacity: 16 serving cores/128 GiB plus 8 client cores/16 GiB",
-        "Use 24 available cores/144 GiB RAM or document approved separate client capacity",
+        (
+            "MISSING"
+            if not limits["established"]
+            else "PASS"
+            if cpu_capacity >= 24 and memory >= 144 * GIB
+            else "FAIL"
+        ),
+        (
+            "Planning capacity: 16 serving cores/128 GiB plus 8 client cores/16 GiB"
+            if limits["established"]
+            else "CPU/RAM capacity is unestablished because applicable cgroup ancestry is unknown"
+        ),
+        (
+            "Use 24 available cores/144 GiB RAM or document approved separate client capacity"
+            if limits["established"]
+            else "Expose readable current-process ancestor controls or inspect the actual Linux host"
+        ),
         cpu_capacity=cpu_capacity,
         effective_memory_bytes=memory,
+        cgroup_limits=limits,
     )
     report.add(
         "disk",
