@@ -9,6 +9,7 @@ schema is supported by adding an adapter that maps its files onto these two type
 
 import gzip
 import json
+import math
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +22,7 @@ REQUESTS_FILE = "requests.jsonl"
 ADAPTERS = ("native",)
 MAX_EVIDENCE_BYTES = 256 * 1024 * 1024  # decompressed bytes per requests file
 MAX_RECORD_BYTES = 16 * 1024 * 1024  # one request line
+MAX_RUN_BYTES = 16 * 1024 * 1024
 
 
 class SchemaError(ValueError):
@@ -45,7 +47,11 @@ def _type_ok(value: Any, kind: str) -> bool:
     if kind == "integer":
         return isinstance(value, int) and not isinstance(value, bool)
     if kind == "number":
-        return isinstance(value, int | float) and not isinstance(value, bool)
+        return (
+            isinstance(value, int | float)
+            and not isinstance(value, bool)
+            and (not isinstance(value, float) or math.isfinite(value))
+        )
     if kind == "boolean":
         return isinstance(value, bool)
     if kind == "null":
@@ -184,6 +190,20 @@ def _open_binary(path: Path) -> Any:
     return path.open("rb")
 
 
+def _strict_json(text: str) -> Any:
+    """Reject non-JSON numbers, including finite-looking exponents that overflow float."""
+    def reject_constant(value: str) -> Any:
+        raise ValueError(f"non-finite JSON number {value}")
+
+    def finite_float(value: str) -> float:
+        result = float(value)
+        if not math.isfinite(result):
+            raise ValueError(f"non-finite JSON number {value}")
+        return result
+
+    return json.loads(text, parse_constant=reject_constant, parse_float=finite_float)
+
+
 def _iter_bounded_lines(path: Path, chunk_bytes: int = 1 << 20) -> Iterator[tuple[int, bytes]]:
     """Yield (line_number, line) reading fixed-size chunks; never buffers more than one record.
 
@@ -237,8 +257,8 @@ def _iter_jsonl(path: Path) -> Iterator[dict[str, Any]]:
         if not line:
             continue
         try:
-            record = json.loads(line)
-        except json.JSONDecodeError as exc:
+            record = _strict_json(line)
+        except ValueError as exc:
             raise EvidenceError(f"{path}:{number}: invalid JSON ({exc})") from exc
         if not isinstance(record, dict):
             raise EvidenceError(f"{path}:{number}: record must be an object")
@@ -263,9 +283,15 @@ def load_events(directory: Path, adapter: str = "native") -> Evidence:
     if not req_path.is_file():
         raise EvidenceError(f"missing {REQUESTS_FILE} in {directory}")
     try:
-        run_raw = json.loads(run_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise EvidenceError(f"{run_path}: invalid JSON ({exc})") from exc
+        with run_path.open("rb") as handle:
+            encoded = handle.read(MAX_RUN_BYTES + 1)
+        if len(encoded) > MAX_RUN_BYTES:
+            raise EvidenceError(f"{run_path}: run metadata exceeds {MAX_RUN_BYTES} bytes")
+        run_raw = _strict_json(encoded.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        raise EvidenceError(f"{run_path}: unreadable JSON ({exc})") from exc
+    if not isinstance(run_raw, dict):
+        raise EvidenceError(f"{run_path}: run metadata must be an object")
     errors = [f"run: {e}" for e in validate_run_record(run_raw)]
     requests: list[RequestRecord] = []
     seen: set[str] = set()

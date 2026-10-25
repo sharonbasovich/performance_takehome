@@ -12,6 +12,7 @@
     "created_utc": {"type": "string"},
     "suite_version": {"type": "string"},
     "mode": {"type": "string"},
+    "planned_startup_launches": {"type": "integer", "minimum": 0},
     "status": {"enum": ["completed", "aborted", "in_progress"]},
     "plan": {
       "type": "object",
@@ -82,12 +83,19 @@
         "required": ["launch_index", "launch_mono_s", "cold", "readiness_probes", "generation_probe_request_ids", "readiness_at", "first_valid_generation_at", "first_valid_request_id", "status"],
         "properties": {
           "launch_index": {"type": "integer", "minimum": 0},
-          "launch_mono_s": {"type": ["number", "null"]},
+          "launch_mono_s": {"type": "number", "minimum": 0},
           "cold": {"type": "boolean"},
           "launch_command_sha256": {"type": ["string", "null"]},
           "readiness_probes": {
             "type": "array",
-            "items": {"type": "object", "required": ["t", "http_status", "ok"]}
+            "items": {
+              "type": "object", "required": ["t", "http_status", "ok"],
+              "properties": {
+                "t": {"type": "number", "minimum": 0},
+                "http_status": {"type": ["integer", "null"]},
+                "ok": {"type": "boolean"}
+              }
+            }
           },
           "generation_probe_request_ids": {"type": "array", "items": {"type": "string"}},
           "readiness_at": {"type": ["number", "null"]},
@@ -101,8 +109,8 @@
       "type": "object",
       "required": ["event_loop_lag_max_s", "event_loop_lag_p99_s", "samples", "measured_phases"],
       "properties": {
-        "event_loop_lag_max_s": {"type": ["number", "null"]},
-        "event_loop_lag_p99_s": {"type": ["number", "null"]},
+        "event_loop_lag_max_s": {"type": ["number", "null"], "minimum": 0},
+        "event_loop_lag_p99_s": {"type": ["number", "null"], "minimum": 0},
         "samples": {"type": "integer", "minimum": 0},
         "measured_phases": {"type": "array", "items": {"type": "string"}}
       }
@@ -113,6 +121,15 @@
         "type": "object",
         "required": ["unit_id", "cell_id", "repetition", "load_label", "arrival_type", "load", "planned_requests", "planned_warmup", "role", "deadline_profile", "prompt_source"],
         "properties": {
+          "unit_id": {"type": "string", "minLength": 1},
+          "cell_id": {"type": "string", "minLength": 1},
+          "repetition": {"type": "integer", "minimum": 0},
+          "load_label": {"type": "string"},
+          "arrival_type": {"enum": ["poisson", "closed_loop"]},
+          "load": {"type": "number", "minimum": 0},
+          "role": {"enum": ["measure", "aa_control", "calibration"]},
+          "deadline_profile": {"type": "string"},
+          "prompt_source": {"type": "string"},
           "planned_requests": {"type": "integer", "minimum": 0},
           "planned_warmup": {"type": "integer", "minimum": 0}
         }

@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from bench import SUITE_VERSION  # noqa: E402
 from bench.gates import Verdict, judge  # noqa: E402
-from bench.plan import load_plan, plan_digest, prefill_deadline_s  # noqa: E402
+from bench.plan import load_plan, plan_digest, prefill_deadline_s, resolve_mode  # noqa: E402
 from bench.records import Evidence, EvidenceError, load_events  # noqa: E402
 from bench.stats import bonferroni, decide, difference_ci, percentile_ci  # noqa: E402
 
@@ -61,6 +61,13 @@ class Evaluator:
         self.verdicts: dict[str, Verdict] = {}
         self.by_id = {str(r.raw.get("request_id")): r for r in evidence.requests}
         self.records = {r.request_id: r.raw for r in evidence.requests}
+        # Compact fixtures deliberately exercise partial cell sets. Hardware quick/full
+        # runs must cover the actual plan, rather than trust a runner's reduced totals.
+        mode = evidence.run.mode
+        self.expected_units = (
+            {u.unit_id: u for u in resolve_mode(plan, mode)}
+            if mode in ("quick", "full") and mode in plan["modes"] else {}
+        )
 
     def _ci(self, values: list[float], stat: Any, salt: int) -> dict[str, Any]:
         return percentile_ci(
@@ -85,9 +92,11 @@ class Evaluator:
             self.reasons.append("clock source is not time.monotonic")
         lag = run.get("client_integrity") or {}
         limit = self.plan["client_integrity"]["max_event_loop_lag_s"]
-        if lag.get("event_loop_lag_max_s") is None:
-            if lag.get("samples", 0) == 0 and self.ev.requests:
-                self.reasons.append("client event-loop lag was not measured (no samples)")
+        if lag.get("event_loop_lag_max_s") is None or lag.get("samples", 0) == 0:
+            if self.ev.requests:
+                self.reasons.append(
+                    "client event-loop lag was not measured (max or samples missing)"
+                )
         elif lag["event_loop_lag_max_s"] > limit:
             self.reasons.append(
                 f"client event-loop lag {lag['event_loop_lag_max_s']:.3f}s exceeds {limit}s: "
@@ -98,16 +107,48 @@ class Evaluator:
             if not engine.get(key) or engine.get(key) == "unknown":
                 self.reasons.append(f"engine identity incomplete: {key} missing")
         recorded_digest = (run.get("plan") or {}).get("digest")
-        if self.plan_digest_hex and recorded_digest and recorded_digest != self.plan_digest_hex:
+        if self.plan_digest_hex and recorded_digest != self.plan_digest_hex:
             self.reasons.append(
                 "run was recorded under a different workload plan (digest mismatch); refusing"
             )
         plan_digest = (run.get("plan") or {}).get("plan_id")
-        if plan_digest and plan_digest != self.plan["plan_id"]:
+        if plan_digest != self.plan["plan_id"]:
             self.reasons.append(
                 f"run was recorded under plan {plan_digest!r}, "
                 f"evaluated with {self.plan['plan_id']!r}"
             )
+        if run["mode"] not in self.plan["modes"]:
+            self.reasons.append(f"unknown run mode {run['mode']!r}")
+        units = {u["unit_id"]: u for u in self.ev.run.units}
+        if len(units) != len(self.ev.run.units):
+            self.reasons.append("run contains duplicate unit_id metadata")
+        for unit_id, unit in units.items():
+            if self.expected_units and unit_id not in self.expected_units:
+                self.reasons.append(f"unexpected scheduled unit {unit_id!r}")
+                continue
+            expected = self.expected_units.get(unit_id)
+            if expected is not None:
+                for key, value in (
+                    ("planned_requests", expected.requests), ("planned_warmup", expected.warmup),
+                    ("cell_id", expected.cell_id), ("load_label", expected.load_label),
+                    ("repetition", expected.repetition), ("arrival_type", expected.arrival_type),
+                    ("load", expected.load), ("role", expected.role),
+                ):
+                    if unit[key] != value:
+                        self.reasons.append(f"unit {unit_id!r}: {key} differs from workload plan")
+        for rec in self.ev.requests:
+            raw = rec.raw
+            if raw["phase"] == "startup_probe":
+                continue
+            meta = units.get(raw["unit_id"])
+            if meta is None:
+                self.reasons.append(f"request {rec.request_id}: undeclared unit_id")
+                continue
+            for key in ("cell_id", "load_label", "repetition", "arrival_type", "load", "role"):
+                if raw[key] != meta[key]:
+                    self.reasons.append(
+                        f"request {rec.request_id}: {key} differs from unit metadata"
+                    )
 
     REQUIRED_KEYS = (
         "request_id",
@@ -160,6 +201,12 @@ class Evaluator:
                 "load_label": meta["load_label"],
                 "role": meta["role"],
             }
+        for unit_id, unit in self.expected_units.items():
+            table.setdefault(unit_id, {
+                "planned": unit.requests, "offered": 0, "warmup_offered": 0,
+                **{c: 0 for c in CATEGORIES}, "cell_id": unit.cell_id,
+                "load_label": unit.load_label, "role": unit.role,
+            })
         for rec in self.ev.requests:
             raw = rec.raw
             if self._malformed(raw):
@@ -365,6 +412,7 @@ class Evaluator:
     def startup(self) -> dict[str, Any]:
         """Launch-to-first-valid-generation per launch; readiness alone never counts."""
         launches = []
+        used_probe_ids: set[str] = set()
         for launch in self.ev.run.startup:
             t0 = launch["launch_mono_s"]
             probes = launch.get("readiness_probes") or []
@@ -378,7 +426,20 @@ class Evaluator:
             for pid in probe_ids:
                 v = self.verdicts.get(pid)
                 rec = self.by_id.get(pid)
-                if v is None or rec is None or v.category != "completed":
+                if pid in used_probe_ids:
+                    self.reasons.append(f"startup: probe {pid!r} is reused across launches")
+                    continue
+                used_probe_ids.add(pid)
+                if rec is None:
+                    self.reasons.append(f"startup: referenced probe {pid!r} is missing")
+                    continue
+                if rec.raw["phase"] != "startup_probe":
+                    self.reasons.append(f"startup: referenced probe {pid!r} has wrong phase")
+                    continue
+                if t0 is None or rec.raw["timestamps_mono_s"]["send"] < t0:
+                    self.reasons.append(f"startup: probe {pid!r} predates its launch")
+                    continue
+                if v is None or v.category != "completed":
                     continue
                 # "First valid completed generation": validity is only known when the stream
                 # ends, so the clock stops at the probe's own client-side ``end`` timestamp.
@@ -423,13 +484,14 @@ class Evaluator:
                     "status": launch.get("status"),
                     "readiness_probes": len(probes),
                     "first_ready_probe_s": (launch["readiness_at"] - t0)
-                    if launch.get("readiness_at")
+                    if launch.get("readiness_at") is not None
                     else None,
                     "generation_probes": len(probe_ids),
                     "probe_categories": dict(Counter(probe_verdicts)),
-                    "startup_to_first_valid_generation_s": (valid_at - t0) if valid_at else None,
+                    "startup_to_first_valid_generation_s": (valid_at - t0)
+                    if valid_at is not None else None,
                     "readiness_lead_s": (valid_at - launch["readiness_at"])
-                    if (valid_at and launch.get("readiness_at"))
+                    if (valid_at is not None and launch.get("readiness_at") is not None)
                     else None,
                 }
             )
@@ -439,6 +501,15 @@ class Evaluator:
             if launch["startup_to_first_valid_generation_s"] is not None
         ]
         planned = self.ev.run.raw.get("planned_startup_launches")
+        if self.ev.run.mode in ("quick", "full"):
+            expected = self.plan["modes"][self.ev.run.mode]["startup_launches"]
+            if planned != expected:
+                self.reasons.append("startup: planned launch count differs from workload plan")
+            planned = expected
+        if planned is not None and len(launches) < planned:
+            self.inconclusive.append(
+                f"startup: {len(launches)} launches recorded < {planned} planned"
+            )
         cold = [launch for launch in launches if launch["cold"]]
         if not launches:
             self.inconclusive.append("startup: no launch recorded")
@@ -487,7 +558,6 @@ def compare_groups(
 ) -> dict[str, Any]:
     """Compare two groups on TTFT p50/p90, strict FI mean and the FTGR proxy (MDD p99)."""
     cfg = ev_a.stats_cfg
-    conf = bonferroni(cfg["confidence"], comparisons)
     me = cfg["min_effect"]
     metrics = {
         "ttft_p50_s": ("ttft", lambda x: quantile(x, 0.5), me["ttft_p50_rel"], True, False),
@@ -507,8 +577,15 @@ def compare_groups(
             False,
         ),
     }
+    # A cell declares regression if *any* metric moves; all tested metrics therefore
+    # belong to the same family, including the single-cell within-run A/A control.
+    family_size = comparisons * len(metrics)
+    conf = bonferroni(cfg["confidence"], family_size)
     min_n = cfg["min_requests_per_cell"]
-    out: dict[str, Any] = {"label": label, "confidence_adjusted": conf, "metrics": {}}
+    out: dict[str, Any] = {
+        "label": label, "confidence_adjusted": conf,
+        "comparison_family_size": family_size, "metrics": {},
+    }
     for i, (name, (key, stat, min_effect, relative, higher_better)) in enumerate(metrics.items()):
         a, b = s_a.get(key, []), s_b.get(key, [])
         diff = difference_ci(
@@ -565,6 +642,15 @@ def evaluate(
             {},
         )
     ev = Evaluator(plan, evidence, plan_digest_hex)
+    # Do not calculate on structurally invalid records: a type error must produce
+    # a named invalid-evidence verdict, rather than crash or silently coerce data.
+    if evidence.schema_errors:
+        return (
+            {"status": "invalid", "reasons": [f"schema: {e}" for e in evidence.schema_errors],
+             "events_dir": str(events_dir)},
+            ev,
+            {},
+        )
     ev.run_gates()
     ev.judge_all()
     population = ev.population()

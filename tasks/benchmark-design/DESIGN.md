@@ -161,7 +161,23 @@ verdict.
   ±min_effect; otherwise *inconclusive* (underpowered). Any side with fewer than
   `min_requests_per_cell` samples is inconclusive by construction (this is what protects
   against degenerate bootstrap CIs on tiny samples). Confidence is Bonferroni-adjusted
-  across compared cells. Runs that are not both valid cannot be compared (`invalid`).
+  across **four metrics times the number of compared cells**, including all four metrics
+  in a single A/A comparison. This is a nominal correction on percentile-bootstrap
+  intervals, not a proven finite-sample family-wise guarantee: shared queueing,
+  repetition correlations, and sparse bootstrap tails still require real pilot/control
+  calibration. Runs that are not both valid cannot be compared (`invalid`).
+
+**Evidence boundary hardening (independent follow-up review).** The reader rejects NaN,
+infinity, overflowing JSON numeric literals and structurally invalid nested records before
+analysis, and bounds run metadata to 16 MiB as well as bounding request evidence. Both a
+finite lag maximum and actual lag samples are required. For quick/full modes, declared
+unit counts/identities are checked against the resolved workload plan; an omitted planned
+unit remains visible and makes the result inconclusive, even if omitted from `run.json`.
+Compact fixture mode permits partial synthetic cell sets for isolated gate tests. Request
+identity must agree with declared unit metadata in every mode. Startup uses only actual
+startup-phase probes sent after the corresponding launch, never reused across launches;
+missing planned launch repetitions are inconclusive. Historical committed captures/reports
+are retained as evidence of the earlier implementation, not silently regenerated.
 
 ## 4. Validation matrix (CPU mock fixtures — not GPU, not llm-d)
 
