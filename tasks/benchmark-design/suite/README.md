@@ -65,6 +65,46 @@ uv run --frozen python -m runner --plan workload.json --mode full --out <events_
     --stop-after-launch --gpu-count 1 --gpu-hours 3 --gpu-kind MI355X
 ```
 
+### Pinned real output tokenizer (CPU-only preparation)
+
+Real runs now require a verified tokenizer snapshot; regex counting remains available
+for explicitly labelled mock captures. No model weights or GPU are needed to prepare
+the snapshot. The optional native runtime is isolated from the protected root lock:
+
+```bash
+# Use a clean Python environment. --no-deps is intentional: this adapter only uses
+# Tokenizer.from_file, which needs no Hub client/Transformers/remote code.
+python -m pip install --no-deps --require-hashes -r requirements-tokenizer.txt
+python -m bench.model_tokens --model target --out /tmp/abstract-tokenizers/target
+python -m bench.model_tokens --model smoke --out /tmp/abstract-tokenizers/smoke
+BENCHMARK_TOKENIZER_SNAPSHOTS=/tmp/abstract-tokenizers python -m unittest tests.test_model_tokens -v
+```
+
+`tokenizer.lock.json` pins the tokenizer/config bytes and SHA-256 values at the two
+protected model revisions (about 24 MB together), with wheel hashes for Tokenizers
+0.22.2 on Linux amd64 and Windows amd64. Capture and evaluation perform **no downloads**.
+Use `--tokenizer-snapshot /tmp/abstract-tokenizers/target` on **both** runner and
+evaluator, including the real-engine example above. The role comes from
+`plan.target.model_role`; a smoke plan must select `smoke` and its matching assets.
+Wrong files, runtime, model or recorded tokenizer identity fail closed. `run.json`
+and reports retain hashes, model revision, runtime, Unicode database and mapping identity.
+
+Counts are the exact pinned tokenizer's **re-encoding of the completed decoded output**,
+with special-token insertion disabled. They do not recover the server's generated token
+IDs, hidden/stripped special tokens, or chat-template prompt tokens. Prompt construction
+and its `approx_prompt_tokens` remain regex approximations; real prefill calibration must
+account for that until a trusted prompt/token adapter is available. Content and reasoning
+channels are counted separately; their boundary can differ from internal generation.
+The existing usage-ratio policy is therefore retained rather than claiming exact equality.
+
+Token end offsets map to the observed SSE delta containing their completed characters.
+Both pinned tokenizers normalize with NFC. The adapter waits for the complete original
+normalization cluster before assigning a token's arrival, covering combining marks,
+canonical reordering and Hangul composition. This can delay a cluster conservatively;
+it never invents individual token arrival times. Multiple tokens still share one delta
+time and `resolution` remains **delta**. Incremental UTF-8 decoding preserves characters
+split across network chunks. Model-internal/per-token timing remains an external gap.
+
 Exit codes: `evaluate.py` returns 0 for `valid`, 3 for `inconclusive`, 4 for `invalid`;
 `runner --dry-run` returns 2 when the mode does not fit its wall cap.
 

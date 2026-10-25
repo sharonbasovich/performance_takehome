@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from bench import SUITE_VERSION  # noqa: E402
 from bench.gates import Verdict, judge  # noqa: E402
+from bench.model_tokens import ModelTokenizer  # noqa: E402
 from bench.plan import load_plan, plan_digest, prefill_deadline_s, resolve_mode  # noqa: E402
 from bench.records import Evidence, EvidenceError, load_events  # noqa: E402
 from bench.stats import bonferroni, decide, difference_ci, percentile_ci  # noqa: E402
@@ -49,11 +50,16 @@ class Evaluator:
     """Evaluates one events directory against a plan."""
 
     def __init__(
-        self, plan: dict[str, Any], evidence: Evidence, plan_digest_hex: str | None = None
+        self,
+        plan: dict[str, Any],
+        evidence: Evidence,
+        plan_digest_hex: str | None = None,
+        tokenizer: ModelTokenizer | None = None,
     ) -> None:
         self.plan = plan
         self.plan_digest_hex = plan_digest_hex
         self.ev = evidence
+        self.tokenizer = tokenizer
         self.stats_cfg = plan["statistics"]
         self.seed = plan["seeds"]["bootstrap_seed"]
         self.reasons: list[str] = []
@@ -66,7 +72,8 @@ class Evaluator:
         mode = evidence.run.mode
         self.expected_units = (
             {u.unit_id: u for u in resolve_mode(plan, mode)}
-            if mode in ("quick", "full") and mode in plan["modes"] else {}
+            if mode in ("quick", "full") and mode in plan["modes"]
+            else {}
         )
 
     def _ci(self, values: list[float], stat: Any, salt: int) -> dict[str, Any]:
@@ -103,6 +110,15 @@ class Evaluator:
                 "timings are client-owned"
             )
         engine = run.get("engine") or {}
+        if engine.get("kind") != "mock" and self.tokenizer is None:
+            self.reasons.append("real evaluation requires a verified model tokenizer snapshot")
+        if self.tokenizer is not None:
+            if run.get("tokenizer") != self.tokenizer.identity:
+                self.reasons.append(
+                    "run tokenizer snapshot/runtime identity differs from evaluator"
+                )
+            if engine.get("lock_model") != self.tokenizer.model:
+                self.reasons.append("run model pin differs from selected tokenizer")
         for key in ("model_id", "lock_digest"):
             if not engine.get(key) or engine.get(key) == "unknown":
                 self.reasons.append(f"engine identity incomplete: {key} missing")
@@ -129,10 +145,14 @@ class Evaluator:
             expected = self.expected_units.get(unit_id)
             if expected is not None:
                 for key, value in (
-                    ("planned_requests", expected.requests), ("planned_warmup", expected.warmup),
-                    ("cell_id", expected.cell_id), ("load_label", expected.load_label),
-                    ("repetition", expected.repetition), ("arrival_type", expected.arrival_type),
-                    ("load", expected.load), ("role", expected.role),
+                    ("planned_requests", expected.requests),
+                    ("planned_warmup", expected.warmup),
+                    ("cell_id", expected.cell_id),
+                    ("load_label", expected.load_label),
+                    ("repetition", expected.repetition),
+                    ("arrival_type", expected.arrival_type),
+                    ("load", expected.load),
+                    ("role", expected.role),
                     ("prompt_source", expected.prompt_source),
                     ("deadline_profile", expected.deadline_profile),
                 ):
@@ -153,7 +173,8 @@ class Evaluator:
                     )
             source = self.plan["prompt_sources"].get(meta["prompt_source"], {})
             allowed_sources = (
-                {c[0] for c in source["components"]} if source.get("kind") == "mixture"
+                {c[0] for c in source["components"]}
+                if source.get("kind") == "mixture"
                 else {meta["prompt_source"]}
             )
             if raw["prompt"]["source"] not in allowed_sources:
@@ -188,7 +209,7 @@ class Evaluator:
                 )
                 continue
             self.verdicts[rec.request_id] = judge(
-                rec.raw, self.plan, errors_by_request.get(rec.request_id, [])
+                rec.raw, self.plan, errors_by_request.get(rec.request_id, []), self.tokenizer
             )
         invalid = [v for v in self.verdicts.values() if v.category == "evidence_invalid"]
         if invalid:
@@ -214,12 +235,19 @@ class Evaluator:
                 "role": meta["role"],
             }
         for unit_id, unit in self.expected_units.items():
-            table.setdefault(unit_id, {
-                "planned": unit.requests, "offered": 0, "warmup_offered": 0,
-                "warmup_planned": unit.warmup,
-                **{c: 0 for c in CATEGORIES}, "cell_id": unit.cell_id,
-                "load_label": unit.load_label, "role": unit.role,
-            })
+            table.setdefault(
+                unit_id,
+                {
+                    "planned": unit.requests,
+                    "offered": 0,
+                    "warmup_offered": 0,
+                    "warmup_planned": unit.warmup,
+                    **{c: 0 for c in CATEGORIES},
+                    "cell_id": unit.cell_id,
+                    "load_label": unit.load_label,
+                    "role": unit.role,
+                },
+            )
         for rec in self.ev.requests:
             raw = rec.raw
             if self._malformed(raw):
@@ -508,7 +536,8 @@ class Evaluator:
                     "generation_probes": len(probe_ids),
                     "probe_categories": dict(Counter(probe_verdicts)),
                     "startup_to_first_valid_generation_s": (valid_at - t0)
-                    if valid_at is not None else None,
+                    if valid_at is not None
+                    else None,
                     "readiness_lead_s": (valid_at - launch["readiness_at"])
                     if (valid_at is not None and launch.get("readiness_at") is not None)
                     else None,
@@ -602,8 +631,10 @@ def compare_groups(
     conf = bonferroni(cfg["confidence"], family_size)
     min_n = cfg["min_requests_per_cell"]
     out: dict[str, Any] = {
-        "label": label, "confidence_adjusted": conf,
-        "comparison_family_size": family_size, "metrics": {},
+        "label": label,
+        "confidence_adjusted": conf,
+        "comparison_family_size": family_size,
+        "metrics": {},
     }
     for i, (name, (key, stat, min_effect, relative, higher_better)) in enumerate(metrics.items()):
         a, b = s_a.get(key, []), s_b.get(key, [])
@@ -645,7 +676,11 @@ def compare_groups(
 
 
 def evaluate(
-    plan: dict[str, Any], events_dir: Path, adapter: str, plan_digest_hex: str | None = None
+    plan: dict[str, Any],
+    events_dir: Path,
+    adapter: str,
+    plan_digest_hex: str | None = None,
+    tokenizer: ModelTokenizer | None = None,
 ) -> tuple[dict[str, Any], Evaluator | None, dict[str, Any]]:
     """Evaluate one events directory; returns (report, evaluator, per-group samples)."""
     try:
@@ -664,12 +699,15 @@ def evaluate(
     # a named invalid-evidence verdict, rather than crash or silently coerce data.
     if evidence.schema_errors:
         return (
-            {"status": "invalid", "reasons": [f"schema: {e}" for e in evidence.schema_errors],
-             "events_dir": str(events_dir)},
+            {
+                "status": "invalid",
+                "reasons": [f"schema: {e}" for e in evidence.schema_errors],
+                "events_dir": str(events_dir),
+            },
             None,
             {},
         )
-    ev = Evaluator(plan, evidence, plan_digest_hex)
+    ev = Evaluator(plan, evidence, plan_digest_hex, tokenizer)
     ev.run_gates()
     ev.judge_all()
     population = ev.population()
@@ -692,6 +730,7 @@ def evaluate(
         "mode": evidence.run.mode,
         "adapter": adapter,
         "engine": evidence.run.raw.get("engine"),
+        "tokenizer": evidence.run.raw.get("tokenizer"),
         "time_scale": evidence.run.raw.get("time_scale", 1.0),
         "population": population,
         "startup": startup,
@@ -833,6 +872,11 @@ def _parser() -> argparse.ArgumentParser:
         "--compare", type=Path, help="second events directory (B) compared against --events (A)"
     )
     parser.add_argument("--adapter", default="native")
+    parser.add_argument(
+        "--tokenizer-snapshot",
+        type=Path,
+        help="local pinned tokenizer assets; required for real-engine evidence",
+    )
     parser.add_argument("--summary", type=Path, help="also write a Markdown summary here")
     return parser
 
@@ -863,10 +907,15 @@ def _main(argv: list[str] | None) -> int:
     args = _parser().parse_args(argv)
     plan = load_plan(args.workload)
     digest = plan_digest(args.workload)
-    base = evaluate(plan, args.events, args.adapter, digest)
+    tokenizer = (
+        ModelTokenizer(args.tokenizer_snapshot, plan["target"]["model_role"])
+        if args.tokenizer_snapshot
+        else None
+    )
+    base = evaluate(plan, args.events, args.adapter, digest, tokenizer)
     report = base[0]
     if args.compare:
-        other = evaluate(plan, args.compare, args.adapter, digest)
+        other = evaluate(plan, args.compare, args.adapter, digest, tokenizer)
         report["comparison"] = {
             **compare_runs(plan, base, other),
             "other_status": other[0]["status"],

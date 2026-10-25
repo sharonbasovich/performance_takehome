@@ -15,6 +15,7 @@ Evidence rules (enforced here, checked again by ``evaluate.py``):
 
 import argparse
 import asyncio
+import codecs
 import gc
 import hashlib
 import json
@@ -36,6 +37,7 @@ import httpx  # noqa: E402
 from bench import REPO_ROOT, SUITE_VERSION  # noqa: E402
 from bench.arrivals import closed_loop_assignments, poisson_schedule  # noqa: E402
 from bench.gates import judge  # noqa: E402
+from bench.model_tokens import ModelTokenizer, TokenizerError  # noqa: E402
 from bench.plan import (  # noqa: E402
     ScheduledCell,
     estimate_mode,
@@ -196,6 +198,14 @@ class Runner:
     def __init__(self, args: argparse.Namespace, plan: dict[str, Any]) -> None:
         self.args = args
         self.plan = plan
+        snapshot = getattr(args, "tokenizer_snapshot", None)
+        self.tokenizer = (
+            ModelTokenizer(Path(snapshot), plan["target"]["model_role"]) if snapshot else None
+        )
+        if not args.assume_mock and self.tokenizer is None:
+            raise TokenizerError("real capture requires --tokenizer-snapshot; regex is mock-only")
+        if self.tokenizer and self.tokenizer.model != _lock_info(plan)["lock_model"]:
+            raise TokenizerError("selected tokenizer differs from the workload model pin")
         self.out = Path(args.out)
         self.base_url = args.base_url or plan["target"]["base_url"]
         self.model_id = args.model or "unknown"
@@ -263,11 +273,12 @@ class Runner:
                 else:
                     pending_lines: list[str] = []
                     partial = ""
+                    decoder = codecs.getincrementaldecoder("utf-8")(errors="surrogateescape")
                     async for chunk in response.aiter_bytes():
                         now = time.monotonic()
                         if ts["first_byte"] is None:
                             ts["first_byte"] = now
-                        partial += chunk.decode("utf-8", errors="surrogateescape")
+                        partial += decoder.decode(chunk)
                         lines = partial.split("\n")
                         partial = lines.pop()
                         for line in lines:
@@ -276,6 +287,7 @@ class Runner:
                                 for payload in sse_data(pending_lines):
                                     events.append({"t": now, "raw": payload})
                                 pending_lines = []
+                    partial += decoder.decode(b"", final=True)
                     if pending_lines or partial:
                         now = time.monotonic()
                         for payload in sse_data([*pending_lines, partial]):
@@ -328,17 +340,21 @@ class Runner:
             "text": {"content": content_text, "reasoning_content": reasoning_text},
             "server_usage": usage,
             "client_tokens": {
-                "tokenizer": TOKENIZER_ID,
+                "tokenizer": self.tokenizer.identifier if self.tokenizer else TOKENIZER_ID,
                 "resolution": TIMING_RESOLUTION,
-                "content": count_tokens(content_text),
-                "reasoning_content": count_tokens(reasoning_text),
+                "content": self.tokenizer.count(content_text)
+                if self.tokenizer
+                else count_tokens(content_text),
+                "reasoning_content": self.tokenizer.count(reasoning_text)
+                if self.tokenizer
+                else count_tokens(reasoning_text),
             },
             "error": error,
         }
 
     def _is_valid_generation(self, record: dict[str, Any]) -> bool:
         """A probe is valid only if it passes every evaluator gate (single source of truth)."""
-        return judge(record, self.plan, []).category == "completed"
+        return judge(record, self.plan, [], self.tokenizer).category == "completed"
 
     async def startup(self, client: httpx.AsyncClient, launch_index: int) -> None:
         """Cold start (optional launch), poll readiness, probe until the first VALID generation."""
@@ -555,6 +571,7 @@ class Runner:
                 "server_header": self.engine.get("server_header"),
                 "kind": self.engine.get("kind", "unknown"),
             },
+            "tokenizer": self.tokenizer.identity if self.tokenizer else None,
             "host": {
                 "platform": platform.platform(),
                 "python": platform.python_version(),
@@ -656,6 +673,11 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     p.add_argument("--gpu-hours", type=float, default=0.0)
     p.add_argument("--gpu-kind", default="none (CPU)")
     p.add_argument(
+        "--tokenizer-snapshot",
+        type=Path,
+        help="verified local tokenizer assets for plan.target.model_role (required for real runs)",
+    )
+    p.add_argument(
         "--assume-mock",
         action="store_true",
         help="label engine.kind=mock even without the mock header",
@@ -678,7 +700,11 @@ def main(argv: list[str] | None = None) -> int:
     if not args.out:
         print("--out is required unless --dry-run", file=sys.stderr)
         return 2
-    runner = Runner(args, plan)
+    try:
+        runner = Runner(args, plan)
+    except TokenizerError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     asyncio.run(runner.run())
     print(
         json.dumps(

@@ -1,4 +1,4 @@
-"""Task-local, dependency-free token counting (CANDIDATE-BUILT STAND-IN).
+"""Task-local, dependency-free mock token counting (CANDIDATE-BUILT STAND-IN).
 
 The organizer's token adapter is not released. Until it is, the suite counts tokens by
 re-tokenizing verbatim SSE deltas with a deterministic regex pre-tokenizer modelled on
@@ -6,6 +6,10 @@ the GPT-2/Qwen byte-level pre-tokenization pattern. It is an *approximation* of 
 model's tokenizer: counts are reproducible and independent of the server's ``usage``
 field, but they are not the engine's token ids. Every count carries ``TOKENIZER_ID`` so
 reports can never be mistaken for model-tokenizer counts.
+
+Real capture/evaluation requires the optional pinned ``bench.model_tokens`` adapter.
+This module remains the compatibility path for mock fixtures and approximate prompt
+construction; it is never silently substituted for a missing real tokenizer.
 
 Timing resolution: all tokens of a delta are assigned the delta's client arrival time
 (``resolution = "delta"``). This is conservative for fluidity: a burst of N tokens in one

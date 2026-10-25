@@ -19,8 +19,9 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
+from bench.model_tokens import ModelTokenizer, TokenizerError
 from bench.prompts import check_expected
-from bench.tokens import count_tokens, tokenize
+from bench.tokens import TOKENIZER_ID, count_tokens, tokenize
 from benchmarks.streaming import StreamProtocolError, decode_payload, generated_deltas
 
 FAILED_REASONS = frozenset(
@@ -145,7 +146,11 @@ def grapheme_boundary_splits(deltas: list[tuple[str, str, float]]) -> int:
     return count
 
 
-def token_times(deltas: list[tuple[str, float]], send_s: float) -> tuple[list[float], int]:
+def token_times(
+    deltas: list[tuple[str, float]],
+    send_s: float,
+    tokenizer: ModelTokenizer | None = None,
+) -> tuple[list[float], int]:
     """Request-relative arrival time of each content token (delta resolution).
 
     The full text is tokenized once so tokens that straddle delta boundaries are counted
@@ -160,10 +165,15 @@ def token_times(deltas: list[tuple[str, float]], send_s: float) -> tuple[list[fl
         offset += len(piece)
         bounds.append((offset, t))
     times: list[float] = []
-    pos = 0
     cursor = 0
-    for token in tokenize(text):
-        pos += len(token)
+    if tokenizer is not None:
+        ends = tokenizer.end_offsets(text)
+    else:
+        ends, pos = [], 0
+        for token in tokenize(text):
+            pos += len(token)
+            ends.append(pos)
+    for pos in ends:
         while cursor < len(bounds) - 1 and bounds[cursor][0] < pos:
             cursor += 1
         times.append(bounds[cursor][1] - send_s)
@@ -208,7 +218,12 @@ def _timing_errors(ts: dict[str, Any], events: list[dict[str, Any]], http_ok: bo
     return errors
 
 
-def judge(record: dict[str, Any], plan: dict[str, Any], schema_errors: list[str]) -> Verdict:
+def judge(
+    record: dict[str, Any],
+    plan: dict[str, Any],
+    schema_errors: list[str],
+    tokenizer: ModelTokenizer | None = None,
+) -> Verdict:
     """Apply every gate to one request record."""
     verdict = Verdict(str(record.get("request_id", "?")), "completed")
     reasons = verdict.reasons
@@ -254,12 +269,29 @@ def judge(record: dict[str, Any], plan: dict[str, Any], schema_errors: list[str]
     ):
         reasons.append("record_mismatch:text or [DONE] differs from verbatim payloads")
     verdict.content_events = sum(1 for t, _ in content if t)
-    verdict.reasoning_tokens = count_tokens(reasoning_text)
+    try:
+        verdict.reasoning_tokens = (
+            tokenizer.count(reasoning_text) if tokenizer else count_tokens(reasoning_text)
+        )
+        if send is not None:
+            verdict.token_times_s, verdict.content_tokens = token_times(content, send, tokenizer)
+    except TokenizerError as exc:
+        reasons.append(f"record_mismatch:tokenizer failed: {exc}")
+    client = record.get("client_tokens") or {}
+    expected_tokenizer = tokenizer.identifier if tokenizer else TOKENIZER_ID
+    if client.get("tokenizer") != expected_tokenizer or client.get("resolution") != "delta":
+        reasons.append("record_mismatch:tokenizer identity or timing resolution differs")
+    if (
+        client.get("content") != verdict.content_tokens
+        or client.get("reasoning_content") != verdict.reasoning_tokens
+    ):
+        reasons.append(
+            "record_mismatch:client token counts differ from independently reencoded text"
+        )
     verdict.prompt_tokens = int((record.get("prompt") or {}).get("approx_prompt_tokens") or 0)
     if send is not None:
         if isinstance(ts.get("first_byte"), int | float):
             verdict.first_byte_s = ts["first_byte"] - send
-        verdict.token_times_s, verdict.content_tokens = token_times(content, send)
         first_text = next((at for t, at in content if t), None)
         if first_text is not None:
             verdict.ttft_s = first_text - send
