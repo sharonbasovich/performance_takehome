@@ -182,6 +182,16 @@ def normalize_quote(quote: Quote, classification: Classification, case: Case) ->
     return result
 
 
+def _quantity_evidence(normalized: list[NormalizedQuote]) -> list[NormalizedQuote]:
+    """Valid comparable on-demand asks with the same unadjusted payment convention."""
+    return [item for item in normalized
+            if item.usable and item.classification.as_of_status == AS_OF_VALID
+            and item.classification.tier == TIER_COMPARABLE
+            and item.classification.contract_class == CLASS_FLEXIBLE
+            and item.quote.side == "ask" and item.quote.unit != "node_month"
+            and item.quote.kind == "current_on_demand" and item.quote.payment == "arrears"]
+
+
 def estimate_quantity_factor(
     normalized: list[NormalizedQuote], case: Case
 ) -> tuple[Decimal | None, str]:
@@ -195,14 +205,15 @@ def estimate_quantity_factor(
     singles: list[Decimal] = []
     multis: list[Decimal] = []
     used: list[str] = []
-    for item in normalized:
-        q, c = item.quote, item.classification
-        if not item.usable or c.as_of_status != AS_OF_VALID or c.tier != TIER_COMPARABLE:
-            continue
-        if c.contract_class != CLASS_FLEXIBLE or q.side != "ask" or q.unit == "node_month":
-            continue
-        if q.kind != "current_on_demand":
-            continue
+    evidence = _quantity_evidence(normalized)
+    counts = {item.quote.gpu_count for item in evidence if item.quote.gpu_count != ref_count}
+    if len(counts) > 1:
+        return None, (
+            f"on-demand evidence mixes non-reference GPU counts {sorted(counts)}; "
+            "one pooled quantity factor cannot identify a size-specific adjustment"
+        )
+    for item in evidence:
+        q = item.quote
         assert item.usd_per_gpu_hour is not None
         used.append(q.id)
         (singles if q.gpu_count == ref_count else multis).append(item.usd_per_gpu_hour)
@@ -214,7 +225,8 @@ def estimate_quantity_factor(
     factor = quantize(Decimal(median(multis)) / Decimal(median(singles)))
     return factor, (
         f"median per-GPU price of multi-GPU on-demand asks / median single-GPU asks = {factor} "
-        f"(from {', '.join(sorted(used))}; providers differ, so this also carries provider effects)"
+        f"(from {', '.join(sorted(used))}; calibrated GPU counts {ref_count} and "
+        f"{next(iter(counts))}; providers differ, so this also carries provider effects)"
     )
 
 
@@ -223,24 +235,29 @@ def apply_quantity_adjustment(
 ) -> None:
     """Express node-sized quotes as single-GPU equivalents in place (when a factor exists)."""
     ref_count = case.reference_product.gpu_count
+    supported_counts = {item.quote.gpu_count for item in _quantity_evidence(normalized)
+                        if item.quote.gpu_count != ref_count}
     for item in normalized:
         if not item.usable or item.quote.gpu_count == ref_count:
             continue
         assert item.usd_per_gpu_hour is not None
-        if factor is None or factor == 0:
+        supported = (len(supported_counts) == 1 and item.quote.gpu_count in supported_counts
+                     and item.classification.tier == TIER_COMPARABLE)
+        if factor is None or factor == 0 or not supported:
             item.steps.append(
                 Step(
                     "quantity",
                     item.usd_per_gpu_hour,
                     item.usd_per_gpu_hour,
                     f"gpu_count {item.quote.gpu_count} != reference "
-                    f"{ref_count}; no paired evidence, not adjusted",
+                    f"{ref_count}; no paired evidence for this product and GPU count, not adjusted",
                 )
             )
             if item.classification.curve_eligible:
                 item.excluded_reason = (
                     f"gpu_count {item.quote.gpu_count} differs from reference {ref_count}; "
-                    "no paired quantity evidence supports a comparable capacity price"
+                    "no paired quantity evidence for this GPU count supports a comparable "
+                    "capacity price"
                 )
             continue
         adjusted = quantize(item.usd_per_gpu_hour / factor)

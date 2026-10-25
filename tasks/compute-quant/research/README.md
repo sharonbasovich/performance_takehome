@@ -59,6 +59,13 @@ also understood; absent fields mean *unknown*, never zero:
 
 Unsupported values (unit, kind, side, payment, schema_version) are errors, not guesses.
 
+Comparable quotes must also meet the reference CPU, RAM and network requirements using
+the supplied `quote_common_terms`. Missing or inadequate evidence excludes the quote;
+CPU/RAM common terms are per GPU, while network bandwidth is the stated service rate.
+The quantity factor supports only the exact alternative GPU count present in comparable
+arrears on-demand calibration evidence. Mixed node sizes do not identify a pooled factor,
+and an 8-GPU factor is never extrapolated to a 16-GPU quote or different hardware.
+
 ## Output schema (candidate-defined, `schema_version` 1)
 
 `curve.csv` — one row per case tenor: `tenor_months, delivery_month, delivery_start,

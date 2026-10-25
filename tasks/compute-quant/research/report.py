@@ -430,8 +430,10 @@ def render_report(results: dict[str, Any]) -> str:
         add("### Quantity-factor identification and sensitivity\n")
         add(
             f"The quantity factor {_p(qa['factor'])} is identified from a **single pair** of "
-            "flexible on-demand asks (one single-GPU, one node) and is applied to every node-sized "
-            "reserved quote — in this pack only the current-month anchor (tenor 0), which the "
+            "flexible on-demand asks (one single-GPU, one node). It is applied only to comparable "
+            "quotes at the calibrated node size; other sizes are not extrapolated and mixed "
+            "calibration sizes are not pooled. In this pack it affects only the current-month "
+            "anchor (tenor 0), which the "
             "required tenors do not interpolate through. Scaling the factor shows how much of the "
             "curve depends on it:\n"
         )

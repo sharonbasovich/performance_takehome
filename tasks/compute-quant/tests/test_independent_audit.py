@@ -14,6 +14,38 @@ from .support import CaseBuilder, node, quote_row, run_demo
 
 
 class ProductEvidenceTests(unittest.TestCase):
+    def test_required_supporting_resources_need_common_term_evidence(self):
+        for requirement, common_key, inadequate in (
+            ("cpu_cores", "cpu_cores_per_gpu", 8),
+            ("ram_gib", "ram_gib_per_gpu", 64),
+            ("network_gbps", "network_gbps", 10),
+        ):
+            for supplied in (None, inadequate):
+                builder = CaseBuilder(self)
+                if supplied is None:
+                    del builder.case["quote_common_terms"][common_key]
+                else:
+                    builder.case["quote_common_terms"][common_key] = supplied
+                with self.subTest(requirement=requirement, supplied=supplied):
+                    result = builder.run()
+                    row = quote_row(result, "q04")
+                    self.assertFalse(row["curve_eligible"])
+                    self.assertIn(requirement, " ".join(row["reasons"]))
+                    self.assertEqual(node(result, 1)["status"], "unidentified")
+                    self.assertFalse(result["valuation"]["identified"])
+
+    def test_sufficient_supporting_resources_preserve_original_curve(self):
+        builder = CaseBuilder(self)
+        builder.case["quote_common_terms"].update(
+            cpu_cores_per_gpu=32, ram_gib_per_gpu=256, network_gbps=50)
+        self.assertEqual(builder.run()["curve"]["nodes"], run_demo()["curve"]["nodes"])
+
+    def test_malformed_supporting_resource_names_the_input(self):
+        builder = CaseBuilder(self)
+        builder.case["quote_common_terms"]["ram_gib_per_gpu"] = -1
+        with self.assertRaisesRegex(InputError, r"quote_common_terms.ram_gib_per_gpu"):
+            builder.run()
+
     def test_missing_required_memory_is_not_comparable(self):
         result = CaseBuilder(self).set("q04", memory_gib="").run()
         self.assertFalse(quote_row(result, "q04")["curve_eligible"])
@@ -43,6 +75,31 @@ class ProductEvidenceTests(unittest.TestCase):
             self.assertFalse(row["curve_eligible"])
             self.assertIn("quantity evidence", row["excluded_reason"])
             self.assertNotIn(0, [a["tenor_months"] for a in result["curve"]["anchors"]])
+
+    def test_quantity_factor_never_extrapolates_to_an_unsupported_node_size(self):
+        result = CaseBuilder(self).set("q07", gpu_count="16").run()
+        row = quote_row(result, "q07")
+        self.assertFalse(row["curve_eligible"])
+        self.assertIn("this GPU count", row["excluded_reason"])
+        self.assertNotIn(0, [a["tenor_months"] for a in result["curve"]["anchors"]])
+
+    def test_mixed_calibration_sizes_are_not_pooled(self):
+        result = CaseBuilder(self).copy_quote(
+            "q02", "q02-sixteen", gpu_count="16", price="64").run()
+        self.assertIsNone(result["quantity_adjustment"]["factor"])
+        self.assertIn("mixes", result["quantity_adjustment"]["note"])
+        self.assertFalse(quote_row(result, "q07")["curve_eligible"])
+
+    def test_reference_quantity_factor_is_not_borrowed_by_other_hardware(self):
+        result = CaseBuilder(self).set("q08", gpu_count="8", unit="node_hour").run()
+        row = quote_row(result, "q08")
+        self.assertEqual(row["single_gpu_equivalent_usd_per_gpu_hour"], row["usd_per_gpu_hour"])
+        self.assertIn("not adjusted", row["steps"][-1]["note"])
+
+    def test_advance_on_demand_asks_do_not_identify_an_arrears_quantity_ratio(self):
+        result = CaseBuilder(self).set("q02", payment="advance").run()
+        self.assertIsNone(result["quantity_adjustment"]["factor"])
+        self.assertFalse(quote_row(result, "q07")["curve_eligible"])
 
 
 class RecoveryValuationTests(unittest.TestCase):

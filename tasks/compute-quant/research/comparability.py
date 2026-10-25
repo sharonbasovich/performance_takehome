@@ -22,9 +22,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 
 from .months import is_month_start, month_start, months_between
-from .schema import Case, Quote
+from .schema import Case, Quote, parse_decimal
 
 AS_OF_VALID = "valid"
 AS_OF_POST = "post_as_of"
@@ -95,6 +96,28 @@ def product_differences(quote: Quote, case: Case) -> tuple[str, ...]:
         diffs.append(f"preemptible {quote.preemptible} != {ref.preemptible}")
     if quote.sla_pct < ref.sla_pct:
         diffs.append(f"sla_pct {quote.sla_pct} below reference {ref.sla_pct}")
+    # These resources are supplied once for all quotes, rather than repeated in the CSV.
+    # A missing common term cannot prove that an explicit reference requirement is met.
+    for resource, common_key, per_gpu in (
+        ("cpu_cores", "cpu_cores_per_gpu", True),
+        ("ram_gib", "ram_gib_per_gpu", True),
+        ("network_gbps", "network_gbps", False),
+    ):
+        required = ref.extra.get(resource)
+        if required is None:
+            continue
+        floor = parse_decimal(required, where=f"reference_product.{resource}", minimum=Decimal(0))
+        supplied = case.quote_common_terms.get(common_key)
+        if supplied is None:
+            diffs.append(f"{resource} unknown; quote_common_terms.{common_key} is missing")
+            continue
+        available = parse_decimal(
+            supplied, where=f"quote_common_terms.{common_key}", minimum=Decimal(0)
+        )
+        if per_gpu:
+            available *= ref.gpu_count
+        if available < floor:
+            diffs.append(f"{resource} {available} below reference {floor}")
     return tuple(diffs)
 
 
