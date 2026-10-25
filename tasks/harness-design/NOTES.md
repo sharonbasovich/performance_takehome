@@ -376,3 +376,16 @@ The 218-test receipts and earlier packet remain historical. The merge changes
 neither the 14 historical measurements and their source/input identities nor the
 ordered kept-patch chain 001 → 013. Target GPU validation and the final registry
 manifest digest remain outstanding.
+
+The subsequent merge `e441448d5938ebe220935d54137a2df635ccfdc5` also retains
+remote commit `d50e44378858cdca0aed1aa57cdf0b719a81912b` and its recorded legacy
+container regression. That test mocks and asserts strict absence verification.
+The existing exact stop and fail-closed absence check remain the sole legacy
+cleanup path, avoiding a duplicate best-effort stop after a prefix sweep.
+
+A fresh, clean LF Linux checkout of this committed merge passed **220/220 tests,
+zero skips, in 53.766 seconds** on Python 3.14.4; the new recovery regression
+passed separately. Ruff 0.16.10 and protected-file integrity passed. The production
+harness module tree is unchanged from `c61748a`, including the Pi adapter tested
+by the earlier zero-spend gateway fixture. The 218/219-test receipts and all
+historical measurements remain unchanged. Re-review of the new head is pending.
