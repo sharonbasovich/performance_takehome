@@ -102,6 +102,16 @@ class LoopConfig:
             return path.as_posix()
 
 
+def validate_state_directory(state_dir: Path, build_context: Path) -> None:
+    """Refuse recursive snapshots before creating state files or launching any work."""
+    context = build_context.resolve()
+    if any(path.resolve().is_relative_to(context) for path in (state_dir, state_dir / "contexts")):
+        raise ValueError(
+            "--state-dir must be outside the engine build context; "
+            "use an external directory such as /var/tmp/abstract-harness-state"
+        )
+
+
 class Harness:
     """Owns one engine, one proposer, one state file, and drives the loop."""
 
@@ -114,6 +124,9 @@ class Harness:
         log: Callable[[str], None] = print,
         clock: Callable[[], float] = time.time,
     ) -> None:
+        spec = getattr(engine, "spec", None)
+        if spec is not None:
+            validate_state_directory(config.state_dir, spec.build_context)
         self.config = config
         self.engine = engine
         self.proposer = proposer
@@ -377,6 +390,7 @@ class Harness:
 
     def _promote_context(self, source: Path) -> Path:
         """Prepare an immutable snapshot; the authoritative state pointer is changed later."""
+        validate_state_directory(self.config.state_dir, source)
         target = self.config.state_dir / "contexts" / uuid.uuid4().hex
         target.parent.mkdir(parents=True, exist_ok=True)
         tmp = target.with_name(target.name + ".tmp")

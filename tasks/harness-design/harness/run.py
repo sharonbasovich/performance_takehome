@@ -43,7 +43,12 @@ if str(HERE) not in sys.path:
 from abstract_harness import budget as budget_mod  # noqa: E402
 from abstract_harness import results as results_mod  # noqa: E402
 from abstract_harness.engines import make_engine  # noqa: E402
-from abstract_harness.loop import Harness, LoopConfig, Timeouts  # noqa: E402
+from abstract_harness.loop import (  # noqa: E402
+    Harness,
+    LoopConfig,
+    Timeouts,
+    validate_state_directory,  # noqa: E402
+)
 from abstract_harness.procs import LockError  # noqa: E402
 from abstract_harness.proposers import PiLaunchConfig, PiProposer, ScriptedProposer  # noqa: E402
 from abstract_harness.state import StateError, load_state  # noqa: E402
@@ -310,6 +315,11 @@ def cmd_run(args: argparse.Namespace) -> int:
         else {"cpus": args.standin_cpus}
     )
     engine = make_engine(args.engine, REPO_ROOT, args.model_dir, **engine_kwargs)
+    try:
+        validate_state_directory(args.state_dir, engine.spec.build_context)
+    except ValueError as exc:
+        print(f"[run] {exc}", file=sys.stderr)
+        return 2
     profile = json.loads(
         (REPO_ROOT / "agent-harness" / "profiles.json").read_text(encoding="utf-8")
     )["profiles"]["harness-design"]

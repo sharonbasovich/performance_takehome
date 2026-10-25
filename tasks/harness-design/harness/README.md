@@ -180,6 +180,11 @@ emits the ordered chain of kept patches and marks whether it is complete. Git me
 is excluded from snapshots/diffs; unchanged binary files are compared as bytes, while
 changed binary files are rejected by the text-patch interface.
 
+The state directory must be outside the engine build context, including after symlink
+resolution. LLMD uses the repository root as its build context, so place `--state-dir`
+outside the checkout (for example `/var/tmp/abstract-harness-state`). Invalid placement
+is rejected before state files, builds or context copies can be created.
+
 Each persisted run has distinct container, image and network names. A separate run lock
 also prevents copied state from reusing that namespace concurrently. Locks remain held
 until cleanup finishes. Queue position is aligned after interruption recovery. Budget
