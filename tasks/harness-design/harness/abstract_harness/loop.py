@@ -943,7 +943,7 @@ class Harness:
                 f"[harness] results.tsv already records {ip.experiment}; the previous process "
                 "died after writing the row - clearing the in-progress marker only"
             )
-            docker.kill_containers_with_prefix(self.config.container_prefix + "-")
+            self._kill_stale_containers(ip.container)
             self.state.in_progress = None
             self.state.attempt_index = max(self.state.attempt_index, ip.attempt_index + 1)
             self._save()
@@ -952,7 +952,7 @@ class Harness:
             f"[harness] previous run died during {ip.experiment} ({ip.stage}); "
             "logging as interrupted"
         )
-        docker.kill_containers_with_prefix(self.config.container_prefix + "-")
+        self._kill_stale_containers(ip.container)
         report_path = (
             self.config.repo_root / ip.report_path
             if ip.report_path
@@ -990,6 +990,17 @@ class Harness:
         self.state.in_progress = None
         self.state.attempt_index = max(self.state.attempt_index, ip.attempt_index) + 1
         self._save()
+
+    def _kill_stale_containers(self, recorded: str) -> None:
+        """Remove this run's containers plus the one the dead process recorded by name.
+
+        State files written before per-run namespacing recorded container names
+        without the run-id suffix, so the prefix sweep alone would leave them running.
+        """
+        prefix = self.config.container_prefix + "-"
+        removed = docker.kill_containers_with_prefix(prefix)
+        if recorded and recorded not in removed and not recorded.startswith(prefix):
+            docker.stop_container(recorded, grace_s=self.config.timeouts.stop_grace_s)
 
     def _reconcile_attempt_index(self) -> None:
         """Never reuse an attempt number results.tsv already contains (e.g. after a .bak rewind)."""

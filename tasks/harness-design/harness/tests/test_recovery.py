@@ -52,7 +52,7 @@ def make_harness(root: Path) -> loop_mod.Harness:
     return loop_mod.Harness(cfg, _FakeEngine(), ScriptedProposer([]), log=lambda _m: None)
 
 
-def _seed_in_progress(root: Path, stage: str) -> None:
+def _seed_in_progress(root: Path, stage: str, *, container: str = "") -> None:
     state = HarnessState(
         engine="standin",
         source_commit="81aead87d78ed468c4c374fb42921471b44c3f80",
@@ -66,6 +66,7 @@ def _seed_in_progress(root: Path, stage: str) -> None:
         patch_path="patches/003.patch",
         stage=stage,
         attempt_index=3,
+        container=container,
     )
     (root / "state").mkdir(parents=True, exist_ok=True)
     save_state(root / "state" / "state.json", state)
@@ -107,6 +108,26 @@ class RecoverFromDiskTest(unittest.TestCase):
             assert state is not None
             self.assertIsNone(state.in_progress)
             self.assertEqual(state.attempt_index, 4)
+
+    def test_restart_stops_legacy_container_recorded_in_state(self) -> None:
+        """A pre-namespacing checkpoint names its container without the run-id suffix."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_in_progress(root, "measuring", container="abstract-harness-003-hung-4242")
+            with (
+                mock.patch.object(
+                    loop_mod.docker, "kill_containers_with_prefix", return_value=[]
+                ) as kill,
+                mock.patch.object(loop_mod.docker, "stop_container") as stop,
+                mock.patch.object(loop_mod.docker, "remove_image"),
+            ):
+                harness = make_harness(root)
+                harness.recover_from_previous_run()
+            kill.assert_called_once()
+            self.assertTrue(kill.call_args.args[0].startswith("abstract-harness-"))
+            self.assertNotEqual(kill.call_args.args[0], "abstract-harness-")
+            stop.assert_called_once()
+            self.assertEqual(stop.call_args.args[0], "abstract-harness-003-hung-4242")
 
     def test_clean_state_needs_no_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
