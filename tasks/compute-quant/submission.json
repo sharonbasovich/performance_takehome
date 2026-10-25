@@ -4,15 +4,15 @@
   "status": "draft-synthetic-inputs-verified-local",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "commit": "330e0ceb8dc9d68569002fda130bee9e2f061318",
+    "commit": "a37a1f8865ea8a06996aef68888fbe8dc435d61c",
     "commit_note": "Verified committed source for the independent audit corrections. The later artifact-only commit does not change research_tree_sha. Local branch changes have not been pushed to the existing PR or officially submitted.",
-    "research_tree_sha": "4c3ec5acef926fbb11d90c519a632ce8ad5f9ec5",
+    "research_tree_sha": "39651b28319cb60064a8b8f2c863c02e3c09a065",
     "branch": "codex/abstract-quant-audit",
     "pull_request": "https://github.com/sharonbasovich/performance_takehome/pull/1",
-    "source_sha256": "22dc610365d5a006f6cb2d919b3c9dc2caab36fce3a766ee46846ac5a68c59c9",
+    "source_sha256": "453605b790ea27ecc3a0c68bfb7b6ec55256394ec689525b46f5cf4a423f4ff6",
     "source_bytes": "canonical LF checkout of the recorded Git commit",
     "working_tree_dirty": false,
-    "verified_archive": "output/abstract-audit/quant-verified-lf.zip"
+    "verified_archive": "output/abstract-audit/quant-continuation-verified-lf.zip"
   },
   "inputs": {
     "case": "tasks/compute-quant/data/demo-case.json",

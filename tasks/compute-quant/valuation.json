@@ -746,7 +746,7 @@
   },
   "quantity_adjustment": {
     "factor": 0.865385,
-    "note": "median per-GPU price of multi-GPU on-demand asks / median single-GPU asks = 0.865385 (from q01, q02; providers differ, so this also carries provider effects)"
+    "note": "median per-GPU price of multi-GPU on-demand asks / median single-GPU asks = 0.865385 (from q01, q02; calibrated GPU counts 1 and 8; providers differ, so this also carries provider effects)"
   },
   "curve": {
     "unit": "USD per GPU-hour of reserved capacity, paid monthly in arrears",

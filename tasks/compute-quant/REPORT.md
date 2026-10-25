@@ -52,7 +52,7 @@ Input-pack digest (sha256 over sorted '<role>:<sha256>\n' lines (candidate-defin
 
 currency → unit (`gpu_hour` as is; `node_hour` ÷ GPUs; `node_month` ÷ GPUs ÷ actual hours of the stated month) → fees (none evidenced in the demo; optional columns supported) → payment timing (advance payments compounded to the month-end arrears convention at the buyer's discount rate over the billed window) → quantity (node-sized quotes expressed as single-GPU equivalents).
 
-**Quantity factor:** 0.8654 — median per-GPU price of multi-GPU on-demand asks / median single-GPU asks = 0.865385 (from q01, q02; providers differ, so this also carries provider effects). Node-sized reserved quotes are divided by this factor so they are comparable with the 1-GPU reference; the raw per-GPU price is kept alongside.
+**Quantity factor:** 0.8654 — median per-GPU price of multi-GPU on-demand asks / median single-GPU asks = 0.865385 (from q01, q02; calibrated GPU counts 1 and 8; providers differ, so this also carries provider effects). Node-sized reserved quotes are divided by this factor so they are comparable with the 1-GPU reference; the raw per-GPU price is kept alongside.
 
 ### All quotes, one row each
 
@@ -117,7 +117,7 @@ Monthly base-mid path used by the valuation (tenor → USD/GPU-hour):
 
 ### Quantity-factor identification and sensitivity
 
-The quantity factor 0.8654 is identified from a **single pair** of flexible on-demand asks (one single-GPU, one node) and is applied to every node-sized reserved quote — in this pack only the current-month anchor (tenor 0), which the required tenors do not interpolate through. Scaling the factor shows how much of the curve depends on it:
+The quantity factor 0.8654 is identified from a **single pair** of flexible on-demand asks (one single-GPU, one node). It is applied only to comparable quotes at the calibrated node size; other sizes are not extrapolated and mixed calibration sizes are not pooled. In this pack it affects only the current-month anchor (tenor 0), which the required tenors do not interpolate through. Scaling the factor shows how much of the curve depends on it:
 
 | factor × | factor | tenor-0 anchor mid | 1m mid | 3m mid | 6m mid | 12m mid | mark |
 | --- | --- | --- | --- | --- | --- | --- | --- |
