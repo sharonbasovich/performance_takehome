@@ -26,3 +26,8 @@ captures using `build_validation.discrimination_rows`: its displayed strict-flui
 signal changes from 0.227 to 0.222 after the corrected character offsets. Its checks
 and outcome are unchanged. Other committed per-fixture reports retain their historical
 analysis source rather than being silently represented as fresh captures.
+
+The existing misleading-readiness integration fixture now explicitly scales its
+two-second retry interval to 0.4 seconds. Its unchanged `>0.2s` clock assertion
+therefore follows the intended retry schedule instead of relying on incidental
+host overhead; the former 0.1-second scaled interval could fail on a fast host.

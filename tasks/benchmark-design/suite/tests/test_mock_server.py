@@ -100,7 +100,10 @@ class LoopbackTests(unittest.TestCase):
             try:
                 with tempfile.TemporaryDirectory() as tmp:
                     runner = Runner(
-                        runner_args(base_url=server.base_url, out=tmp), load_plan(MOCK_PLAN_PATH)
+                        # The planned retry gap is 2s: scale it to 0.4s so the
+                        # >0.2s assertion follows the fixture, not incidental host lag.
+                        runner_args(base_url=server.base_url, out=tmp, time_scale=0.2),
+                        load_plan(MOCK_PLAN_PATH),
                     )
                     runner._requests_fh = (Path(tmp) / "requests.jsonl").open("w", encoding="utf-8")
                     async with httpx.AsyncClient(timeout=10.0) as client:
