@@ -89,6 +89,11 @@ cost in raw reports. There are no official grader reports to attach during devel
 
 # Candidate implementation (CANDIDATE-BUILT; everything below this line is the candidate's)
 
+Before allocating inference/API work on a new host, run the read-only
+[host preflight](HOST_PREFLIGHT.md). It reports PASS/FAIL/MISSING for actual GPU identity,
+local Docker, resource capacity, pinned model bytes, Node/Pi artifacts and registry
+configuration, without downloading weights or making provider calls.
+
 The contract above is the organizer's draft and is kept verbatim. The implementation lives
 next to it:
 
