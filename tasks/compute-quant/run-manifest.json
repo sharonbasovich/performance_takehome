@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "task": "compute-quant",
-  "generated_at": "2026-10-25T07:20:08Z",
+  "generated_at": "2026-10-25T07:24:59Z",
   "generated_at_source": "SOURCE_DATE_EPOCH",
   "code": {
     "package": "tasks/compute-quant/research",
     "version": "1.0.0",
-    "source_sha256": "11c5afe5c1aa3203a5385c8669a8ccbab69b44efd7fac2ea0cb651a41dbc3339",
-    "git_commit": "ca9bebb05443f7c0c9f49e5178b73403db0ea8c4",
+    "source_sha256": "8b9c5cdca806489ead81f27ae8154f2d6582db8f327dd40db9ebbc7d1297a554",
+    "git_commit": "a7e7027e05156b8680d75f5db2b10cba61f8a411",
     "git_commit_note": "HEAD when generated; git_tree_research is the committed HEAD tree only. If research_working_tree_dirty is true, source_sha256 identifies the actual uncommitted code and the HEAD tree is not its source identity.",
-    "git_tree_research": "57fe238c24777c42bb7a2dd145076548c57d3da9",
+    "git_tree_research": "0334b0103670d6a5f195ae632b1d369a1ee5232b",
     "research_working_tree_dirty": false
   },
   "python": {
