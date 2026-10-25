@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,6 +11,7 @@ from unittest import mock
 from abstract_harness.decision import decide
 from abstract_harness.docker_runtime import BuildResult
 from abstract_harness.engines import StandinEngine
+from abstract_harness.loop import Interrupted
 from abstract_harness.manifest import build_manifest
 from abstract_harness.measure import Measurement
 from abstract_harness.procs import LockError
@@ -225,6 +227,53 @@ class PromotionTransactionTest(unittest.TestCase):
                 resumed._release_locks()
 
     def test_successful_attempt_keeps_image_and_accumulated_context_together(self):
+        self._attempt_fixture()
+
+    def test_errors_immediately_after_durable_commit_cannot_write_a_reverted_row(self):
+        for failure in (OSError, SystemExit, Interrupted):
+            with self.subTest(failure=failure):
+                self._attempt_fixture(failure_after_commit=failure)
+
+    def test_recovery_blocks_a_row_that_contradicts_the_committed_keep(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            harness, reference, row, _ = self.prepare(root)
+            with mock.patch("abstract_harness.loop.docker.retag"):
+                harness._commit_promotion(reference, {}, row)
+            harness._append_row(**{**row, "kept": "0", "outcome": "no_change"})
+            harness._release_locks()
+            resumed = make_harness(root)
+            try:
+                with self.assertRaisesRegex(RuntimeError, "row conflicts"):
+                    resumed.recover_from_previous_run()
+                self.assertEqual(resumed.state.last_good, reference)
+                self.assertEqual(resumed.state.in_progress.stage, "promoted")
+            finally:
+                resumed._release_locks()
+
+    def test_save_error_after_durable_replace_preserves_the_committed_pointer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            harness, reference, row, _ = self.prepare(Path(tmp))
+            original_save = harness._save
+
+            def save_then_fail():
+                original_save()
+                raise OSError("error observed after atomic rename")
+
+            try:
+                with (
+                    mock.patch("abstract_harness.loop.docker.retag"),
+                    mock.patch.object(harness, "_save", side_effect=save_then_fail),
+                ):
+                    with self.assertRaises(OSError):
+                        harness._commit_promotion(reference, {}, row)
+                self.assertEqual(harness.state.last_good, reference)
+                self.assertEqual(load_state(harness.state_path).last_good, reference)
+                self.assertEqual(harness.state.in_progress.stage, "promoted")
+            finally:
+                harness._release_locks()
+
+    def _attempt_fixture(self, failure_after_commit=None):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             harness, _, _, old = self.prepare(root)
@@ -266,6 +315,13 @@ class PromotionTransactionTest(unittest.TestCase):
                 "sha256:" + "b" * 64,
                 root / "build.log",
             )
+            original_commit = harness._commit_promotion
+
+            def commit_then_fail(*args, **kwargs):
+                original_commit(*args, **kwargs)
+                if failure_after_commit:
+                    raise failure_after_commit("error after durable keep")
+
             try:
                 with (
                     mock.patch.object(harness, "build", return_value=build),
@@ -279,8 +335,13 @@ class PromotionTransactionTest(unittest.TestCase):
                     ),
                     mock.patch("abstract_harness.loop.docker.image_exists", return_value=True),
                     mock.patch("abstract_harness.loop.docker.retag"),
+                    mock.patch.object(harness, "_commit_promotion", side_effect=commit_then_fail),
                 ):
-                    self.assertEqual(harness.attempt(proposal), "improved")
+                    if failure_after_commit:
+                        with self.assertRaises(failure_after_commit):
+                            harness.attempt(proposal)
+                    else:
+                        self.assertEqual(harness.attempt(proposal), "improved")
                 self.assertIn(
                     "LABEL variant=new", (harness.last_good_context / "Dockerfile").read_text()
                 )
@@ -290,6 +351,9 @@ class PromotionTransactionTest(unittest.TestCase):
                 self.assertEqual(saved.last_good.digest, build.digest)
                 self.assertIsNone(saved.in_progress)
                 self.assertEqual(saved.history[-1]["kept"], "1")
+                report = json.loads((root / "reports/003-new.json").read_text())
+                self.assertTrue(report["kept"])
+                self.assertEqual(report["outcome"], "improved")
             finally:
                 harness._release_locks()
 

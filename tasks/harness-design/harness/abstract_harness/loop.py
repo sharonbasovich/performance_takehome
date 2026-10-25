@@ -334,7 +334,7 @@ class Harness:
             return
         gpu_hours = "" if self.config.budget.gpus_allocated == 0 else f"{self._gpu_hours():.4f}"
         row = results_mod.make_row(
-            ts=utc_ts(self.clock()),
+            ts=utc_ts(self.now()),
             source_commit=self.state.source_commit,
             api_usd_cumulative=f"{self.state.api_usd_cumulative:.4f}",
             gpu_hours_cumulative=gpu_hours,
@@ -421,13 +421,25 @@ class Harness:
         try:
             self._save()
         except BaseException:
-            (
-                self.state.last_good,
-                self.state.baseline_samples,
-                self.state.golden,
-                self.state.in_progress.stage,
-                self.state.in_progress.completed_row,
-            ) = previous
+            durable = load_state(self.state_path)
+            if (
+                durable
+                and durable.last_good == reference
+                and durable.in_progress
+                and durable.in_progress.stage == "promoted"
+                and durable.in_progress.completed_row == row
+            ):
+                # A wrapper/filesystem error may be raised after the atomic rename.
+                # The durable checkpoint wins over a presumed in-memory rollback.
+                self.state = durable
+            else:
+                (
+                    self.state.last_good,
+                    self.state.baseline_samples,
+                    self.state.golden,
+                    self.state.in_progress.stage,
+                    self.state.in_progress.completed_row,
+                ) = previous
             raise
 
     def build(self, context_dir: Path, tag: str, log_path: Path) -> docker.BuildResult:
@@ -613,6 +625,8 @@ class Harness:
             self.state.attempt_index += 1
             self._save()
         except Interrupted:
+            if self.state.in_progress and self.state.in_progress.stage == "promoted":
+                raise
             report["interrupted"] = True
             self._write_report(report_path, report)
             self._append_row(
@@ -795,6 +809,8 @@ class Harness:
                 if not self.config.keep_candidate_images:
                     docker.remove_image(tag)
         except Interrupted:
+            if self.state.in_progress and self.state.in_progress.stage == "promoted":
+                raise
             outcome = "interrupted"
             stage = self.state.in_progress.stage if self.state.in_progress else "?"
             notes = f"interrupted by {self._stop_signal} during stage {stage}"
@@ -826,24 +842,37 @@ class Harness:
         finally:
             self._stop_active_container()
             shutil.rmtree(scratch, ignore_errors=True)
+            committed_row = (
+                self.state.in_progress.completed_row
+                if self.state.in_progress and self.state.in_progress.stage == "promoted"
+                else None
+            )
+            if committed_row:
+                # Local assignments may not have run after the durable keep checkpoint.
+                # Never overwrite that keep with an error/interrupted local outcome.
+                outcome = committed_row["outcome"]
+                kept = committed_row["kept"]
             report["finished_ts"] = utc_ts(self.clock())
             report["outcome"] = outcome
             report["kept"] = kept == "1"
             report["last_good_after"] = asdict(self.state.last_good)
             self._write_report(report_path, report)
-            self._append_row(
-                experiment=experiment,
-                image_digest=digest,
-                kept=kept,
-                outcome=outcome,
-                local_ttft_speedup=ttft,
-                local_ftgr_speedup=ftgr,
-                local_startup_s=startup,
-                hypothesis=proposal.hypothesis,
-                notes=notes[:900],
-                development_report=self.config.rel(report_path),
-                patch_path=self.config.rel(patch_path),
-            )
+            if committed_row:
+                self._append_row(**committed_row)
+            else:
+                self._append_row(
+                    experiment=experiment,
+                    image_digest=digest,
+                    kept=kept,
+                    outcome=outcome,
+                    local_ttft_speedup=ttft,
+                    local_ftgr_speedup=ftgr,
+                    local_startup_s=startup,
+                    hypothesis=proposal.hypothesis,
+                    notes=notes[:900],
+                    development_report=self.config.rel(report_path),
+                    patch_path=self.config.rel(patch_path),
+                )
             self.state.attempt_durations_s.append(round(time.monotonic() - attempt_start, 3))
             self.state.in_progress = None
             self.state.attempt_index += 1
@@ -870,6 +899,15 @@ class Harness:
                 raise RuntimeError(
                     "committed promotion cannot be reconciled with its image/context"
                 )
+            existing = [
+                row
+                for row in results_mod.read_rows(self.config.results_path)
+                if row.experiment == ip.experiment
+            ]
+            if existing and any(
+                getattr(existing[0], key) != value for key, value in ip.completed_row.items()
+            ):
+                raise RuntimeError("completed row conflicts with its durable promotion checkpoint")
             self._append_row(**ip.completed_row)
             self.state.in_progress = None
             self.state.attempt_index = max(self.state.attempt_index, ip.attempt_index + 1)
