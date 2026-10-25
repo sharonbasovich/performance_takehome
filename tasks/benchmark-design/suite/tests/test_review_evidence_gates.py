@@ -150,10 +150,22 @@ class MalformedStreamAuditTests(unittest.IsolatedAsyncioTestCase):
         ]
         for raw in payloads:
             with self.subTest(bytes=len(raw)):
+                # Nesting limits differ across CPython versions/platforms. A
+                # parser-accepted payload must not become a fabricated fault.
+                try:
+                    json.loads(raw)
+                except (ValueError, RecursionError):
+                    parser_rejected = True
+                else:
+                    parser_rejected = False
                 record = await self.record_raw(raw)
-                self.assertEqual(record["error"]["kind"], "protocol")
                 self.assertEqual(record["events"][0]["raw"], raw)
-                self.assertEqual(judge(record, plan(), []).category, "failed")
+                if parser_rejected:
+                    self.assertEqual(record["error"]["kind"], "protocol")
+                    self.assertEqual(judge(record, plan(), []).category, "failed")
+                else:
+                    self.assertIsNone(record["error"])
+                    self.assertEqual(judge(record, plan(), []).category, "unfinished")
                 result = audit(
                     Evidence(
                         Path("."),
@@ -164,7 +176,7 @@ class MalformedStreamAuditTests(unittest.IsolatedAsyncioTestCase):
                     )
                 )
                 self.assertEqual(result["status"], "PASS", result["failures"])
-                self.assertEqual(result["requests"][0]["protocol_faults"], 1)
+                self.assertEqual(result["requests"][0]["protocol_faults"], int(parser_rejected))
 
 
 if __name__ == "__main__":
