@@ -52,9 +52,9 @@ Input-pack digest (sha256 over sorted '<role>:<sha256>\n' lines (candidate-defin
 
 currency → unit (`gpu_hour` as is; `node_hour` ÷ GPUs; `node_month` ÷ GPUs ÷ actual hours of the stated month) → fees (none evidenced in the demo; optional columns supported) → payment timing (advance payments compounded to the month-end arrears convention at the buyer's discount rate over the billed window) → quantity (node-sized quotes expressed as single-GPU equivalents).
 
-**Quantity factor:** 0.8654 — median per-GPU price of multi-GPU on-demand asks / median single-GPU asks = 0.865385 (from q01, q02; calibrated GPU counts 1 and 8; providers differ, so this also carries provider effects). Node-sized reserved quotes are divided by this factor so they are comparable with the 1-GPU reference; the raw per-GPU price is kept alongside.
+**Quantity factor:** 0.8654 — median per-GPU price of multi-GPU on-demand asks / median single-GPU asks = 0.865385 (from q01, q02; calibrated GPU counts 1 and 8; providers differ, so this also carries provider effects). Supported quotes at the calibrated node size are divided by this factor to match the reference quantity (1 GPU); other sizes are excluded when no translation is supported. Raw per-GPU prices remain visible.
 
-### All quotes, one row each
+### Quote table (11 of 11 shown)
 
 | id | kind/side | observed → valid | as-of | raw | USD/GPU-h | 1-GPU equiv. | class | what was done | why / role |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -127,11 +127,11 @@ Quantity factor 0.8654: median per-GPU price of multi-GPU on-demand asks / media
 
 ### Scarcity anchor: choice and bias
 
-The scarcity scenario reverts toward 5.2000, the highest valid same-hardware ask at as-of across *all* contract classes — in this pack the cancel-anytime single-GPU on-demand ask. That price embeds a cancellation option and single-GPU granularity, so as an anchor for non-cancellable reserved capacity it is biased **upward**: the scenario is deliberately a stress ('forwards re-price to today's dearest flexible access'), not a central estimate. Reserved-class evidence alone would give a lower anchor (the highest reserved ask) and a milder stress; the choice is a declared config parameter (`anchors.scarcity.kind`) and can be switched without code changes.
+The scarcity scenario reverts toward 5.2000. Selection: `anchors.scarcity.kind=max_valid_same_hardware_ask`. highest valid comparable-hardware ask at as-of (any contract class): 5.2000 USD/GPU-hour. This is a declared scenario assumption. When its source includes flexible access, cancellation options, quantity and provider differences can affect comparability with reserved capacity; the anchor's actual source governs that interpretation.
 
 ### Why the current on-demand asks are context, not the 1-month node
 
-The reference contract is non-cancellable reserved capacity. Cancel-anytime hourly asks (`q01` 5.20 per GPU-hour on 1 GPU(s), `q02` 4.50 per GPU-hour on 8 GPU(s)) embed a cancellation option and do not guarantee capacity in a future month, so they bound a one-month reservation from above rather than price it. The paired current-month evidence puts the flexibility premium at 1.111× (`q02` 4.5000 vs reserved `q07` 4.0490 arrears-equivalent). The firm 2026-11 ask 4.9000 anchors the first node as its upper edge; the on-demand asks above are the context it is checked against.
+The reference contract is non-cancellable reserved capacity. Displayed cancel-anytime hourly quote examples: `q01` 5.20 per GPU-hour on 1 GPU(s), `q02` 4.50 per GPU-hour on 8 GPU(s). The current flexible ask at the reference quantity from the full input is 5.2000 USD/GPU-hour (n/a means no supported quote is identified). Cancel-anytime asks embed a cancellation option and do not guarantee capacity in a future month, so they bound a one-month reservation from above rather than price it. The paired current-month evidence puts the flexibility premium at 1.111× (`q02` 4.5000 vs reserved `q07` 4.0490 arrears-equivalent). The firm 2026-11 ask 4.9000 anchors the first node as its upper edge; the on-demand asks above are the context it is checked against.
 
 ## Fair-value model
 
@@ -158,7 +158,11 @@ Breakeven sensitivity (rows: utilization; columns: financing rate):
 
 ### Market view versus supply-cost view
 
-The observed market nodes (2026-11 4.5325, 2027-01 4.2500) sit well above the full-cost breakeven 2.9878 at the operator's declared 65% utilization, and above even the breakeven of a fully utilized reserved GPU (2.0855). The near curve slopes down toward cost, which is why the model reverts toward it rather than extrapolating the slope.
+Observed market mids: 2026-11 4.5325, 2027-01 4.2500. Full-cost breakeven is 2.9878 at declared 65% utilization; the cheap-compute anchor is 2.0855.
+
+The first-to-last observed mid falls from 4.5325 (2026-11) to 4.2500 (2027-01); intermediate observations may vary.
+
+Reversion toward the configured anchor is a modeling choice, independent of an assumed direction for the observed slope.
 
 **Why they disagree, and why cost is neither a floor nor a cap.** Capacity is not storable, so there is no cash-and-carry arbitrage tying forward prices to cost. In oversupply the relevant floor is the short-run marginal cost (0.4100): capex is sunk and an operator keeps renting below full cost rather than idle. In scarcity prices exceed full cost for as long as new supply (lead times, power, financing) takes to arrive. Full cost is only where entry and exit decisions balance over the economic life — a long-run attractor, so we use it as a soft anchor with a fitted reversion speed and explicit bands, not as a bound.
 

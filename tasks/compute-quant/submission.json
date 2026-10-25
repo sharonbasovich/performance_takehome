@@ -4,15 +4,15 @@
   "status": "draft-synthetic-inputs-verified-local",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "commit": "e8c32a69a3b520a4892a6a44b0e6dbe540e652ac",
+    "commit": "ca9bebb05443f7c0c9f49e5178b73403db0ea8c4",
     "commit_note": "Committed source verified after the first Greptile review. The separate artifact commit regenerates evidence without changing this research tree. No official organizer submission has been made.",
-    "research_tree_sha": "9c4e89e2b0643241c1df79abdc094c857544a83e",
+    "research_tree_sha": "57fe238c24777c42bb7a2dd145076548c57d3da9",
     "branch": "codex/abstract-quant-audit",
     "pull_request": "https://github.com/sharonbasovich/performance_takehome/pull/1",
-    "source_sha256": "462fe56fe15c28820d2b078c4252ceb55adc47c9786a39e1abeb12065057a6ed",
+    "source_sha256": "11c5afe5c1aa3203a5385c8669a8ccbab69b44efd7fac2ea0cb651a41dbc3339",
     "source_bytes": "canonical LF checkout of the recorded Git commit",
     "working_tree_dirty": false,
-    "verified_archive": "output/abstract-audit/quant-greptile-verified-lf.zip"
+    "verified_archive": "output/abstract-audit/quant-memo-verified-lf.zip"
   },
   "inputs": {
     "case": "tasks/compute-quant/data/demo-case.json",
