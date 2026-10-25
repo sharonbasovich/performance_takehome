@@ -47,6 +47,7 @@ EXPORT_NAMES = (
     "runner.log",
     "evaluate.log",
     "capture-receipt.json",
+    "ownership.json",
     "workload.json",
 )
 
@@ -215,6 +216,40 @@ def file_sha256(path: Path) -> str:
         while data := handle.read(1 << 20):
             digest.update(data)
     return digest.hexdigest()
+
+
+def persist_ownership(
+    directory: Path, *, name: str, owner: str, image_id: str, model_dir: Path
+) -> dict[str, Any]:
+    """Persist recovery authority before launch, surviving a hard-killed wrapper."""
+    if (
+        not re.fullmatch(r"[0-9a-f]{32}", owner)
+        or name != "abstract-t1-" + owner
+        or not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id)
+    ):
+        raise CaptureError("invalid prelaunch container ownership")
+    value = {
+        "schema_version": "1.0.0",
+        "container_name": name,
+        "container_owner": owner,
+        "owner_label": OWNER_LABEL,
+        "expected_image_id": image_id,
+        "model_dir": str(model_dir.resolve()),
+    }
+    raw = (json.dumps(value, sort_keys=True, indent=2) + "\n").encode()
+    path = directory / "ownership.json"
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0)
+    with os.fdopen(os.open(path, flags, 0o600), "wb") as handle:
+        handle.write(raw)
+        handle.flush()
+        os.fsync(handle.fileno())
+    if os.name == "posix":
+        descriptor = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    return {"path": path.name, "sha256": hashlib.sha256(raw).hexdigest()}
 
 
 def pack_evidence(source: Path, destination: Path, max_bytes: int) -> dict[str, Any]:
@@ -495,6 +530,12 @@ def _run_capture(args: argparse.Namespace, env: dict[str, str]) -> int:
     }
     work_end = end - args.cleanup_reserve_seconds - args.export_reserve_seconds
     cleanup_end = end - args.export_reserve_seconds
+    # Failure here prevents any launch. An outer supervisor can retain this
+    # immutable checkpoint and inspect the exact label/image before ID removal,
+    # even when this wrapper cannot reach its finally block after a hard kill.
+    record["ownership_checkpoint"] = persist_ownership(
+        out, name=name, owner=owner, image_id=args.expected_image_id, model_dir=args.model_dir
+    )
     try:
         # Also refuses collision with an unrelated pre-existing named container.
         record["prelaunch_absence"] = cleanup_container(

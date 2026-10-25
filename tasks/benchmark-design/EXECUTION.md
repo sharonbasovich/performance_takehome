@@ -98,6 +98,12 @@ CPU/RAM/shm, bind and security flags, removes `--detach`, and adds lifecycle-onl
 `--rm`, `--pull=never` and a unique ownership label. It uses an immutable inspected image
 ID rather than a mutable tag. Cleanup checks exact container ID, name, label and requested
 image before removal, then checks absence. No other container/image is pruned or changed.
+Before launch, it exclusively writes and fsyncs `ownership.json` and its directory.
+The outer controller must retain that checkpoint and its hash: it records the exact
+random name, owner label/value, immutable image ID and model path before any server
+starts. After a hard-killed wrapper, inspect those identities and remove by the
+observed full container ID, then independently prove absence. The final receipt
+alone is insufficient recovery evidence because a hard kill can bypass `finally`.
 Docker calls use a temporary empty client configuration and inherit no cloud/API keys.
 `--python-site` forwards only an explicitly verified staged dependency directory, not
 the caller's arbitrary Python path. A fully provisioned interpreter may omit that flag.
