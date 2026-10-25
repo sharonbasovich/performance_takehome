@@ -5,10 +5,10 @@
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
     "branch": "codex/abstract-benchmark-audit",
-    "commit": "cfd3b2d9bc1df0b9b30c0d9417c38eb219161fff",
-    "commit_note": "Code commit for the independent audit fixes; historical CPU mock evidence remains at evidence_commit. This metadata-only commit does not change the suite tree. No GPU result or organizer submission is claimed.",
+    "commit": "bf17b2e267431abcce424d5fa21738107e328364",
+    "commit_note": "Code commit for both independent audits, including evidence boundary, schedule/warmup/startup and simultaneous-comparison hardening. Historical CPU mock evidence remains at evidence_commit; this metadata-only commit leaves the suite tree unchanged. No GPU result or organizer submission is claimed.",
     "evidence_commit": "bd9fd1b9b50d71d5fb6ac75ae37ae945a793d131",
-    "suite_tree_sha": "965f10488ffbc0d6999f96e400d15451a91c8cf5",
+    "suite_tree_sha": "fc5f028fd9feb25db09f98b341f7a0d3f90ceaec",
     "reviewed_devin_head": "f1b823f1d15a08c0bc5c5a82c8e29a300fae10f3"
   },
   "suite": {
