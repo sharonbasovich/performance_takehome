@@ -5,12 +5,13 @@
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
     "branch": "codex/abstract-benchmark-audit",
-    "commit": "b9e36d936a86221778b802c7e212739c18f67e0c",
-    "commit_note": "Implementation plus documentation identity after optional pinned-tokenizer integration. The complete Linux suite passed at tested_code_commit; the following source commit changes only README/DESIGN documentation. This metadata-only freeze does not change the suite tree. Historical CPU mock evidence remains at evidence_commit; no GPU inference or organizer submission is claimed.",
+    "commit": "b1987ff58c8511bcedb64ce426502480fd2958d4",
+    "commit_note": "Greptile capture/evaluation corrections and seven regression tests. The complete native Linux suite passed at this exact source commit; the following metadata freeze changes only the manifest and validation receipts. Historical CPU mock captures retain evidence_commit; no GPU inference or organizer submission is claimed.",
     "evidence_commit": "bd9fd1b9b50d71d5fb6ac75ae37ae945a793d131",
-    "suite_tree_sha": "4438b456a4c8dd89e774a0be41e726a05f3f731e",
+    "suite_tree_sha": "f5cb1c56e9e24406cf0a44abd29befb9bf3657e7",
     "reviewed_devin_head": "f1b823f1d15a08c0bc5c5a82c8e29a300fae10f3",
-    "tested_code_commit": "c9ca0ae8b6b8cedef9218634b3db4db1a6c6eab9"
+    "tested_code_commit": "b1987ff58c8511bcedb64ce426502480fd2958d4",
+    "reviewed_greptile_head": "f6daae7292db6380221fdbea7c917790e1c33d13"
   },
   "suite": {
     "entrypoint": "tasks/benchmark-design/suite/evaluate.py",
@@ -35,6 +36,12 @@
       "count_semantics": "reencoded-decoded-output",
       "real_run_requirement": "--tokenizer-snapshot on runner and evaluator; selected assets must match plan.target.model_role",
       "cpu_validation": "tests/test_model_tokens.py verifies both protected model tokenizer snapshots without weights or GPU"
+    },
+    "latest_validation": {
+      "report": "tasks/benchmark-design/validation/greptile-tests.json",
+      "tests_run": 131,
+      "passed": 130,
+      "skipped": 1
     }
   },
   "fixed_environment": {

@@ -32,3 +32,5 @@ retry interval to two seconds and scales it to 0.4 seconds. Its unchanged `>0.2s
 therefore follows the intended retry schedule instead of relying on incidental
 host overhead; the mock plan's shorter 0.3-second interval could fail after scaling
 on a fast host.
+
+Validation at `b1987ff58c8511bcedb64ce426502480fd2958d4`: 131 native Linux tests run, 130 passed and 1 opaque-key skip, in 90.683 seconds. Both pinned tokenizer snapshots were available. Locked Ruff 0.16.10 and the protected-file integrity check passed. The seven focused regressions also passed on Windows. See `greptile-tests.json` for the source/tree receipt.
