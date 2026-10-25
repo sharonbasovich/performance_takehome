@@ -90,9 +90,13 @@ class ModelTokenizer:
                 raise TokenizerError(f"missing or wrong-sized tokenizer asset: {name}")
             if hashlib.sha256(path.read_bytes()).hexdigest() != asset["sha256"]:
                 raise TokenizerError(f"tokenizer asset SHA-256 mismatch: {name}")
-        from tokenizers import Tokenizer
+        import tokenizers
 
-        self.backend = Tokenizer.from_file(str(Path(directory) / "tokenizer.json"))
+        if tokenizers.__version__ != RUNTIME_VERSION:
+            raise TokenizerError("loaded tokenizer module differs from pinned package metadata")
+
+        self.backend = tokenizers.Tokenizer.from_file(str(Path(directory) / "tokenizer.json"))
+        self.role = role
         self.model = f"{spec['repository']}@{spec['revision']}"
         self.identifier = (
             f"hf-tokenizers:{self.model}:sha256:{spec['files']['tokenizer.json']['sha256']}"

@@ -122,6 +122,11 @@ class PinnedTokenizerTests(unittest.TestCase):
                 ev_mod.evaluate(plan(), Path(tmp), "native", tokenizer=wrong)[0]["status"],
                 "invalid",
             )
+            run["engine"]["lock_model"] = wrong.model
+            run["tokenizer"] = wrong.identity
+            write_events(Path(tmp), run, records)
+            report = ev_mod.evaluate(plan(), Path(tmp), "native", tokenizer=wrong)[0]
+            self.assertIn("tokenizer model role differs", " ".join(report["reasons"]))
 
     def test_runner_preserves_utf8_split_across_network_chunks(self):
         """Exercise actual runner decoding with every byte as a separate transport chunk."""

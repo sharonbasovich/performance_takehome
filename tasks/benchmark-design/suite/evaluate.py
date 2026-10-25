@@ -113,6 +113,8 @@ class Evaluator:
         if engine.get("kind") != "mock" and self.tokenizer is None:
             self.reasons.append("real evaluation requires a verified model tokenizer snapshot")
         if self.tokenizer is not None:
+            if self.tokenizer.role != self.plan["target"]["model_role"]:
+                self.reasons.append("tokenizer model role differs from workload plan")
             if run.get("tokenizer") != self.tokenizer.identity:
                 self.reasons.append(
                     "run tokenizer snapshot/runtime identity differs from evaluator"
