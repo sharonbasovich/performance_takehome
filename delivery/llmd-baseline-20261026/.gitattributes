@@ -1,0 +1,7 @@
+metadata/** -text
+segments/** -text
+original-receipt.json -text
+reconstruction-manifest.json -text
+base-manifest.json -text
+*.py text eol=lf
+README.md text eol=lf

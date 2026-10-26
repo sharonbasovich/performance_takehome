@@ -1,0 +1,32 @@
+{
+  "fresh_selected_image_revalidation": {
+    "exact_greedy_baseline_and_usage_finish_gates_passed": true,
+    "owned_container_absence_confirmed": true,
+    "prompts": 6,
+    "repetitions": 5,
+    "report_sha256": "d1c197f3a4809af223b8c4d7536f78744df67ac25913b41b66158c91ca7f05b4",
+    "requests": 30,
+    "status": "PASS_FRESH_SELECTED_IMAGE_REVALIDATION"
+  },
+  "genuine_Pi_attempt": "Ran GLM-5.2 through Pi; provider response exceeded the gateway120s deadline after readonly tool calls, before any patch. Failed transcript and unknown full API reservation retained. No successful optimized candidate or keep/revert experiment claimed.",
+  "image_identity": {
+    "config": "sha256:0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f",
+    "kind": "image-index-digest",
+    "platform_manifest": "sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d",
+    "value": "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540"
+  },
+  "model": "Qwen/Qwen3.6-27B",
+  "model_revision": "6a9e13bd6fc8f0983b9b99948120bc37f49c13e9",
+  "official_grade": false,
+  "optimization_gain_claimed": false,
+  "original_verified_export": {
+    "bytes": 5923200000,
+    "receipt_sha256": "ae7771fef2079f163856be33ac23f2914830dc038c00501d9a4b6409d045c55a",
+    "sha256": "c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47"
+  },
+  "public_delivery_status": "PENDING_FULL_RECONSTRUCTION_AND_RELEASE_UPLOAD",
+  "reconstruction_manifest_sha256": "da39f7f6ec2fec5bb6ef4c42ed34b62867d69f01bfece904e5ac62e531776b5c",
+  "registry_publication_verified": false,
+  "source_commit": "09f52c25af380a0daefdea3a183fe45a6ec75730",
+  "status": "REAL_BASELINE_SELECTED_AND_FRESHLY_REVALIDATED"
+}
