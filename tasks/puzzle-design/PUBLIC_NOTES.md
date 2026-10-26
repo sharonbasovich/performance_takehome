@@ -70,9 +70,25 @@ exact certificate. Candidate 11 V2 remains the most supported local development
 lead. These repeated proxy failures do not establish global hardness, satisfy an
 unavailable official Astra profile, attest an OS sandbox, or earn an official grade.
 
-Recent alternative development candidates were solved on time: candidate 19 in
-403 seconds, candidate 20 in 451 seconds, candidate 21 in 277 seconds, and
-candidate 22 in 253 seconds. Their outcomes are separate from this candidate.
+Alternative development trials through 26 October 2026, 16:59 UTC, returned valid
+mathematical answers within their original windows:
+
+| Candidates | Independently accepted first-parent elapsed seconds, in order |
+| --- | --- |
+| 19–22 | 403, 451, 277, 253 |
+| 23–27 | 259, 516, 691, 755, 837 |
+| 30–37 | 243, 319, 204, 242, 305, 328, 120, 169 |
+
+These are separate fresh development authors and statement/data/format-only blind
+trials, not additional resistance results for candidate 11. Candidate 18 was also
+solved, but its first-parent author clock was not retained. Attempts 28 and 29 failed
+at agent dispatch or unsupported-model setup before producing a puzzle result;
+infrastructure failures receive no resistance credit. Candidate 30 lacked an
+original general-submission verifier. Candidate 37's actual answer passes every
+mathematical rule, but later review found two frozen-verifier JSON contract defects:
+a legal long integer in an ignored field is rejected, while an invalid non-finite
+constant in an ignored field is accepted. No timed artifact was repaired afterward.
+These limitations remain separate from the accepted mathematical answers.
 
 ## Packaging and protocol limits
 
@@ -82,10 +98,20 @@ and review time is not counted as work completed inside the original 20 minutes.
 The public manifest distinguishes frozen CRLF statement bytes from Git's LF blob;
 their text is identical after newline normalization.
 
+A later private organizer-core ZIP is 15,686 bytes with 13 members (32,950 bytes
+uncompressed), below the draft 256 KiB bundle limit. With the unchanged 2,593-byte
+statement-only ZIP, the two archives total 18,279 bytes. The core preserves the
+original statement, polynomial, known answer, proof, verifier and selected provenance
+byte for byte; new administrative notes disclose their scope. The complete 698,863-byte
+trial/audit history remains separate. This reduces administrative delivery size only;
+it does not create a new timed author artifact or establish official conformance.
+The exact known answer is 1,809 bytes and fits the draft 32 KiB answer cap.
+
 The starter protocol is a draft. This statement permits 65,536 answer bytes, whereas
 the draft proposes 32 KiB. The original verifier takes an answer filename, whereas
 the draft proposes stdin. A separately labelled, later administrative stdin adapter
-is included privately; it preserves the exact mathematical checks and is not
+is retained separately in the full private audit handoff; it preserves the exact
+mathematical checks and is not
 relabeled as part of the timed authoring artifact. Official profile, runner, size,
 and private-upload conformance remain subject to organizer validation.
 
