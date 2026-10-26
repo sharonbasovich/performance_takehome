@@ -4,7 +4,7 @@
   "status": "REAL_CALIBRATION_VALID_FULL_AND_QUICK_UNFINISHED",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "branch": "codex/abstract-benchmark-audit",
+    "branch": "submission/benchmark-design",
     "tested_code_commit": "0174ca423cc583f4b8356284a79fdf4cbfb19a24",
     "qualification": "The real calibration remains attributed to tested_code_commit0174ca4. The separately identified post-calibration CPU revision below changes evaluator identity checks and descriptive diagnostics only; no historical evidence is rescored or rebound."
   },
