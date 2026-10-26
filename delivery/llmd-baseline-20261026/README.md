@@ -46,3 +46,8 @@ python3 -B -m unittest -v test_reconstruct_exact_archive test_restore_llmd_basel
 - Anonymous verification (no Authorization header) after publishing: release API and all eight assets fetched, every part hash and the streamed ordered concatenation matched `c759f7c2…`; see `evidence.json` (`public_delivery`).
 
 Limits: this is release-asset delivery only. Registry (GHCR) publication and anonymous `docker pull` remain separate, unverified checks and are not claimed. Loading the archive reproduces the image-index identity `ccd73fc2…` only on Docker's containerd image store.
+
+
+## Inactive registry publication source
+
+The [reviewed publisher source and CPU tests](registry-publisher/README.md) prepare exact platform-digest delivery while preserving the original archive index as provenance. Templates are staged outside `.github/`; no workflow was installed and no upload, package access or anonymous pull is claimed. The nested source layout requires a separate deployment review before installation.

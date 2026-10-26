@@ -1,0 +1,66 @@
+{
+  "approval_marker_supplied": false,
+  "created_utc": "2026-10-26T13:53:18.237742+00:00",
+  "files": {
+    "delivery/base-manifest.json": {
+      "bytes": 4469,
+      "sha256": "0a2cd01a2e53c78934a8cfef66f8668da7666be4954a5d18b72df089c54ea34f"
+    },
+    "delivery/metadata/000-0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f.bin": {
+      "bytes": 5405,
+      "sha256": "0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f"
+    },
+    "delivery/metadata/001-7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d.bin": {
+      "bytes": 4662,
+      "sha256": "7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d"
+    },
+    "delivery/metadata/002-ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540.bin": {
+      "bytes": 856,
+      "sha256": "ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540"
+    },
+    "delivery/metadata/003-de855e3be69b2363ead0c56750a0897674fcb8d9f06d607fb80eb6eacc4cbc81.bin": {
+      "bytes": 566,
+      "sha256": "de855e3be69b2363ead0c56750a0897674fcb8d9f06d607fb80eb6eacc4cbc81"
+    },
+    "delivery/selected.Dockerfile": {
+      "bytes": 1577,
+      "sha256": "7f8caeabc5b52b2fe1406287a57317bc6e56c7adb0a63e576a4710afe76a1225"
+    },
+    "evidence/legacy-selection-revision2.json": {
+      "bytes": 3431,
+      "sha256": "27b7ddcf1f9145d2e695dd2f79d9fd56a81c6f06ebff6c30c3ece291f4f19c39"
+    },
+    "evidence/selection.json": {
+      "bytes": 3986,
+      "sha256": "844306667045cb966908dbb15c7d2bd38204e40d3036b9ac0bebcc299e6ecd68"
+    },
+    "src/check_publication_approval.py": {
+      "bytes": 2728,
+      "sha256": "b73a19c909bde4b697b1f83bbc223648b8bf1d9e581d57bbd3030ac62db8c01f"
+    },
+    "src/publish_baseline_config_only.py": {
+      "bytes": 24656,
+      "sha256": "39b11aa534c3550d52c829a43a18e31dbde358e6ff311c13a9b2395bd3506772"
+    },
+    "workflow/execute-baseline-config-only.yml": {
+      "bytes": 3146,
+      "sha256": "e9e73208daa5b0759893d61fb40d18c3e2e4749c50444c8285f7a2e341062717"
+    },
+    "workflow/inspect-baseline-config-only.yml": {
+      "bytes": 1296,
+      "sha256": "2213aa10c6d3093eb317298a4c879c11f937ee761b351426fa2caf0472dc7cc1"
+    }
+  },
+  "kind": "REVIEW_ONLY_NOT_EXECUTION_APPROVAL",
+  "public_overlay_integration": {
+    "changes": "Repository lint/format, local byte-preserving attributes, qualified package-existence wording; source-only nested layout. No workflow installation/approval.",
+    "historical_revision3_selection_sha256": "80e6c040d49eea3d9e80ae728fcaf9f7e5c3d6569968483407ad3d9917448880",
+    "parent_revision3_seal_sha256": "d5ef27eebc1abba388cbca23d207c920b79b66003f804d262b46034e7a60ea00"
+  },
+  "required_future_marker_fields": {
+    "checker_sha256": "b73a19c909bde4b697b1f83bbc223648b8bf1d9e581d57bbd3030ac62db8c01f",
+    "execute_workflow_sha256": "e9e73208daa5b0759893d61fb40d18c3e2e4749c50444c8285f7a2e341062717",
+    "publisher_sha256": "39b11aa534c3550d52c829a43a18e31dbde358e6ff311c13a9b2395bd3506772",
+    "selection_sha256": "844306667045cb966908dbb15c7d2bd38204e40d3036b9ac0bebcc299e6ecd68"
+  }
+}

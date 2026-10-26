@@ -1,0 +1,65 @@
+# STAGED ONLY. No approval marker is supplied. Ordinary PR/inspection pushes cannot upload.
+# Explicit root-reviewed marker + separate designated branch push are required; no merge/default-branch registration.
+name: execute-baseline-config-only
+'on':
+  push:
+    branches: ['codex/task2-registry-publish-approved']
+    paths: ['registry-publisher/**', '.github/workflows/execute-baseline-config-only.yml']
+permissions: {}
+concurrency:
+  group: exact-baseline-registry-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'sharonbasovich/performance_takehome' && github.event.repository.private == false && github.ref == 'refs/heads/codex/task2-registry-publish-approved'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGCTL_CONFIG: ${{ runner.temp }}/baseline-regctl/config.json
+      DOCKER_CONFIG: ${{ runner.temp }}/baseline-empty-docker
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Refuse absent or changed root-reviewed marker before any registry login
+        run: |
+          set -euo pipefail
+          python3 registry-publisher/src/check_publication_approval.py registry-publisher > approved-selection.sha256
+          test "$(wc -c < approved-selection.sha256)" -eq 65
+          grep -Eq '^[0-9a-f]{64}$' approved-selection.sha256
+      - name: Fetch exact client without changing accounts or billing
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$REGCTL_CONFIG")" "$DOCKER_CONFIG"
+          curl --fail --location --proto '=https' --proto-redir '=https' --retry 0 --max-time 120 \
+            https://github.com/regclient/regclient/releases/download/v0.11.7/regctl-linux-amd64 --output regctl
+          printf '%s  %s\n' 3737fbbdd791e04e7a831640b681f3397a376498e80e2ad9b1b2d27296f239bc regctl | sha256sum --check --strict -
+          chmod 700 regctl
+      - name: Login using only this job's ephemeral token
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | ./regctl registry login ghcr.io --user "$GITHUB_ACTOR" --pass-stdin
+      - name: Publish selected platform digest only
+        run: |
+          set -euo pipefail
+          python3 registry-publisher/src/publish_baseline_config_only.py \
+            --metadata-dir registry-publisher/delivery/metadata \
+            --base-manifest registry-publisher/delivery/base-manifest.json \
+            --dockerfile registry-publisher/delivery/selected.Dockerfile \
+            --selection registry-publisher/evidence/selection.json \
+            --receipt receipt-execute.json --regctl "$PWD/regctl" --execute \
+            --root-approved-selection-sha256 "$(cat approved-selection.sha256)"
+      - name: Remove ephemeral login
+        if: always()
+        run: |
+          if test -x regctl; then ./regctl registry logout ghcr.io; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: publication-receipt
+          path: receipt-execute.json
