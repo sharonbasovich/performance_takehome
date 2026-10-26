@@ -1,4 +1,57 @@
 {
+  "cpu_import_check": {
+    "archive_verified_before_load": {
+      "bytes": 5923200000,
+      "sha256": "c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47"
+    },
+    "command": "restore_llmd_baseline_v2.sh docker-load --dir <workdir> --output <workdir>/llmd-baseline.docker.tar",
+    "cpu_help_run": {
+      "command": "docker run --rm --network none --entrypoint /llmd/llmd sha256:ccd73fc2... --help",
+      "exit": 0,
+      "first_line": "Usage: llmd --model=<path> [options]",
+      "stdout_lines": 27
+    },
+    "docker_load": {
+      "exit": 0,
+      "loaded_image_id": "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540"
+    },
+    "host": "existing CPU VM, Docker 29.7.2 client/server, driver overlayfs, containerd snapshotter (io.containerd.snapshotter.v1), no GPU",
+    "inspect": {
+      "Architecture": "amd64",
+      "Cmd_equals_selected_Dockerfile_CMD": true,
+      "Comment": "buildkit.dockerfile.v0",
+      "Created": "2026-10-26T06:12:57.128323327Z",
+      "Descriptor": {
+        "digest": "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 856
+      },
+      "Entrypoint": [
+        "/llmd/llmd"
+      ],
+      "Env_equals_pinned_config_blob": true,
+      "Env_keys": [
+        "PATH",
+        "SSL_CERT_FILE",
+        "LLMD_POSTHOG_TOKEN",
+        "LLMD_USAGE_STATS_ENDPOINT"
+      ],
+      "Id": "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540",
+      "Manifests_field": "empty in docker image inspect output",
+      "Os": "linux",
+      "RootFS_diff_ids_equal_pinned_config_blob": true,
+      "RootFS_diff_ids_equal_public_base_0a2cd01a": true,
+      "RootFS_layers": 23,
+      "Size": 5923168566,
+      "platform_manifest_or_config_digest_addressable_as_image_id": false
+    },
+    "limitations": [
+      "containerd store exposes only the index identity as image ID; platform manifest 7db01160 and config 0c06ab37 were not re-derived from the daemon",
+      "no inference, no model weights, no GPU",
+      "disk delta negligible because all 23 layers were already present from the public base"
+    ],
+    "utc": "2026-10-26T10:00:40Z..10:02:27Z"
+  },
   "fresh_selected_image_revalidation": {
     "exact_greedy_baseline_and_usage_finish_gates_passed": true,
     "owned_container_absence_confirmed": true,
@@ -111,6 +164,42 @@
   "public_delivery_status": "PUBLISHED_RELEASE_ASSETS_ANONYMOUSLY_VERIFIED",
   "reconstruction_manifest_sha256": "da39f7f6ec2fec5bb6ef4c42ed34b62867d69f01bfece904e5ac62e531776b5c",
   "registry_publication_verified": false,
+  "restore_helper": {
+    "v1": {
+      "file": "restore_llmd_baseline.sh",
+      "known_issues": [
+        "re-run --docker-load always rejected an existing output",
+        "existing .partial overwritten",
+        "grep of SHA256SUMS could accept an incomplete part list",
+        "could not verify an existing exact archive"
+      ],
+      "sha256": "0e32d498963e7df2d476529b13a78de15e52b44bd63a84934cc1541643dd1ddc",
+      "status": "DEPRECATED_PROVENANCE_ONLY"
+    },
+    "v2": {
+      "file": "restore_llmd_baseline_v2.sh",
+      "interface": [
+        "verify-parts",
+        "assemble",
+        "verify-archive",
+        "docker-load",
+        "--dir DIR",
+        "--output FILE"
+      ],
+      "pinned": [
+        "4 part sha256 + size",
+        "archive sha256 + size",
+        "expected index/manifest/config digests"
+      ],
+      "sha256": "2ffef91ea20d5a85714dbda666be0168bcd4ebaa89a982e0686c58b1c1e6f27d",
+      "tests": {
+        "count": 7,
+        "file": "test_restore_llmd_baseline_v2.py",
+        "result": "OK (python3.10.12, CPU, fake docker, patched fixture copy; production pins asserted)",
+        "ruff_0_16_10": "All checks passed (test file)"
+      }
+    }
+  },
   "source_commit": "09f52c25af380a0daefdea3a183fe45a6ec75730",
   "status": "REAL_BASELINE_SELECTED_AND_FRESHLY_REVALIDATED"
 }
