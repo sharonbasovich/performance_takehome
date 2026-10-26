@@ -71,3 +71,14 @@ AA-only diagnostic failed its own deadline after partial requests; it is neither
 complete quick run nor evidence of a clean/noisy A/A decision. The original full suite
 was not admitted within the remaining work window. Shared preparation, export,
 cleanup and offhost verification cannot be omitted from a future three-hour claim.
+
+The failed diagnostic retained exactly one startup probe and two unscored chat
+warmups, with no measured requests. Both chat outputs consumed the full 256-token
+cap and ended mid-sentence. Their prompt and request-body hashes match the pinned
+source and profile, and their text/usage/protocol request checks pass under the
+declared gates. Those gates allow `finish_reason=length` and check the nonce plus
+minimum text length; they do not establish semantic prose completeness. Treat
+these rows as bounded decoding, without an A/A, stability or power verdict. A
+future concise-answer task or prose-completion gate would change the workload and
+require a new plan identity, fresh calibration and matched comparisons; it cannot
+be applied retroactively to these frozen events.
