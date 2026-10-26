@@ -79,6 +79,42 @@ def _positive(value: Any, name: str) -> None:
     )
 
 
+def fixed_request_options(output_policy: dict[str, Any]) -> dict[str, Any]:
+    """Validate and copy fixed optional thinking controls; never merge arbitrary fields.
+
+    Servers expose either a top-level switch or a chat-template keyword. Supporting
+    a representation does not establish that the selected server honors it: the
+    frozen plan and real compatibility evidence must declare that separately.
+    """
+    _require(isinstance(output_policy, dict), "output_policy must be an object")
+    options = output_policy.get("request_options", {})
+    _require(isinstance(options, dict), "output_policy.request_options must be an object")
+    _require(
+        set(options) <= {"enable_thinking", "chat_template_kwargs"},
+        "request_options permits only fixed thinking controls, not request overrides",
+    )
+    result: dict[str, Any] = {}
+    if "enable_thinking" in options:
+        value = options["enable_thinking"]
+        _require(type(value) is bool, "request_options.enable_thinking must be a boolean")
+        result["enable_thinking"] = value
+    if "chat_template_kwargs" in options:
+        kwargs = options["chat_template_kwargs"]
+        _require(
+            isinstance(kwargs, dict) and set(kwargs) == {"enable_thinking"},
+            "request_options.chat_template_kwargs must contain only enable_thinking",
+        )
+        value = kwargs["enable_thinking"]
+        _require(type(value) is bool, "chat_template_kwargs.enable_thinking must be a boolean")
+        if "enable_thinking" in result:
+            _require(
+                result["enable_thinking"] == value,
+                "top-level and chat-template thinking controls must agree",
+            )
+        result["chat_template_kwargs"] = {"enable_thinking": value}
+    return result
+
+
 def validate_plan(plan: dict[str, Any]) -> None:
     """Raise ``PlanError`` unless the plan is structurally and semantically valid."""
     _require(isinstance(plan, dict), "plan must be a JSON object")
@@ -104,6 +140,7 @@ def validate_plan(plan: dict[str, Any]) -> None:
         _require(key in plan, f"plan is missing required key {key!r}")
     for seed in ("prompt_seed", "arrival_seed", "bootstrap_seed"):
         _require(isinstance(plan["seeds"].get(seed), int), f"seeds.{seed} must be an integer")
+    fixed_request_options(plan["output_policy"])
     _require(plan["output_policy"].get("temperature") == 0, "output_policy.temperature must be 0")
     _require(plan["output_policy"].get("stream") is True, "output_policy.stream must be true")
 

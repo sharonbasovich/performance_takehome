@@ -5,6 +5,32 @@ for the draft interfaces. They are runnable as supplied; no further organizer re
 needed for engineering execution. They are not an official runner, grader or approval.
 All target hardware/model results remain unmeasured until a real capture is retained.
 
+## Freeze and verify generation policy
+
+The candidate measurement client accepts optional fixed thinking controls under
+`output_policy.request_options`. The only permitted forms are a boolean
+`enable_thinking` and `chat_template_kwargs: {"enable_thinking": <boolean>}`. If both
+are supplied their values must agree. An absent or empty object preserves the existing
+request bytes. Unknown fields and attempts to override model, messages, token limits,
+streaming or other request fields are rejected. The same fixed options reach startup
+probes, warmups, calibration and scoring; per-cell switching is not supported.
+
+These are transport representations, not a claim that a particular server implements
+them. First retain a compatibility probe against the pinned model/server showing the
+effective final-content channel, required nonce or exact sequence and completion reason.
+The observed default-reasoning startup attempt exhausted its 32-token budget in the
+reasoning channel with empty final content and `finish_reason=length`. HTTP/SSE success
+does not make that a valid generation or calibration. Raising only the startup budget
+does not establish that the 16-token short-sequence calibration cell can complete.
+
+Do not select a non-thinking policy from a synthetic transport test. Once real
+compatibility is established, freeze the chosen policy in a new plan and retain new
+source/plan hashes before fresh calibration. The plan digest includes those bytes and
+each request records the SHA-256 of its actual serialized outgoing body. Preserve the
+failed capture unchanged; it cannot be refit or relabelled as evidence for a changed
+policy. This adapter changes only the candidate measurement client, with no changes to
+the protected baseline, provided runner files, token budgets or correctness gates.
+
 ## Freeze the experiment before paying for a long run
 
 Use `suite/workload.efficient.json` for the next pilot. It keeps chat, RAG, long generation,

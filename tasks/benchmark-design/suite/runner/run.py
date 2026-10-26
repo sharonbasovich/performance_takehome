@@ -43,6 +43,7 @@ from bench.model_tokens import ModelTokenizer, TokenizerError  # noqa: E402
 from bench.plan import (  # noqa: E402
     ScheduledCell,
     estimate_mode,
+    fixed_request_options,
     load_plan,
     plan_digest,
     resolve_mode,
@@ -202,6 +203,7 @@ def build_body(plan: dict[str, Any], spec: PromptSpec, model_id: str) -> dict[st
     }
     if policy.get("stop") is not None:
         body["stop"] = policy["stop"]
+    body.update(fixed_request_options(policy))
     return body
 
 
