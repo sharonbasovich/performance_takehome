@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "task": "puzzle-design",
+  "candidate": "candidate-11-v2",
+  "manifest_scope": "Public statement and non-solution-bearing evaluation/provenance notes only; content hashes avoid a circular commit/self hash.",
+  "public_artifacts": [
+    {
+      "path": "tasks/puzzle-design/puzzle.md",
+      "git_lf_bytes": 3990,
+      "git_lf_sha256": "3f7d97d9b103863cbe9caeef5b831fb0234fd51ed49910dea54f609a573279ef",
+      "git_blob_sha1": "f5c640439e53f8cc439f01eba108702d0fbdfaeb"
+    },
+    {
+      "path": "tasks/puzzle-design/PUBLIC_NOTES.md",
+      "git_lf_bytes": 5693,
+      "git_lf_sha256": "59b5eef7b1454a2f362e9ce12d385e1696b515aa7274c3822d7c139afcf5bb6d",
+      "git_blob_sha1": "7fec3331147175f2817f14b039121fa03bd4c9c6"
+    }
+  ],
+  "original_frozen_statement": {
+    "bytes": 4062,
+    "sha256": "01259572426d6ad71f22ca1528a2b8975543cf77b28acde346e99453f016dca6",
+    "newlines": "CRLF",
+    "git_lf_text_equivalent": true
+  },
+  "protected_starter_commit": "81aead87d78ed468c4c374fb42921471b44c3f80",
+  "prior_public_prototype_commit": "9d16ef17d9833f9d23bd8f3dcf9c4ff57125f639",
+  "official_astra_profile_sha256": null,
+  "official_astra_result": null,
+  "private_material_included": false
+}
