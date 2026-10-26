@@ -1,6 +1,6 @@
 # Source verification — 26 October 2026
 
-The publisher overlay now passes 38 offline tests on native Linux CPython3.14.4,
+The publisher overlay passes 40 offline tests on native Linux CPython3.14.4,
 with zero skips. Windows CPython3.13.3 passes the same suite with two explicitly
 POSIX-only cases skipped (relative executable launch and replacing an open receipt).
 The original 29 tests continue to pass. Locked Ruff0.16.10 root lint and overlay
@@ -28,4 +28,11 @@ Earlier sealed source, failed probes and review receipts remain separate provena
 These results exercise a closed fake registry and bounded local Python children.
 They do not verify owner settings, package entitlement/visibility, large-layer
 transfer, media acceptance, anonymous pull, inference, optimization or billing.
+Both inactive workflow templates select the final JSON and its sibling
+`.attempt.jsonl` journal for the `always()` recovery-artifact step. Two added
+regressions inject a real receipt final-write failure and check that both the
+partial final and the durable journal match the literal artifact paths. This
+checks the template contract, not GitHub runner survival or successful artifact
+upload; a lost runner or failed upload can still lose evidence.
+
 Workflow templates remain inactive and no publication approval marker is included.

@@ -28,4 +28,6 @@ jobs:
         if: always()
         with:
           name: inspection-receipt
-          path: receipt-inspection.json
+          path: |
+            receipt-inspection.json
+            receipt-inspection.json.attempt.jsonl

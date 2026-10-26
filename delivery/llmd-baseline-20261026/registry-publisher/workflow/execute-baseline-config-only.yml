@@ -62,4 +62,6 @@ jobs:
         if: always()
         with:
           name: publication-receipt
-          path: receipt-execute.json
+          path: |
+            receipt-execute.json
+            receipt-execute.json.attempt.jsonl

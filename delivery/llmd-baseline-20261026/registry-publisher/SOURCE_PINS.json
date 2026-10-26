@@ -43,12 +43,12 @@
       "sha256": "3853995b1490789579b532df3b0e237d42c4102d0c4503b100d124f9e4b9a531"
     },
     "workflow/execute-baseline-config-only.yml": {
-      "bytes": 3146,
-      "sha256": "e9e73208daa5b0759893d61fb40d18c3e2e4749c50444c8285f7a2e341062717"
+      "bytes": 3207,
+      "sha256": "b59fcb8d9e7e13fff93e2a230855ffbede9e3e654be0c4d341916dd283e063ba"
     },
     "workflow/inspect-baseline-config-only.yml": {
-      "bytes": 1296,
-      "sha256": "2213aa10c6d3093eb317298a4c879c11f937ee761b351426fa2caf0472dc7cc1"
+      "bytes": 1360,
+      "sha256": "63de068b5d30895cd556bd9d862d7610a8e9afaf35761e16c21480e5ed3aeafe"
     }
   },
   "kind": "REVIEW_ONLY_NOT_EXECUTION_APPROVAL",
@@ -63,13 +63,18 @@
       "reviewed_head": "e833fcad5eec175e712d323e621a5178f6ab6615"
     },
     "historical_revision3_selection_sha256": "80e6c040d49eea3d9e80ae728fcaf9f7e5c3d6569968483407ad3d9917448880",
-    "parent_revision3_seal_sha256": "d5ef27eebc1abba388cbca23d207c920b79b66003f804d262b46034e7a60ea00"
+    "parent_revision3_seal_sha256": "d5ef27eebc1abba388cbca23d207c920b79b66003f804d262b46034e7a60ea00",
+    "journal_artifact_fix": {
+      "reviewed_head": "438b0e4fdd2a945e5dc3558b3052f53226b55783",
+      "discussion": "4379188245",
+      "changes": "Both inactive always-upload template steps retain the final JSON and sibling attempt journal, including partial-final-write failures. No workflow installation or upload verification."
+    }
   },
   "required_future_marker_fields": {
     "checker_sha256": "b73a19c909bde4b697b1f83bbc223648b8bf1d9e581d57bbd3030ac62db8c01f",
-    "execute_workflow_sha256": "e9e73208daa5b0759893d61fb40d18c3e2e4749c50444c8285f7a2e341062717",
+    "execute_workflow_sha256": "b59fcb8d9e7e13fff93e2a230855ffbede9e3e654be0c4d341916dd283e063ba",
     "publisher_sha256": "3853995b1490789579b532df3b0e237d42c4102d0c4503b100d124f9e4b9a531",
     "selection_sha256": "844306667045cb966908dbb15c7d2bd38204e40d3036b9ac0bebcc299e6ecd68"
   },
-  "updated_utc": "2026-10-26T14:42:08.759456+00:00"
+  "updated_utc": "2026-10-26T16:20:11.109907+00:00"
 }
