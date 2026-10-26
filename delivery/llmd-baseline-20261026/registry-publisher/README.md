@@ -22,6 +22,11 @@ as explicit legacy evidence. Model weights remain outside the image.
 
 From this directory, with Python3.11+:
 
+On Windows, use a short checkout path or Git's `core.longpaths=true` setting; a
+deep parent directory can exceed Git's legacy filename limit. Candidate-local
+attributes preserve exact raw metadata and selection bytes and force source LF
+even when `core.autocrlf=true`.
+
 ```sh
 python -B src/publish_baseline_config_only.py \
   --metadata-dir delivery/metadata --base-manifest delivery/base-manifest.json \
