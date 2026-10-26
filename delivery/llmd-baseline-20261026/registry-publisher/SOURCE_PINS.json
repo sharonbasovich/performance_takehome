@@ -39,8 +39,8 @@
       "sha256": "b73a19c909bde4b697b1f83bbc223648b8bf1d9e581d57bbd3030ac62db8c01f"
     },
     "src/publish_baseline_config_only.py": {
-      "bytes": 24656,
-      "sha256": "39b11aa534c3550d52c829a43a18e31dbde358e6ff311c13a9b2395bd3506772"
+      "bytes": 29089,
+      "sha256": "3853995b1490789579b532df3b0e237d42c4102d0c4503b100d124f9e4b9a531"
     },
     "workflow/execute-baseline-config-only.yml": {
       "bytes": 3146,
@@ -54,13 +54,22 @@
   "kind": "REVIEW_ONLY_NOT_EXECUTION_APPROVAL",
   "public_overlay_integration": {
     "changes": "Repository lint/format, local byte-preserving attributes, qualified package-existence wording; source-only nested layout. No workflow installation/approval.",
+    "greptile_fixes": {
+      "changes": "Checked absolute regctl launch path; exclusive pre-client final receipt and durable append-only attempt lifecycle, with stable owned final handle and preserved uncertainty on final-write failure.",
+      "discussions": [
+        "4378330107",
+        "4378330160"
+      ],
+      "reviewed_head": "e833fcad5eec175e712d323e621a5178f6ab6615"
+    },
     "historical_revision3_selection_sha256": "80e6c040d49eea3d9e80ae728fcaf9f7e5c3d6569968483407ad3d9917448880",
     "parent_revision3_seal_sha256": "d5ef27eebc1abba388cbca23d207c920b79b66003f804d262b46034e7a60ea00"
   },
   "required_future_marker_fields": {
     "checker_sha256": "b73a19c909bde4b697b1f83bbc223648b8bf1d9e581d57bbd3030ac62db8c01f",
     "execute_workflow_sha256": "e9e73208daa5b0759893d61fb40d18c3e2e4749c50444c8285f7a2e341062717",
-    "publisher_sha256": "39b11aa534c3550d52c829a43a18e31dbde358e6ff311c13a9b2395bd3506772",
+    "publisher_sha256": "3853995b1490789579b532df3b0e237d42c4102d0c4503b100d124f9e4b9a531",
     "selection_sha256": "844306667045cb966908dbb15c7d2bd38204e40d3036b9ac0bebcc299e6ecd68"
-  }
+  },
+  "updated_utc": "2026-10-26T14:42:08.759456+00:00"
 }

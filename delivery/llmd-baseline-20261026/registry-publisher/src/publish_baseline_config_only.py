@@ -7,8 +7,9 @@ nothing. Uploading requires ``--execute`` plus ``--root-approved-selection-sha25
 to the SHA-256 of the selection file. Image bytes are never rebuilt or re-serialized:
 the raw config and selected platform manifest are pushed byte-for-byte and the 23
 inherited layers are copied by digest from the public base repository (stream copy; no
-Docker unpack). A failed or mismatched upload writes a failure receipt and exits non-zero;
-success requires the registry read-back digest to equal the pinned platform digest.
+Docker unpack). Evidence paths are exclusively reserved before client construction;
+a durable attempt journal retains execution uncertainty if the final receipt fails.
+Success requires the registry read-back digest to equal the pinned platform digest.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ import json
 import os
 import re
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -343,6 +345,7 @@ class RegctlClient:
     """Thin wrapper over a pinned regctl binary (stream copies; nothing is unpacked)."""
 
     def __init__(self, binary: Path) -> None:
+        binary = binary.absolute()
         data = _load(binary, 16 * 1024**2)
         if sha256_hex(data) != REGCTL_SHA256:
             raise Refused(f"regctl binary sha256 {sha256_hex(data)} != pinned {REGCTL_SHA256}")
@@ -482,11 +485,8 @@ def publish(
     }
 
 
-def write_receipt(path: Path, payload: dict) -> None:
-    path = path.absolute()
-    if not path.parent.is_dir() or any(p.is_symlink() for p in (path, *path.parents)):
-        raise Refused("receipt requires an existing nonredirected parent")
-    raw = (
+def receipt_bytes(payload: dict) -> bytes:
+    return (
         json.dumps(
             dict(payload, written_utc=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())),
             indent=2,
@@ -495,17 +495,113 @@ def write_receipt(path: Path, payload: dict) -> None:
         )
         + "\n"
     ).encode()
-    with os.fdopen(
-        os.open(
-            path,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
-            0o600,
-        ),
-        "wb",
-    ) as f:
-        f.write(raw)
-        f.flush()
-        os.fsync(f.fileno())
+
+
+class ReceiptAttempt:
+    """Reserve final evidence once; retain durable append-only phase records.
+
+    The final JSON is written once through its original exclusive handle. A failed
+    final write cannot erase the journal's already-fsynced execution uncertainty.
+    Path replacement is refused; a different attempt's file is never opened to write.
+    """
+
+    def __init__(self, path: Path, payload: dict) -> None:
+        self.path = path.absolute()
+        self.journal_path = self.path.with_name(self.path.name + ".attempt.jsonl")
+        self.final = self.journal = None
+        self.finished = False
+        self._check_parent()
+        if any(p.exists() or p.is_symlink() for p in (self.path, self.journal_path)):
+            raise Refused("receipt or attempt journal already exists; choose fresh evidence paths")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            self.final = os.fdopen(os.open(self.path, flags, 0o600), "wb")
+            self.final_identity = self._identity(self.final)
+            self.journal = os.fdopen(os.open(self.journal_path, flags | os.O_APPEND, 0o600), "ab")
+            self.journal_identity = self._identity(self.journal)
+            self.record("ATTEMPT_RESERVED", payload)
+            if os.name == "posix":
+                directory = os.open(
+                    self.path.parent, os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+                )
+                try:
+                    os.fsync(directory)
+                finally:
+                    os.close(directory)
+        except BaseException:
+            self.close()
+            raise  # Preserve any exclusive partial files; never reuse/remove evidence.
+
+    def _check_parent(self) -> None:
+        if not self.path.parent.is_dir() or any(
+            p.is_symlink() for p in (self.path, self.journal_path, *self.path.parents)
+        ):
+            raise Refused("receipt requires an existing nonredirected parent")
+
+    @staticmethod
+    def _identity(file) -> tuple[int, int]:
+        info = os.fstat(file.fileno())
+        if not stat.S_ISREG(info.st_mode):
+            raise Refused("ordinary evidence file required")
+        return info.st_dev, info.st_ino
+
+    def check_owned(self) -> None:
+        self._check_parent()
+        for path, file, identity in (
+            (self.path, self.final, self.final_identity),
+            (self.journal_path, self.journal, self.journal_identity),
+        ):
+            current = path.stat()
+            if (current.st_dev, current.st_ino) != identity or self._identity(file) != identity:
+                raise Refused("owned receipt/attempt journal identity changed")
+
+    def record(self, event: str, payload: dict) -> None:
+        self.check_owned()
+        raw = receipt_bytes(dict(payload, event=event))
+        # One ordinary JSON object per line; existing complete entries survive an
+        # interrupted tail. No untrusted stderr, auth data or client headers enter it.
+        self.journal.write(json.dumps(json.loads(raw), sort_keys=True).encode() + b"\n")
+        self.journal.flush()
+        os.fsync(self.journal.fileno())
+        self.check_owned()
+
+    def _write_final(self, raw: bytes) -> None:
+        self.final.write(raw)
+        self.final.flush()
+        os.fsync(self.final.fileno())
+
+    def finish(self, payload: dict) -> None:
+        if self.finished:
+            raise Refused("attempt final receipt is single-write")
+        self.finished = True
+        try:
+            self.check_owned()
+            raw = receipt_bytes(payload)
+            self._write_final(raw)
+            self.check_owned()
+            self.record("FINAL_RECEIPT_SAVED", dict(payload, receipt_sha256=sha256_hex(raw)))
+        except (Refused, OSError, ValueError) as exc:
+            try:
+                self.record("FINAL_RECEIPT_FAILED", dict(payload, error_type=type(exc).__name__))
+            except (Refused, OSError, ValueError):
+                pass  # The pre-client execution record remains the uncertainty floor.
+            raise
+
+    def close(self) -> None:
+        for file in (self.final, self.journal):
+            if file is not None:
+                try:
+                    file.close()
+                except OSError:
+                    pass  # Already failed evidence remains; close is never a success claim.
+
+
+def write_receipt(path: Path, payload: dict) -> None:
+    attempt = ReceiptAttempt(path, payload)
+    try:
+        attempt.finish(payload)
+    finally:
+        attempt.close()
 
 
 def main(argv: list[str] | None = None, client_factory=None) -> int:
@@ -533,9 +629,9 @@ def main(argv: list[str] | None = None, client_factory=None) -> int:
         "fixture": fixture,
         "real_registry_upload": False,
     }
+    attempt = None
     try:
-        if a.receipt.exists() or a.receipt.is_symlink():
-            raise Refused("receipt already exists; choose a fresh evidence path")
+        attempt = ReceiptAttempt(a.receipt, receipt)
         if a.destination != DESTINATION:
             raise Refused("destination differs from the approved exact registry repository")
         b = load_bundle(a.metadata_dir, a.base_manifest, a.dockerfile, a.selection)
@@ -550,15 +646,18 @@ def main(argv: list[str] | None = None, client_factory=None) -> int:
                     "execute refused: --root-approved-selection-sha256 "
                     "does not match the selection file"
                 )
+            receipt["mode"] = "execute"
+            receipt["result"] = "EXECUTION_IN_PROGRESS"
+            receipt["writes_attempted"] = True
+            receipt["partial_remote_objects_possible"] = True
+            attempt.record("EXECUTION_IN_PROGRESS", receipt)
             if client_factory is not None:
                 client = client_factory()
             else:
                 if a.regctl is None:
                     raise Refused("execute refused: --regctl pinned binary path required")
                 client = RegctlClient(a.regctl)
-            receipt["mode"] = "execute"
-            receipt["writes_attempted"] = True
-            receipt["partial_remote_objects_possible"] = True
+            attempt.check_owned()
             receipt["publication"] = publish(b, client, a.destination)
             receipt["uploaded"] = not fixture
             receipt["real_registry_upload"] = not fixture
@@ -576,13 +675,17 @@ def main(argv: list[str] | None = None, client_factory=None) -> int:
         receipt["result"] = "REFUSED"
         receipt["reason"] = str(e)
         try:
-            write_receipt(a.receipt, receipt)
+            if attempt is not None:
+                attempt.finish(receipt)
         except (Refused, OSError):
             pass  # Never overwrite prior evidence even when this attempt is refused.
+        finally:
+            if attempt is not None:
+                attempt.close()
         print(f"REFUSED: {type(e).__name__}: {e}", file=sys.stderr)
         return 65
     try:
-        write_receipt(a.receipt, receipt)
+        attempt.finish(receipt)
     except (Refused, OSError):
         print(
             "REFUSED: evidence path unavailable; "
@@ -590,6 +693,8 @@ def main(argv: list[str] | None = None, client_factory=None) -> int:
             file=sys.stderr,
         )
         return 65
+    finally:
+        attempt.close()
     print(receipt["result"])
     return 0
 

@@ -36,7 +36,24 @@ python -B -m unittest discover -s tests -v
 ```
 
 Inspection performs no network or registry-client invocation. Use a fresh receipt
-path; previous receipts are never overwritten. Tests use the exact small public
+path and its sibling `<receipt>.attempt.jsonl`; previous evidence is never overwritten.
+The publisher exclusively opens the final receipt and append-only journal and syncs
+the reserved state before constructing any registry client. It records and syncs
+`EXECUTION_IN_PROGRESS`, including possible partial remote objects, before client
+construction. The final JSON contract remains unchanged and is written once through
+the original owned handle; a replaced receipt path is refused. The journal records
+the saved receipt's hash or a final-write failure when possible.
+
+An interrupted attempt can leave an empty/partial final receipt or an incomplete
+journal tail. Retain both files; complete earlier journal entries remain evidence.
+After an execution-start record, failure, missing final bytes or `uploaded=false`
+does not mean zero remote writes or cancellation. Reconcile remote state before a
+new attempt, using fresh evidence paths. File writes are fsynced, and POSIX directory
+entries are synced on reservation; crash durability still depends on the OS,
+filesystem and storage. Windows does not provide the POSIX directory-sync step here.
+Hard loss or later storage failure cannot guarantee a complete final receipt.
+
+Tests use the exact small public
 metadata and a closed fake registry, plus bounded owned local Python children for
 timeout/output checks. Fake receipts explicitly distinguish fixtures from uploads.
 No6GBdownload, Docker daemon, GPU, model or credential is needed.
@@ -44,7 +61,9 @@ No6GBdownload, Docker daemon, GPU, model or credential is needed.
 The publisher checks exact source/model/image/entrypoint/layer/selection identities,
 strict bounded JSON, destination allowlist and exclusive evidence. A pinned regctl
 client can later stream inherited blobs without Docker unpacking. Its v0.11.7 SHA256
-pin is self-computed, not an official checksum/signature attestation. Timeouts may
+pin is self-computed, not an official checksum/signature attestation. The checked
+binary's absolute path is also its launch path, including when supplied as `./regctl`;
+launch does not search PATH for a different executable. Timeouts may
 leave partial remote objects, requiring reconciliation; failure is never a zero-write
 or cancellation claim. Output-size monitoring can overshoot between polls.
 
