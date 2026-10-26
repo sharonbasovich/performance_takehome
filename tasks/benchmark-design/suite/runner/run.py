@@ -41,6 +41,7 @@ from bench.arrivals import closed_loop_assignments, poisson_schedule  # noqa: E4
 from bench.gates import judge  # noqa: E402
 from bench.model_tokens import ModelTokenizer, TokenizerError  # noqa: E402
 from bench.plan import (  # noqa: E402
+    ASSISTANT_PREFILL_PROFILE,
     ScheduledCell,
     estimate_mode,
     fixed_request_options,
@@ -193,9 +194,13 @@ def _lock_info(plan: dict[str, Any]) -> dict[str, Any]:
 def build_body(plan: dict[str, Any], spec: PromptSpec, model_id: str) -> dict[str, Any]:
     """Chat-completions request body from the plan's output policy and the prompt spec."""
     policy = plan["output_policy"]
+    options = fixed_request_options(policy)
+    messages = [dict(message) for message in spec.messages]
+    if policy.get("request_profile") == ASSISTANT_PREFILL_PROFILE:
+        messages.append({"role": "assistant", "content": "</think>\n\n"})
     body: dict[str, Any] = {
         "model": model_id,
-        "messages": spec.messages,
+        "messages": messages,
         "max_tokens": spec.max_tokens,
         "temperature": policy["temperature"],
         "stream": True,
@@ -203,7 +208,7 @@ def build_body(plan: dict[str, Any], spec: PromptSpec, model_id: str) -> dict[st
     }
     if policy.get("stop") is not None:
         body["stop"] = policy["stop"]
-    body.update(fixed_request_options(policy))
+    body.update(options)
     return body
 
 

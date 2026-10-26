@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
-  "plan_id": "abstract-t1-llmd-mi355x-efficient-v2",
-  "status": "CANDIDATE-DEFINED; unmeasured pilot-ready design, requires separate baseline calibration",
+  "plan_id": "abstract-t1-llmd-mi355x-assistant-prefill-v3",
+  "status": "CANDIDATE-DEFINED; fixed assistant-prefill profile requires typed compatibility and separate baseline calibration",
   "target": {
     "engine_lock": "baseline/lock.json",
     "model_role": "target",
@@ -20,7 +20,8 @@
     "stream_options": {
       "include_usage": true
     },
-    "stop": null
+    "stop": null,
+    "request_profile": "llmd_closed_thinking_v1"
   },
   "deadlines": {
     "prefill": {
@@ -79,10 +80,10 @@
     "readiness_poll_interval_s": 1,
     "probe_interval_s": 2,
     "max_wait_s": 1200,
-    "probe_prompt_source": "chat_short",
-    "probe_max_tokens": 32,
+    "probe_prompt_source": "calibration_short",
+    "probe_max_tokens": 16,
     "planning_cold_start_s": 480,
-    "note": "planning_cold_start_s is a pilot placeholder (27B weights into HBM plus LLMD compile); it is replaced by measured launches."
+    "note": "Startup stops at the first valid completed deterministic one-integer generation using the same fixed assistant-prefill profile. This tiny-generation readiness endpoint is explicit and does not represent chat-answer duration. planning_cold_start_s remains an unmeasured placeholder until real cold launches."
   },
   "warmup": {
     "requests_per_cell": 4,
@@ -138,7 +139,7 @@
         "min": 200,
         "max": 320
       },
-      "max_tokens": 1024,
+      "max_tokens": 1280,
       "expected": {
         "integer_sequence": true,
         "finish_reasons": [
@@ -388,7 +389,7 @@
       "planned_wall_minutes_max": 45
     },
     "full": {
-      "description": "Three interleaved repetitions, all original measurement load points and two cold launches. Independent 1rps A/A controls retained. Separate calibration capture is excluded from scoring.",
+      "description": "Three interleaved repetitions, all 14 original measurement load points, two cold launches and fixed half-scale request counts floored at 30. High-concurrency 32 retains 48 requests. Independent 1rps A/A controls retained; separate calibration excluded from scoring. Counts still require measured noise/power admission.",
       "startup_launches": 2,
       "repetitions": 3,
       "interleave": true,
@@ -401,7 +402,8 @@
         "aa_control_a",
         "aa_control_b"
       ],
-      "planned_wall_minutes_max": 180
+      "planned_wall_minutes_max": 180,
+      "requests_scale": 0.5
     },
     "calibration": {
       "description": "Separate baseline-only length calibration; freeze a new plan before any scoring capture.",
@@ -448,6 +450,8 @@
       "No-flush default has zero explicit cache-flush delay. Request-specific leading nonces reduce shared user-prefix reuse; common chat-template state is not flushed."
     ],
     "statistics": "Three repetitions and the sample floor are starting policies, not proof of power. Use pilot noise/CI widths to freeze sufficient counts before comparisons; retain inconclusive results when evidence is weak.",
-    "runtime": "Full suite hard ceiling remains10800s including setup/cleanup/export, enforced by capture.py; planning estimates are not deadlines."
+    "runtime": "Full suite hard ceiling remains10800s including setup/cleanup/export, enforced by capture.py; planning estimates are not deadlines.",
+    "request_profile": "One fixed assistant empty-thinking prefill and continuation flags apply identically to startup, warmup, calibration and scoring. Generated user instructions remain unchanged; source budgets are explicit, including the documented long-generation feasibility correction. No arbitrary messages or body overrides are accepted.",
+    "sequence_feasibility": "Preserve the original 200..320 endpoint range. The pinned target tokenizer needs 1172 output tokens for canonical 1..320 plus newline, so the long-generation cap is 1280; other source caps stay unchanged. This adds 108 tokens of textual headroom without relaxing exact sequence correctness."
   }
 }

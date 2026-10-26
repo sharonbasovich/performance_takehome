@@ -7,7 +7,18 @@ All target hardware/model results remain unmeasured until a real capture is reta
 
 ## Freeze and verify generation policy
 
-The candidate measurement client accepts optional fixed thinking controls under
+The selected efficient plan uses the named `output_policy.request_profile` value
+`llmd_closed_thinking_v1`. The common request builder appends exactly one assistant
+message containing `</think>\n\n` and fixed `continue_final_message=true` /
+`add_generation_prompt=false` fields to every startup, warmup, calibration and scoring
+request. Generated user instructions remain unchanged. No arbitrary message/model/body
+overrides or combination with request_options is allowed. An unknown profile or
+output-policy field is rejected. Prompt length remains the approximate user-message
+covariate; common template/prefill overhead is not claimed as exact engine token count.
+Retain typed compatibility and fresh calibration; a small arithmetic probe alone does
+not validate the workload.
+
+For profile-absent historical plans, the candidate client also accepts fixed controls under
 `output_policy.request_options`. The only permitted forms are a boolean
 `enable_thinking` and `chat_template_kwargs: {"enable_thinking": <boolean>}`. If both
 are supplied their values must agree. An absent or empty object preserves the existing
@@ -29,7 +40,13 @@ source/plan hashes before fresh calibration. The plan digest includes those byte
 each request records the SHA-256 of its actual serialized outgoing body. Preserve the
 failed capture unchanged; it cannot be refit or relabelled as evidence for a changed
 policy. This adapter changes only the candidate measurement client, with no changes to
-the protected baseline, provided runner files, token budgets or correctness gates.
+the protected baseline, provided runner files or correctness gates. The candidate-owned
+long-generation cap changes explicitly below to preserve the original sequence range.
+
+The selected startup probe uses the deterministic `calibration_short` one-integer
+source with a 16-token cap and requires a valid completed stop. It reports time to the
+first tiny correct generation, not chat-response duration. The failed earlier 32-token
+chat startup attempt remains historical evidence; its clock/results are not relabeled.
 
 ## Freeze the experiment before paying for a long run
 
@@ -42,8 +59,16 @@ Three interleaved repetitions and two cold launches remain in full mode. It remo
 
 All four scored chat rates remain: A/A controls also use 1 rps, but the comparison
 excludes controls, so they do not replace a scored 1-rps measurement group. Full mode
-has 42 groups and 2,451 requests. Separate calibration has a short-sequence cell and a
+has 42 groups and 1,455 requests: fixed half-scale counts, each floored at 30, with 48
+requests retained at concurrency 32. The reduction is an explicit plan choice, not a
+statistical-power claim. Separate calibration has a short-sequence cell and a
 RAG length grid, covering the actual deterministic quick/full prompt-length domain.
+
+The long integer-generation source retains its original 200..320 endpoint range.
+The pinned target tokenizer requires 1,172 tokens for canonical 1..320 plus newline;
+the old 1,024-token cap could truncate a correct answer. Its cap is now 1,280, with
+108 tokens of textual headroom. Other per-source caps and exact correctness gates stay
+unchanged. This feasibility check is not proof of model accuracy or formatting.
 
 The original `workload.json`, fixtures and reports remain historical and unchanged. The
 new plan's durations are still arithmetic, not measurements or a necessary runtime.
@@ -57,8 +82,8 @@ widths, A/A noise, correctness populations, long-output service times and observ
 loads must inform the frozen scoring plan. Do not change the plan midway through a scored
 capture. Retain `inconclusive` whenever data cannot distinguish the declared effect.
 
-The current unmeasured arithmetic is 16.3 minutes for calibration, 38.8 for quick and
-145.5 for full. These are separate modes, not a claim that their 200.6-minute sum fits
+The current unmeasured arithmetic is 16.3 minutes for calibration, 39.8 for quick and
+133.8 for full. These are separate modes, not a claim that their 189.9-minute sum fits
 one 180-minute experiment. Full mode's actual clock starts before its setup; calibration
 and quick work also consume the controller's combined allocation/cash envelope. Stage
 and measure the preparation once, retaining its time and artifact provenance; never hide

@@ -21,7 +21,10 @@ from tests.test_mock_server import runner_args
 
 
 def workload():
-    return load_plan(SUITE / "workload.efficient.json")
+    plan = load_plan(SUITE / "workload.efficient.json")
+    # These regressions exercise the backward-compatible profile-absent path.
+    plan["output_policy"].pop("request_profile", None)
+    return plan
 
 
 def prompt():

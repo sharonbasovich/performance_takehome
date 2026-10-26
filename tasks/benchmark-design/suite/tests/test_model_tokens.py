@@ -13,9 +13,10 @@ import evaluate as ev_mod
 import httpx
 from bench.gates import judge, token_times
 from bench.model_tokens import ModelTokenizer, TokenizerError, _nfc_boundaries, model_spec
+from bench.plan import load_plan
 from runner.run import RequestMeta, Runner
 
-from tests.helpers import clean_cell, make_record, make_run, plan, write_events
+from tests.helpers import SUITE, clean_cell, make_record, make_run, plan, write_events
 from tests.test_mock_server import runner_args
 
 
@@ -47,6 +48,17 @@ class PinnedTokenizerTests(unittest.TestCase):
             )
         cls.root = Path(snapshot_root)
         cls.adapters = {role: ModelTokenizer(cls.root / role, role) for role in ("target", "smoke")}
+
+    def test_efficient_integer_sequences_fit_the_fixed_cap_with_token_headroom(self):
+        workload = load_plan(SUITE / "workload.efficient.json")
+        for source, cfg in workload["prompt_sources"].items():
+            if cfg["kind"] != "integer_sequence":
+                continue
+            answer = "\n".join(map(str, range(1, cfg["sequence_end"]["max"] + 1))) + "\n"
+            # Canonical complete output plus eight tokens of termination headroom.
+            # This is a feasibility check, not proof of model correctness/style.
+            with self.subTest(source=source):
+                self.assertLessEqual(self.adapters["target"].count(answer) + 8, cfg["max_tokens"])
 
     def test_pinned_known_ids_and_multilingual_normalization(self):
         vectors = {

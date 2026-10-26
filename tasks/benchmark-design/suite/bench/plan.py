@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 SUPPORTED_PLAN_SCHEMA = ("1.0.0",)
+ASSISTANT_PREFILL_PROFILE = "llmd_closed_thinking_v1"
 
 
 class PlanError(ValueError):
@@ -87,8 +88,27 @@ def fixed_request_options(output_policy: dict[str, Any]) -> dict[str, Any]:
     frozen plan and real compatibility evidence must declare that separately.
     """
     _require(isinstance(output_policy, dict), "output_policy must be an object")
+    _require(
+        set(output_policy)
+        <= {
+            "temperature",
+            "stream",
+            "stream_options",
+            "stop",
+            "request_options",
+            "request_profile",
+        },
+        "output_policy contains an unknown field or request override",
+    )
     options = output_policy.get("request_options", {})
     _require(isinstance(options, dict), "output_policy.request_options must be an object")
+    if "request_profile" in output_policy:
+        _require(
+            output_policy["request_profile"] == ASSISTANT_PREFILL_PROFILE,
+            "unknown output_policy.request_profile",
+        )
+        _require(not options, "the fixed assistant-prefill profile cannot combine request_options")
+        return {"continue_final_message": True, "add_generation_prompt": False}
     _require(
         set(options) <= {"enable_thinking", "chat_template_kwargs"},
         "request_options permits only fixed thinking controls, not request overrides",
