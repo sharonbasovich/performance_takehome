@@ -1,17 +1,18 @@
 # Task 1 — Benchmark design report
 
-**Next execution revision:** [EXECUTION.md](EXECUTION.md) describes the self-contained
-candidate recorder/schema/fixtures, separate baseline calibration and frozen efficient
-plan, bounded capture/owned cleanup/export and independent timing audit. The original
-plan and measured mock artifacts below stay immutable historical evidence. Current
-target hardware/model measurements remain outstanding; no organizer interface is being
-awaited and no official approval or target score is claimed.
+**Current result:** real baseline calibration passed on one MI355X with the pinned
+Qwen3.6-27B/LLMD target: 60 measured requests, eight warmups and a completed-generation
+startup. The evaluator and independent timing audit passed. A fresh offhost CPU replay
+reproduced the fitted receipt and frozen plan byte for byte. See the
+[raw evidence, results and limits](validation/live-calibration-20261026/README.md).
+**The full suite and official quick mode remain unfinished.** No full-suite three-hour
+runtime, real A/A decision, comparison power or official grade is claimed. A later
+separate AA-only diagnostic timed out and is recorded as a failed partial attempt.
 
-**Status of this report:** a complete, candidate-owned design validated end to end on a CPU
-mock. **No GPU run has happened.** Every number labelled *planned* is arithmetic from
-`suite/workload.json`; every number labelled *measured* was produced on this CPU host by
-the committed code and is stored under `validation/`. Nothing in this document describes
-ZML/LLMD or MI355X behaviour.
+[EXECUTION.md](EXECUTION.md) describes the candidate recorder/schema/fixtures,
+calibration/freeze and bounded capture, export and cleanup. The original plan and CPU
+mock results in sections 1–6 below remain historical evidence: their planned durations
+are arithmetic and their measured numbers describe the mock, rather than the real GPU.
 
 Source identities: suite version `1.0.0` (`suite/bench/__init__.py`), plan
 `abstract-t1-llmd-mi355x-v1` schema `1.0.0`, event schema `1.0.0`, report schema `1.0.0`.
@@ -331,14 +332,17 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
 
 ## 7. Threats to validity
 
-1. **No GPU evidence.** Every performance number here is from a mock with injected delays.
+1. **No completed GPU comparison.** Real calibration evidence is linked above; the
+   discrimination and control tables below remain mock results with injected delays.
 2. **Tokenizer evidence** (§2): historical mock counts are regex pre-tokens. An optional
    pinned-model Tokenizers 0.22.2 adapter now re-encodes completed decoded output, with
    exact snapshot/runtime identities and conservative NFC-cluster timing. Real capture
    and evaluation require it; see `suite/README.md`. It does not recover generated token
    IDs, stripped special tokens, exact chat-template prompt counts or individual token
    arrivals. Prompt construction is still approximate and LLMD parity needs real validation.
-3. **Prefill deadline constants are placeholders** until `prefill_calibration` is run.
+3. **Calibration coverage is limited.** The frozen real fit covers approximate prompt
+   lengths 44–4117 and the scoring plan's 44–4081 range. It is an observed upper
+   residual envelope, not a prediction interval or proof of tokenization parity.
 4. **Single client host**: event-loop lag is monitored and bounded, but network jitter
    between client and engine is not separated from server behaviour; the plan assumes the
    organizer's harness runs the client on the same host or a dedicated link.
@@ -358,7 +362,7 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
 | `baseline/lock.json`, `budgets.toml`, `tools/check_integrity.py`, root tests | yes (read only) | — | `takehome-start` tag |
 | Measurement recorder | no | `suite/runner/` 1.1.0; bounded streams, immutable output; `capture.py` lifecycle/export | Usable candidate recorder, not an organizer-trusted timestamp authority |
 | Plan / raw-event schemas | no | `suite/workload*.json`, frozen event schema 1.0.0 in `suite/schema/` | Reproducible as supplied; future adapters are optional |
-| Pinned engine on MI355X | no (no GPU) | `suite/mock_server/` | real engine, pilot numbers |
+| Pinned engine on MI355X | pinned image/model supplied | Real baseline calibration and historical `suite/mock_server/` fixtures | Calibration passes; full/quick comparisons and measured power remain incomplete |
 | Fault / control fixtures | no | `suite/fixtures/{public,heldout}` plus independent timing checks | Development fixtures; opaque original key is not retained locally, so its keyed check skips explicitly |
 | Engine tokenizer / per-token timing | no | pinned model assets + output re-encoding adapter (`delta`); regex for historical mocks/approximate prompts | LLMD parity, chat-template prompt adapter and true per-token arrival evidence |
 | Enhanced Pi harness, profile/release digests, receipts | no | Candidate execution/calibration/audit/cleanup tooling; source and run receipts | No official enhanced profile, receipt or grading result is asserted |
@@ -376,12 +380,17 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
 ## 9. Effort and resource use
 
 * Active engineering time: one autonomous agent session; wall-clock effort was not instrumented and is not claimed.
-* GPU-hours allocated: **0**. GPU-hours used: **0**. Paid API charges: **0**.
+* Real calibration shared one MI355X allocation with Task 2. The allocation was
+  created 05:57:55 UTC and confirmed absent 09:51:27.526476 UTC on 26 October:
+  3h53m32.526476s, rate-ceiling estimate **$21.41**, pending the provider invoice.
+  This is shared allocation time/cost, not Task 1's exclusive execution time and not
+  a successful full-suite runtime. Earlier failed allocations remain in the private
+  resource ledger; they are not erased or charged again here.
 * CPU use: fixture generation and validation on one VM (`validation/timing.md`).
-* Cuts: no real-engine pilot yet; no model-judged quality metric; no multi-turn or
+* Cuts: no completed real full/quick comparison; no model-judged quality metric; no multi-turn or
   prefix-cache-hit cells. Historical reports used placeholder prefill deadlines. The new
-  separate baseline calibration procedure is implemented, with actual pilot data still
-  required before a calibrated real-engine result can be claimed.
+  separate baseline calibration procedure now has real raw evidence and a frozen fit;
+  fresh scored captures and real control/noise checks are still required.
 
 ## 10. Issues found in supplied infrastructure
 

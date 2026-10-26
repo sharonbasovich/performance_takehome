@@ -1,17 +1,12 @@
 {
   "schema_version": 2,
   "task": "benchmark-design",
-  "status": "candidate-submission-draft-repo-cpu-validated-only",
+  "status": "REAL_CALIBRATION_VALID_FULL_AND_QUICK_UNFINISHED",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "branch": "codex/abstract-benchmark-audit",
-    "commit": "b1987ff58c8511bcedb64ce426502480fd2958d4",
-    "commit_note": "Greptile capture/evaluation corrections and seven regression tests. The complete native Linux suite passed at this exact source commit; the following metadata freeze changes only the manifest and validation receipts. Historical CPU mock captures retain evidence_commit; no GPU inference or organizer submission is claimed.",
-    "evidence_commit": "bd9fd1b9b50d71d5fb6ac75ae37ae945a793d131",
-    "suite_tree_sha": "f5cb1c56e9e24406cf0a44abd29befb9bf3657e7",
-    "reviewed_devin_head": "f1b823f1d15a08c0bc5c5a82c8e29a300fae10f3",
-    "tested_code_commit": "b1987ff58c8511bcedb64ce426502480fd2958d4",
-    "reviewed_greptile_head": "f6daae7292db6380221fdbea7c917790e1c33d13"
+    "branch": "submission/benchmark-design",
+    "tested_code_commit": "0174ca423cc583f4b8356284a79fdf4cbfb19a24",
+    "qualification": "This documentation/evidence update changes no measured suite code; original raw evidence identifies its actual source and plan."
   },
   "suite": {
     "entrypoint": "tasks/benchmark-design/suite/evaluate.py",
@@ -38,10 +33,11 @@
       "cpu_validation": "tests/test_model_tokens.py verifies both protected model tokenizer snapshots without weights or GPU"
     },
     "latest_validation": {
-      "report": "tasks/benchmark-design/validation/greptile-tests.json",
-      "tests_run": 131,
-      "passed": 130,
-      "skipped": 1
+      "tests_run": 181,
+      "passed": 180,
+      "skipped": 1,
+      "skip_reason": "historical heldout fixture key unavailable",
+      "qualification": "Candidate CPU checks at measured source0174ca4; real calibration independently replayed by four additional fresh CLI checks."
     }
   },
   "fixed_environment": {
@@ -71,8 +67,9 @@
       "tasks/benchmark-design/validation/reports/heldout"
     ],
     "compute_report": "tasks/benchmark-design/validation/timing.md (measured CPU/mock wall time) and tasks/benchmark-design/validation/dry_run_full.json (planned GPU arithmetic)",
-    "gpu_hours_used": 0,
-    "gpu_runs": "none: no GPU was available; every measurement is from the CPU mock"
+    "gpu_runs": "Real MI355X/Qwen3.6-27B baseline calibration:60 measured requests,8warmups,one completed-generation startup. No completed official quick/full capture.",
+    "real_calibration": "tasks/benchmark-design/validation/live-calibration-20261026/evidence.json",
+    "historical_cpu_manifest": "tasks/benchmark-design/submission.pre-live-20261026.json"
   },
   "execution_revision": {
     "revision": "2026-10-25-server-errors",
@@ -345,5 +342,17 @@
         "scope": "Candidate CPU-tested recovery authority publication; no GPU capture or cloud allocation deletion is claimed"
       }
     }
-  ]
+  ],
+  "live_validation": {
+    "report": "tasks/benchmark-design/validation/live-calibration-20261026/README.md",
+    "raw_archive_sha256": "d36c4906ea0c6eda48ce1ebbbea68481e88251f72e62a51c2288aa46a5bbf2b5",
+    "frozen_plan_sha256": "2301607e75b78ae0bdb800cd6e55e0ac9c09b0517e7df71971dcde4f2ad2c589",
+    "real_calibration_passed": true,
+    "full_suite_completed": false,
+    "quick_completed": false,
+    "three_hour_full_suite_established": false,
+    "real_comparison_power_established": false,
+    "official_result": false,
+    "historical_execution_revision_scope": "execution_revision and execution_revision_history below retain their original historical CPU-only status; live_validation is the current observation."
+  }
 }
