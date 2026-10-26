@@ -44,10 +44,14 @@ both the frozen plan and fit receipt byte for byte (`fresh-replay-receipt.json`)
 
 To replay with the dependencies and pinned target tokenizer snapshot described in
 `../../EXECUTION.md`, run from `tasks/benchmark-design`. Set `TOKENIZER` to that
-verified target snapshot directory; use a Python environment with the pinned runtime:
+verified target snapshot directory. The original capture and successful replays used
+**CPython 3.14.4, Unicode database 16.0.0 and Tokenizers 0.22.2**. The Unicode version
+is part of the recorded tokenizer identity; another version correctly refuses these
+unchanged raw events. Use that interpreter/runtime and check it before replay:
 
 ```sh
 TOKENIZER='/path/to/verified/target-tokenizer-snapshot'
+python -c 'import sys, unicodedata, tokenizers; assert sys.version_info[:3] == (3, 14, 4); assert unicodedata.unidata_version == "16.0.0"; assert tokenizers.__version__ == "0.22.2"'
 ARCHIVE='validation/live-calibration-20261026/calibration.tar.gz'
 python suite/capture.py verify-export "$ARCHIVE" 2000000
 RAW="$(mktemp -d)"
