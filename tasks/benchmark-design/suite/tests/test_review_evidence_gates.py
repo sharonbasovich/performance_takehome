@@ -15,7 +15,22 @@ from bench.records import Evidence, RequestRecord, RunRecord
 from runner.run import RequestMeta, Runner, parse_args
 
 from tests import test_calibration_capture as fixtures
-from tests.helpers import SUITE, make_run, plan
+from tests.helpers import SUITE, make_record, make_run, plan
+
+
+def startup_run_for_probe(record):
+    """Keep the synthetic launch in the same clock domain as this probe."""
+    sent = record["timestamps_mono_s"]["send"]
+    launched = max(0.0, sent - 1.0)
+    ready = launched + (sent - launched) / 2
+    run = make_run([record])
+    launch = run["startup"][0]
+    launch.update(
+        launch_mono_s=launched,
+        readiness_at=ready,
+        readiness_probes=[{"t": ready, "http_status": 200, "ok": True}],
+    )
+    return run
 
 
 class CompleteCalibrationTests(unittest.TestCase):
@@ -55,6 +70,29 @@ class CompleteCalibrationTests(unittest.TestCase):
 
 
 class MalformedStreamAuditTests(unittest.IsolatedAsyncioTestCase):
+    def test_probe_clock_is_coherent_before_and_after_ninety_seconds_uptime(self):
+        for sent in (0.001, 1_000_000.0):
+            with self.subTest(probe_sent=sent):
+                record = make_record(
+                    plan(),
+                    phase="startup_probe",
+                    role="startup",
+                    send=sent,
+                )
+                run = startup_run_for_probe(record)
+                launch = run["startup"][0]
+                self.assertLessEqual(launch["launch_mono_s"], launch["readiness_at"])
+                self.assertLessEqual(launch["readiness_at"], sent)
+                self.assertEqual(
+                    launch["first_valid_generation_at"], record["timestamps_mono_s"]["end"]
+                )
+                result = audit(
+                    Evidence(
+                        Path("."), RunRecord(run), [RequestRecord(record)], [], "native"
+                    )
+                )
+                self.assertEqual(result["status"], "PASS", result["failures"])
+
     async def record(self, payload):
         return await self.record_raw(json.dumps(payload))
 
@@ -101,7 +139,7 @@ class MalformedStreamAuditTests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(payload=payload):
                 record = await self.record(payload)
                 self.assertEqual(record["error"]["kind"], "protocol")
-                run = make_run([record])
+                run = startup_run_for_probe(record)
                 result = audit(
                     Evidence(Path("."), RunRecord(run), [RequestRecord(record)], [], "native")
                 )
@@ -114,7 +152,11 @@ class MalformedStreamAuditTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record["finish_reason"], "7")
         result = audit(
             Evidence(
-                Path("."), RunRecord(make_run([record])), [RequestRecord(record)], [], "native"
+                Path("."),
+                RunRecord(startup_run_for_probe(record)),
+                [RequestRecord(record)],
+                [],
+                "native",
             )
         )
         self.assertEqual(result["status"], "PASS", result["failures"])
@@ -134,7 +176,7 @@ class MalformedStreamAuditTests(unittest.IsolatedAsyncioTestCase):
                 result = audit(
                     Evidence(
                         Path("."),
-                        RunRecord(make_run([record])),
+                        RunRecord(startup_run_for_probe(record)),
                         [RequestRecord(record)],
                         [],
                         "native",
@@ -169,7 +211,7 @@ class MalformedStreamAuditTests(unittest.IsolatedAsyncioTestCase):
                 result = audit(
                     Evidence(
                         Path("."),
-                        RunRecord(make_run([record])),
+                        RunRecord(startup_run_for_probe(record)),
                         [RequestRecord(record)],
                         [],
                         "native",
