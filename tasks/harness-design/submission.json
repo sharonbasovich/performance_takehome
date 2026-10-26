@@ -62,7 +62,15 @@
     "fresh_revalidation_execution_receipt_sha256": "791d13eab647c37188946f9d4d6b69cd61d043d15923d67c633e70e2b875a3bc",
     "fresh_revalidation_full_report_retained_offhost": false,
     "fresh_revalidation_response_records_retained_offhost": false,
-    "fresh_revalidation_retention_scope": "Exact PASS execution receipt and original full-report hash only; the full report and its 30 fresh response records were not preserved offhost before teardown and cannot be independently re-audited. The complete original baseline report is retained."
+    "fresh_revalidation_retention_scope": "Exact PASS execution receipt and original full-report hash only; the full report and its 30 fresh response records were not preserved offhost before teardown and cannot be independently re-audited. The complete original baseline report is retained.",
+    "current_software_validation": {
+      "tested_commit": "6b50a9dcccc10201a7f8b7c1d17e519f548c59e8",
+      "tests_run": 241,
+      "passed": 241,
+      "skipped": 0,
+      "report": "tasks/harness-design/harness/reports/live-mi355x-20261026/manifest-compatibility/receipt.json",
+      "qualification": "Independent fresh native clean bundle checkout; historical and live manifest roles checked separately. No fresh GPU inference or successful Pi candidate implied."
+    }
   },
   "delivery": {
     "kind": "public-github-release-assets",

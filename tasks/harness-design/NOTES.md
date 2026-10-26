@@ -22,6 +22,12 @@ the root agent, confirms `docker load`, preservation of the image index and an i
 PR 5 contains the exact-byte preservation, restore instructions and import evidence.
 The historical CPU stand-in manifest is preserved as `submission.cpu-standin-legacy.json`.
 
+The current live-manifest compatibility revision also passed **241/241** native tests,
+zero skips, locked Ruff and protected integrity. Historical CPU provenance checks use
+the exact archived legacy manifest; a separate check binds this live manifest to the
+unchanged baseline report, original TSV source and image identity. See
+`harness/reports/live-mi355x-20261026/manifest-compatibility/`.
+
 **Read this first.** The performance tables below are historical **CPU stand-in development
 evidence** produced on an 8-vCPU x86 VM against a **candidate-built llama.cpp server**.
 They are not corrected GPU performance or Pi optimization results. Live LLMD request
