@@ -21,10 +21,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from bench import SUITE_VERSION  # noqa: E402
 from bench.gates import Verdict, judge  # noqa: E402
+from bench.identity import calibration_identity_errors, comparison_identity_errors  # noqa: E402
 from bench.model_tokens import ModelTokenizer  # noqa: E402
 from bench.plan import load_plan, plan_digest, prefill_deadline_s, resolve_mode  # noqa: E402
 from bench.records import Evidence, EvidenceError, load_events  # noqa: E402
-from bench.stats import bonferroni, decide, difference_ci, percentile_ci  # noqa: E402
+from bench.stats import (  # noqa: E402
+    bonferroni,
+    bootstrap_diagnostics,
+    decide,
+    difference_ci,
+    percentile_ci,
+)
 
 from benchmarks.metrics import (  # noqa: E402
     fluid_token_generation_rate,
@@ -124,6 +131,9 @@ class Evaluator:
         for key in ("model_id", "lock_digest"):
             if not engine.get(key) or engine.get(key) == "unknown":
                 self.reasons.append(f"engine identity incomplete: {key} missing")
+        self.reasons.extend(
+            calibration_identity_errors(self.plan.get("calibration"), run, self.tokenizer)
+        )
         recorded_digest = (run.get("plan") or {}).get("digest")
         if self.plan_digest_hex and recorded_digest != self.plan_digest_hex:
             self.reasons.append(
@@ -644,15 +654,27 @@ def compare_groups(
         "label": label,
         "confidence_adjusted": conf,
         "comparison_family_size": family_size,
+        "inference_diagnostics": bootstrap_diagnostics(
+            resamples=cfg["bootstrap_resamples"], confidence=conf, family_size=family_size
+        ),
         "metrics": {},
     }
     for i, (name, (key, stat, min_effect, relative, higher_better)) in enumerate(metrics.items()):
         a, b = s_a.get(key, []), s_b.get(key, [])
+        diagnostics = bootstrap_diagnostics(
+            resamples=cfg["bootstrap_resamples"],
+            confidence=conf,
+            family_size=family_size,
+            n_a=len(a),
+            n_b=len(b),
+            p99=key == "mdd",
+        )
         if key == "mdd" and (s_a.get("mdd_unresolved", 0) or s_b.get("mdd_unresolved", 0)):
             out["metrics"][name] = {
                 "a": None,
                 "b": None,
                 "difference": None,
+                "inference_diagnostics": diagnostics,
                 "decision": "inconclusive",
                 "why": "unresolved decode traces: all-at-once delivery cannot identify FTGR",
             }
@@ -671,6 +693,7 @@ def compare_groups(
                 "a": baseline,
                 "b": stat(b) if b else None,
                 "difference": diff,
+                "inference_diagnostics": diagnostics,
                 "decision": "inconclusive",
                 "why": f"underpowered: n_a={len(a)}, n_b={len(b)} < min_requests_per_cell={min_n}",
             }
@@ -679,6 +702,7 @@ def compare_groups(
             "a": baseline,
             "b": stat(b) if b else None,
             "difference": diff,
+            "inference_diagnostics": diagnostics,
             **decide(diff, baseline, min_effect, relative=relative, higher_is_better=higher_better),
         }
     decisions = [m["decision"] for m in out["metrics"].values()]
@@ -775,6 +799,13 @@ def compare_runs(
     if rep_a["status"] == "invalid" or rep_b["status"] == "invalid":
         return {"decision": "invalid", "why": "at least one run is invalid; nothing to compare"}
     assert ev_a is not None and ev_b is not None
+    identity_errors = comparison_identity_errors(plan, ev_a, ev_b)
+    if identity_errors:
+        return {
+            "decision": "invalid",
+            "why": "incompatible comparison identities; nothing compared",
+            "identity_reasons": identity_errors,
+        }
     common = sorted(
         k
         for k in s_a
@@ -805,6 +836,11 @@ def compare_runs(
     return {
         "decision": overall,
         "cells_compared": len(common),
+        "inference_diagnostics": bootstrap_diagnostics(
+            resamples=ev_a.stats_cfg["bootstrap_resamples"],
+            confidence=bonferroni(ev_a.stats_cfg["confidence"], len(common) * 4),
+            family_size=len(common) * 4,
+        ),
         "per_cell": per_cell,
         "why": f"cell decisions: {dict(decisions)}; "
         f"run statuses {rep_a['status']}/{rep_b['status']}",
@@ -873,6 +909,17 @@ def summarize(report: dict[str, Any]) -> str:
     cmp_ = report.get("comparison")
     if cmp_:
         lines += ["", f"## Comparison: **{cmp_['decision']}** — {cmp_.get('why', '')}"]
+        diagnostics = cmp_.get("inference_diagnostics")
+        if diagnostics:
+            lines += [
+                "",
+                "Inference: independent-request percentile bootstrap, conditional on empirical "
+                f"samples; joint family={diagnostics['comparison_family_size']}, "
+                f"resamples={diagnostics['bootstrap_resamples']}, expected draws/tail="
+                f"{diagnostics['expected_resamples_per_tail']:.3g}. "
+                "IID requests/pooling are assumptions; sparse p99 data and Monte Carlo tails "
+                "remain limitations. No measured power or finite-sample FWER guarantee.",
+            ]
     return "\n".join(lines) + "\n"
 
 
