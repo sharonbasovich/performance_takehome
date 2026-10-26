@@ -312,6 +312,7 @@ def wait_for_first_valid_generation(
             prompt_id="startup-probe",
             max_tokens=int(probe["max_tokens"]),
             timeout_s=max(1.0, min(remaining(), float(benchmark["request_timeout_s"]))),
+            extra_fields=benchmark.get("extra_request_fields"),
         )
         if trace.ok and trace.finish_reason in {"stop", "length"}:
             return time.monotonic() - started_at, model_id
