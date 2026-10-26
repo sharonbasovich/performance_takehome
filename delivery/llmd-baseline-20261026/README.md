@@ -24,8 +24,12 @@ The exact archive was reconstructed from anonymously fetched public base blobs (
 
 - Release: <https://github.com/sharonbasovich/performance_takehome/releases/tag/task2-llmd-baseline-20261026> (release id `424055820`, target commit `ff3f2880caa25bd01a7cb7177382e298f93d9760`)
 - Parts (each 1,480,800,000 bytes): `part-01` `47ad0aa2e44ee9ebadd4e4cc96afd7e20fbf7e010206e126ecd2ecf1a5f7c973` (asset 677669094), `part-02` `5f9c4bc23ec3be010e72a4688269cde49898016b187ae6f9b74bcdeb50e27dad` (677669124), `part-03` `7bd5e0bc9c395cf8dbd2d0cd885cc2a59efe3df78d5f4ed1eb2c2cd91944cc5f` (677669137), `part-04` `164aaac821e1f9cb9591794996a867916fffce4c1bede32c1e2741862d6336ce` (677669128); `cat part-01..04` = `c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47`.
-- `RELEASE_SHA256SUMS` here equals the uploaded `SHA256SUMS` asset. `restore_llmd_baseline.sh` (v1) equals the originally uploaded helper and is kept only as provenance: its re-run `--docker-load` path always rejected an existing output, it overwrote an existing `.partial`, its `grep` could accept an incomplete part list, and it could not verify an already-assembled exact archive. Use **`restore_llmd_baseline_v2.sh`** instead.
-- `restore_llmd_baseline_v2.sh` is the supported offline helper (strict subcommands, pinned hashes, exclusive creation, no clobbering of files or symlinks, failed partials preserved, `docker load` only after a full verified hash). `test_restore_llmd_baseline_v2.py` holds synthetic CPU tests that patch a copied fixture; the production constants are asserted unchanged.
+- `RELEASE_SHA256SUMS` here equals the uploaded `SHA256SUMS` asset.
+- Restore-helper versions on the release (all retained; none replaced):
+  - `restore_llmd_baseline.sh` (asset 677669095, SHA-256 `0e32d498…`) — **v1, deprecated provenance**: re-run `--docker-load` always rejected an existing output, overwrote an existing `.partial`, its `grep` could accept an incomplete part list, and it could not verify an already-assembled archive.
+  - `restore_llmd_baseline_v2.sh` (asset 677751514, SHA-256 `2ffef91e…`) — **v2, superseded provenance**: Greptile review discussion 4376052507 (on commit 2faaeb1c) found that a directory, or symlink to one, appearing at the output path during assembly made `ln` place the archive inside it and lose the documented partial.
+  - **`restore_llmd_baseline_v2_1.sh`** (asset 677786560, 6,474 bytes, SHA-256 `d297276046133930dcaee522f24ddf11126eef8cf23e7ab23fbf4456d3463209`, checksum asset 677786558) — **current**: byte-identical to Git `restore_llmd_baseline_v2.sh` at commit `ad665d35439d4b1815c0bdb0791eaeadec7172f5`, which fixes the race with `ln -T --` and adds directory/symlink regressions. Anonymously re-downloaded and compared byte-for-byte with the Git blob.
+- `restore_llmd_baseline_v2.sh` in this directory is the supported offline helper (strict subcommands, pinned hashes, exclusive creation, no clobbering of files or symlinks, failed partials preserved, `docker load` only after a full verified hash). `test_restore_llmd_baseline_v2.py` holds synthetic CPU tests that patch a copied fixture; the production constants are asserted unchanged. At `ad665d35` all 12 offline tests (4 reconstruction + 8 restore) pass and ruff 0.16.10 `check` and `format --check` pass on the three Python files.
 
 ```sh
 # in a directory holding the four parts (+ optional SHA256SUMS):
@@ -34,9 +38,11 @@ bash restore_llmd_baseline_v2.sh assemble                        # exclusive .pa
 bash restore_llmd_baseline_v2.sh verify-archive                  # re-verify an existing archive (never modifies it)
 bash restore_llmd_baseline_v2.sh docker-load                     # verify-archive, then `docker load -i`; prints expected identities
 # --dir DIR selects the asset directory; --output FILE selects the archive path. Unknown arguments exit 64.
-python3 -B -m unittest -v test_restore_llmd_baseline_v2          # 7 synthetic tests, no network/Docker/real archive
+python3 -B -m unittest -v test_reconstruct_exact_archive test_restore_llmd_baseline_v2   # 12 offline tests, no network/Docker/real archive
 ```
 
+- Independent full-archive check: a separate reviewer anonymously streamed all 5,923,200,000 release bytes (2026-10-26 09:53:54–10:05:04Z); all four part hashes, the concatenation `c759f7c2…` and the four small assets passed. No payload was saved and no Docker load was part of that check.
+- CPU import: `IMPORT_RECEIPT.md` records the one actual `docker load` of the verified archive (Docker 29.7.2, containerd image store, loaded image ID `sha256:ccd73fc2…`, `/llmd/llmd --help` exit 0 with `--network none`), with raw-log hashes; no inference, weights or GPU.
 - Anonymous verification (no Authorization header) after publishing: release API and all eight assets fetched, every part hash and the streamed ordered concatenation matched `c759f7c2…`; see `evidence.json` (`public_delivery`).
 
 Limits: this is release-asset delivery only. Registry (GHCR) publication and anonymous `docker pull` remain separate, unverified checks and are not claimed. Loading the archive reproduces the image-index identity `ccd73fc2…` only on Docker's containerd image store.

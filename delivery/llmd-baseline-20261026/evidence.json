@@ -1,4 +1,20 @@
 {
+  "anonymous_docker_pull_verified": false,
+  "cpu_checks_at_ad665d35": {
+    "offline_tests": {
+      "count": 12,
+      "files": [
+        "test_reconstruct_exact_archive.py (4)",
+        "test_restore_llmd_baseline_v2.py (8)"
+      ],
+      "result": "OK"
+    },
+    "pinned_metadata_segments_manifest_receipt_unchanged_vs_ff3f2880": true,
+    "ruff_0_16_10": {
+      "check": "All checks passed (3 Python files and whole repo)",
+      "format_check": "3 files already formatted"
+    }
+  },
   "cpu_import_check": {
     "archive_verified_before_load": {
       "bytes": 5923200000,
@@ -50,6 +66,12 @@
       "no inference, no model weights, no GPU",
       "disk delta negligible because all 23 layers were already present from the public base"
     ],
+    "raw_log_sha256": {
+      "15_docker_import.log": "f1cd2728151ca438fed7f612a928994f718895fc659dbb0517d6aaa338a66578",
+      "15b_llmd_help.txt": "5113b26064748620b0067eab2ab1c381e589b84c99ad6607ff149d20d1377048"
+    },
+    "receipt_file": "IMPORT_RECEIPT.md",
+    "receipt_sha256": "fd345466455a77454338dd8faca192f30d367949d7d0d398a0250aaf5479c82c",
     "utc": "2026-10-26T10:00:40Z..10:02:27Z"
   },
   "fresh_selected_image_revalidation": {
@@ -68,6 +90,17 @@
     "platform_manifest": "sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d",
     "value": "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540"
   },
+  "independent_anonymous_full_archive_verification": {
+    "by": "separate reviewer (not this session)",
+    "bytes": 5923200000,
+    "concatenation_sha256": "c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47",
+    "docker_load": false,
+    "method": "anonymous streaming of all release bytes",
+    "parts_sha256_pass": 4,
+    "payload_saved": false,
+    "small_assets_pass": 4,
+    "utc": "2026-10-26T09:53:54Z..10:05:04Z"
+  },
   "model": "Qwen/Qwen3.6-27B",
   "model_revision": "6a9e13bd6fc8f0983b9b99948120bc37f49c13e9",
   "official_grade": false,
@@ -77,6 +110,7 @@
     "receipt_sha256": "ae7771fef2079f163856be33ac23f2914830dc038c00501d9a4b6409d045c55a",
     "sha256": "c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47"
   },
+  "provider_registry_publication_verified": false,
   "public_delivery": {
     "anonymous_docker_pull_verified": false,
     "anonymous_verification": {
@@ -173,6 +207,7 @@
         "grep of SHA256SUMS could accept an incomplete part list",
         "could not verify an existing exact archive"
       ],
+      "release_asset_id": 677669095,
       "sha256": "0e32d498963e7df2d476529b13a78de15e52b44bd63a84934cc1541643dd1ddc",
       "status": "DEPRECATED_PROVENANCE_ONLY"
     },
@@ -191,13 +226,46 @@
         "archive sha256 + size",
         "expected index/manifest/config digests"
       ],
+      "release_asset": {
+        "bytes": 6471,
+        "checksum_asset_id": 677751513,
+        "id": 677751514,
+        "name": "restore_llmd_baseline_v2.sh",
+        "sha256": "2ffef91ea20d5a85714dbda666be0168bcd4ebaa89a982e0686c58b1c1e6f27d"
+      },
+      "review_finding": {
+        "commit_reviewed": "2faaeb1ce507b9f53ef9642ea37df2e562c1a0ff",
+        "fix": "ln -T -- plus directory/symlink regressions; *.sh LF attribute",
+        "fixed_in": "ad665d35439d4b1815c0bdb0791eaeadec7172f5",
+        "greptile_discussion_id": 4376052507,
+        "severity": "P2",
+        "summary": "directory or symlink-to-directory appearing at output during assembly let ln place the archive inside it and lose the documented partial"
+      },
       "sha256": "2ffef91ea20d5a85714dbda666be0168bcd4ebaa89a982e0686c58b1c1e6f27d",
+      "status": "SUPERSEDED_PROVENANCE_ONLY",
       "tests": {
         "count": 7,
         "file": "test_restore_llmd_baseline_v2.py",
         "result": "OK (python3.10.12, CPU, fake docker, patched fixture copy; production pins asserted)",
         "ruff_0_16_10": "All checks passed (test file)"
       }
+    },
+    "v2_1": {
+      "anonymous_download_byte_identical_to_git_blob": true,
+      "bytes": 6474,
+      "git_commit": "ad665d35439d4b1815c0bdb0791eaeadec7172f5",
+      "git_file": "restore_llmd_baseline_v2.sh",
+      "release_asset": {
+        "checksum_asset": {
+          "bytes": 96,
+          "id": 677786558,
+          "name": "restore_llmd_baseline_v2_1.sh.sha256"
+        },
+        "id": 677786560,
+        "name": "restore_llmd_baseline_v2_1.sh"
+      },
+      "sha256": "d297276046133930dcaee522f24ddf11126eef8cf23e7ab23fbf4456d3463209",
+      "status": "CURRENT"
     }
   },
   "source_commit": "09f52c25af380a0daefdea3a183fe45a6ec75730",
