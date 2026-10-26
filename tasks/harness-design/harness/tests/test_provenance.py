@@ -121,13 +121,15 @@ class ProvenanceTest(unittest.TestCase):
             self.assertEqual(code, 2)
             self.assertFalse((Path(tmp) / "s").exists(), "refused before touching disk")
 
-    def test_committed_manifest_tree_hash_matches_its_source_commit(self) -> None:
+    def test_historical_manifest_tree_hash_matches_its_source_commit(self) -> None:
         import io
         import json
         import tarfile
 
         task_dir = _paths.HARNESS_DIR.parent
-        sub = json.loads((task_dir / "submission.json").read_text(encoding="utf-8"))
+        sub = json.loads(
+            (task_dir / "submission.cpu-standin-legacy.json").read_text(encoding="utf-8")
+        )
         source = sub["source"]
         # This immutable artifact keeps the label written by its historical source.
         # Newly generated manifests use a conservative store-independent label.
@@ -160,11 +162,42 @@ class ProvenanceTest(unittest.TestCase):
             self.assertEqual(agent["pi_integrity"], pins["artifact_integrity"])
             self.assertEqual(agent["pi_node_requirement"], pins["node_requirement"])
             self.assertEqual(agent["pi_version"], pins["version"])
-        sub = json.loads((_paths.HARNESS_DIR.parent / "submission.json").read_text())
+        sub = json.loads(
+            (_paths.HARNESS_DIR.parent / "submission.cpu-standin-legacy.json").read_text()
+        )
         self.assertEqual(sub["agent_harness"]["base_version"], pins["version"])
         self.assertEqual(sub["agent_harness"]["base_package"], pins["package"])
         linked = _paths.REPO_ROOT / sub["agent_harness"]["provenance_path"]
         self.assertEqual(json.loads(linked.read_text())["pi_integrity"], pins["artifact_integrity"])
+
+    def test_live_manifest_binds_actual_baseline_bytes_source_and_image(self) -> None:
+        import csv
+        import hashlib
+        import json
+
+        task_dir = _paths.HARNESS_DIR.parent
+        current = json.loads((task_dir / "submission.json").read_text(encoding="utf-8"))
+        evidence = current["evidence"]
+        report_path = _paths.REPO_ROOT / evidence["baseline_report"]
+        report_bytes = report_path.read_bytes()
+        self.assertEqual(
+            hashlib.sha256(report_bytes).hexdigest(), evidence["baseline_report_sha256"]
+        )
+        report = json.loads(report_bytes)
+        results_path = _paths.REPO_ROOT / evidence["baseline_results"]
+        with results_path.open(encoding="utf-8", newline="") as stream:
+            rows = list(csv.DictReader(stream, delimiter="\t"))
+        self.assertEqual(len(rows), 1)
+        baseline = rows[0]
+        self.assertEqual(baseline["source_commit"], current["source"]["tested_code_commit"])
+        self.assertEqual(baseline["image_digest"], current["image"])
+        self.assertEqual(report["build"]["image_id"], current["image"])
+        self.assertTrue(report["measurement"]["gates_passed"])
+        self.assertEqual(report["kind"], "baseline")
+        self.assertEqual(current["image_identity_kind"], "image-index-digest")
+        self.assertNotEqual(
+            evidence["historical_cpu_evidence_manifest"], "tasks/harness-design/submission.json"
+        )
 
     def test_run_refuses_dirty_tree_without_allow_dirty(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
