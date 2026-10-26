@@ -4,9 +4,9 @@
   "status": "REAL_CALIBRATION_VALID_FULL_AND_QUICK_UNFINISHED",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "branch": "submission/benchmark-design",
+    "branch": "codex/abstract-benchmark-audit",
     "tested_code_commit": "0174ca423cc583f4b8356284a79fdf4cbfb19a24",
-    "qualification": "This documentation/evidence update changes no measured suite code; original raw evidence identifies its actual source and plan."
+    "qualification": "The real calibration remains attributed to tested_code_commit0174ca4. The separately identified post-calibration CPU revision below changes evaluator identity checks and descriptive diagnostics only; no historical evidence is rescored or rebound."
   },
   "suite": {
     "entrypoint": "tasks/benchmark-design/suite/evaluate.py",
@@ -33,11 +33,12 @@
       "cpu_validation": "tests/test_model_tokens.py verifies both protected model tokenizer snapshots without weights or GPU"
     },
     "latest_validation": {
-      "tests_run": 181,
-      "passed": 180,
+      "tests_run": 192,
+      "passed": 191,
       "skipped": 1,
-      "skip_reason": "historical heldout fixture key unavailable",
-      "qualification": "Candidate CPU checks at measured source0174ca4; real calibration independently replayed by four additional fresh CLI checks."
+      "skip_reason": "historical opaque heldout fixture key unavailable, not regenerated",
+      "source_commit": "4a730b0cd8ceffe9253c7a5b7a1173ab87ea9a76",
+      "qualification": "Post-calibration CPU/mock software suite on canonical LF inputs with both cached protected tokenizers; no real full/quick comparison or measured power."
     }
   },
   "fixed_environment": {
@@ -354,5 +355,15 @@
     "real_comparison_power_established": false,
     "official_result": false,
     "historical_execution_revision_scope": "execution_revision and execution_revision_history below retain their original historical CPU-only status; live_validation is the current observation."
+  },
+  "post_calibration_software_revision": {
+    "source_commit": "4a730b0cd8ceffe9253c7a5b7a1173ab87ea9a76",
+    "verification": "tasks/benchmark-design/validation/calibration-identity-diagnostics-20261026/committed-verification.json",
+    "verification_sha256": "89aa8349d9aef41b52e38a484b8727596aed51f595afaad9d9229d21a4bcc287",
+    "corrigendum": "tasks/benchmark-design/suite/INFERENCE-CORRIGENDUM.md",
+    "historical_real_source_unchanged": true,
+    "real_full_or_quick_complete": false,
+    "measured_power_established": false,
+    "official_result": false
   }
 }
