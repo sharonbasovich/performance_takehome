@@ -4,4 +4,5 @@ original-receipt.json -text
 reconstruction-manifest.json -text
 base-manifest.json -text
 *.py text eol=lf
+*.sh text eol=lf
 README.md text eol=lf

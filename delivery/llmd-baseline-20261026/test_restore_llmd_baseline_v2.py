@@ -175,6 +175,32 @@ class RestoreV2Tests(unittest.TestCase):
         self.assertEqual(result.returncode, 65)
         self.assertFalse(self.docker_log.exists())
 
+    def test_destination_directory_race_preserves_verified_partial(self):
+        # Simulate a destination appearing only after assembly/hash verification.
+        # Real ln must receive -T so it cannot silently publish inside a directory.
+        fake_ln = self.bin / "ln"
+        for kind in ("directory", "symlink"):
+            with self.subTest(kind=kind):
+                out = self.tmp / ("out-" + kind)
+                target = self.tmp / ("target-" + kind)
+                action = 'mkdir -- "$out"'
+                if kind == "symlink":
+                    target.mkdir()
+                    action = f'/usr/bin/ln -s -- "{target}" "$out"'
+                fake_ln.write_text(
+                    '#!/usr/bin/env bash\nset -e\nout="${@: -1}"\n'
+                    + action
+                    + '\nexec /usr/bin/ln "$@"\n'
+                )
+                fake_ln.chmod(0o755)
+                result = self.run_script(
+                    "assemble", "--dir", str(self.dir), "--output", str(out), docker=True
+                )
+                self.assertEqual(result.returncode, 73, result.stderr)
+                self.assertEqual(Path(str(out) + ".partial").read_bytes(), self.archive)
+                self.assertFalse((out / (out.name + ".partial")).exists())
+                self.assertFalse(self.docker_log.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

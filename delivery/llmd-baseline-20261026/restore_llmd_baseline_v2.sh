@@ -84,7 +84,7 @@ assemble() {
     mv -n -- "$partial" "$p"
     fail "assembled bytes do not match pinned archive; failed partial preserved at $p"
   fi
-  ln -- "$partial" "$out" || { echo "FAIL: $out appeared during assembly; partial kept at $partial" >&2; exit "$EX_CANTCREAT"; }
+  ln -T -- "$partial" "$out" || { echo "FAIL: $out appeared during assembly; partial kept at $partial" >&2; exit "$EX_CANTCREAT"; }
   rm -f -- "$partial"
   verify_archive "$out"
 }
