@@ -18,4 +18,13 @@ python reconstruct_exact_archive.py --execute-reviewed \
 
 The utility performs no network access, Docker operation or rebuild. It refuses overwrite and only publishes a complete output after its exact original hash matches. `original-receipt.json` records the actual export's full layer/decompression verification; the metadata audit alone did not read all layer bytes. Raw configuration was reviewed: its environment is exactly inherited from the public base, with no user/provider credentials added.
 
-Public release-asset delivery and anonymous verification are pending at this commit. A future release may split the exact archive into files below GitHub's per-file limit; GitHub documents a 2GiB limit per release asset. [GitHub release limits](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases). Registry publication and anonymous pull remain separate checks; neither is claimed here.
+## Public release delivery (verified)
+
+The exact archive was reconstructed from anonymously fetched public base blobs (all 23 digests/sizes verified), hash-verified (`c759f7c2…`, 5,923,200,000 bytes) and published as GitHub release assets, split into four parts below GitHub's documented 2 GiB per-asset limit ([GitHub release limits](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)):
+
+- Release: <https://github.com/sharonbasovich/performance_takehome/releases/tag/task2-llmd-baseline-20261026> (release id `424055820`, target commit `ff3f2880caa25bd01a7cb7177382e298f93d9760`)
+- Parts (each 1,480,800,000 bytes): `part-01` `47ad0aa2e44ee9ebadd4e4cc96afd7e20fbf7e010206e126ecd2ecf1a5f7c973` (asset 677669094), `part-02` `5f9c4bc23ec3be010e72a4688269cde49898016b187ae6f9b74bcdeb50e27dad` (677669124), `part-03` `7bd5e0bc9c395cf8dbd2d0cd885cc2a59efe3df78d5f4ed1eb2c2cd91944cc5f` (677669137), `part-04` `164aaac821e1f9cb9591794996a867916fffce4c1bede32c1e2741862d6336ce` (677669128); `cat part-01..04` = `c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47`.
+- `RELEASE_SHA256SUMS` here equals the uploaded `SHA256SUMS` asset; `restore_llmd_baseline.sh` here equals the uploaded script. The script verifies every part hash and the full concatenated hash before any `docker load`, and fetches nothing itself.
+- Anonymous verification (no Authorization header) after publishing: release API and all eight assets fetched, every part hash and the streamed ordered concatenation matched `c759f7c2…`; see `evidence.json` (`public_delivery`).
+
+Limits: this is release-asset delivery only. Registry (GHCR) publication and anonymous `docker pull` remain separate, unverified checks and are not claimed. Loading the archive reproduces the image-index identity `ccd73fc2…` only on Docker's containerd image store.
