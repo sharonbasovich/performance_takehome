@@ -1,5 +1,27 @@
 # Task 2 — Candidate notes (harness-design)
 
+**Latest real result (26 October):** the pinned LLMD/Qwen3.6-27B baseline on one MI355X
+passed 30/30 measured requests. A retained execution receipt reports a later successful
+30-request exact revalidation, but its full report and fresh response records were not
+preserved offhost before teardown; only the PASS receipt and original report hash remain.
+The original full baseline report is retained. The exact
+5,923,200,000-byte baseline archive is [publicly downloadable](https://github.com/sharonbasovich/performance_takehome/releases/tag/task2-llmd-baseline-20261026);
+Codex independently downloaded every public part and verified the ordered full SHA-256
+`c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47`.
+See `harness/reports/live-mi355x-20261026/` and the current `submission.json`.
+
+The genuine GLM-5.2/Pi attempt failed at a buffered upstream 120-second response
+deadline after 13 read-only tool calls, before any patch. All 146 workspace files
+matched the baseline. No successful propose/build/measure/keep-or-revert experiment,
+optimized image or speedup is claimed. The unresolved final API request retains its
+full charge reservation. Registry publication and anonymous `docker pull` remain
+unverified; release-asset delivery is complete. Delegated CPU validation in
+[draft PR 5](https://github.com/sharonbasovich/performance_takehome/pull/5), reviewed by
+the root agent, confirms `docker load`, preservation of the image index and an isolated
+`--help` run with network disabled. The root agent did not execute that import test.
+PR 5 contains the exact-byte preservation, restore instructions and import evidence.
+The historical CPU stand-in manifest is preserved as `submission.cpu-standin-legacy.json`.
+
 **Read this first.** The performance tables below are historical **CPU stand-in development
 evidence** produced on an 8-vCPU x86 VM against a **candidate-built llama.cpp server**.
 They are not corrected GPU performance or Pi optimization results. Live LLMD request

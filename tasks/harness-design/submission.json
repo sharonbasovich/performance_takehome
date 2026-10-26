@@ -1,36 +1,35 @@
 {
   "schema_version": 2,
   "task": "harness-design",
-  "status": "development-evidence-on-candidate-built-cpu-standin-not-an-official-submission",
-  "image": "abstract-harness-standin@sha256:531323d6ac7a55bc3e5f9e25b1c7abb29c65006eabe79781d90726372f3da974",
+  "status": "REAL_BASELINE_REVALIDATED_PUBLIC_ARCHIVE_OPTIMIZATION_AND_REGISTRY_UNFINISHED",
+  "image": "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540",
+  "image_identity_kind": "image-index-digest",
   "platform": "linux/amd64",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "commit": "45fc163eba7cdc34f27d377fbd4387ffe17b3627",
-    "dockerfile": "tasks/harness-design/standin/Dockerfile",
-    "build_command": "docker buildx build --platform linux/amd64 --load -f tasks/harness-design/standin/Dockerfile -t candidate tasks/harness-design/standin",
-    "engine_source_revision": "llama.cpp 620d2225cc436ab0b001e3200e590e3b286ef9ab",
-    "patches": [
-      "tasks/harness-design/harness/patches/001-threads-8.patch",
-      "tasks/harness-design/harness/patches/013-openmp-off-cold-rebuild.patch"
-    ],
-    "patch_chain_complete": true,
-    "provenance_path": "tasks/harness-design/harness/reports/build-provenance.json",
-    "harness_tree_sha256": "f4a25e8e51d8b619672e5dcae9b0debe1e029518fad32d382f15de2741d30e81",
-    "image_identity_kind": "docker-image-config-id"
+    "branch": "submission/harness-design",
+    "tested_code_commit": "09f52c25af380a0daefdea3a183fe45a6ec75730",
+    "dockerfile": "tasks/harness-design/Dockerfile",
+    "build_command": "docker buildx build --platform linux/amd64 --load -f tasks/harness-design/Dockerfile -t candidate tasks/harness-design",
+    "engine_source_revision": "Opaque pinned upstream LLMD image; no full engine-source provenance invented."
   },
   "model": {
-    "repository": "unsloth/SmolLM2-135M-Instruct-GGUF",
-    "revision": "9e6855bc4be717fca1ef21360a1db4b29d5c559a",
-    "note": "CANDIDATE-BUILT CPU stand-in model, not the organizer's pinned snapshot"
+    "repository": "Qwen/Qwen3.6-27B",
+    "revision": "6a9e13bd6fc8f0983b9b99948120bc37f49c13e9",
+    "weights_in_image": false
   },
   "agent_harness": {
     "base_package": "@earendil-works/pi-coding-agent",
     "base_version": "1.0.0",
-    "base_profile": "plain-pi-1.0",
     "entrypoint": "tasks/harness-design/harness/run.py",
-    "proposer_used": "scripted",
-    "provenance_path": "tasks/harness-design/harness/reports/agent-provenance.json"
+    "actual_proposer": "pi",
+    "actual_provider_model": "glm-5.2",
+    "attempt_status": "FAILED_UPSTREAM_120S_RESPONSE_DEADLINE_BEFORE_PATCH",
+    "readonly_tool_calls": 13,
+    "workspace_files_compared": 146,
+    "workspace_changes": 0,
+    "successful_propose_build_measure_keep_or_revert": false,
+    "api_liability": "Unresolved final request retains its full reserved bound; no zero-charge inference from error placeholders."
   },
   "integrity": {
     "starter_commit": "81aead87d78ed468c4c374fb42921471b44c3f80",
@@ -46,69 +45,48 @@
   },
   "development_benchmark": {
     "owner": "candidate",
-    "config": "tasks/harness-design/harness/development-benchmark.json",
-    "engine": "standin"
-  },
-  "runtime": {
-    "args": [
-      "--host",
-      "0.0.0.0",
-      "--port",
-      "8000",
-      "--alias",
-      "standin",
-      "--no-webui",
-      "--metrics",
-      "--ctx-size",
-      "2048",
-      "--threads",
-      "8",
-      "--threads-batch",
-      "8",
-      "--batch-size",
-      "512",
-      "--ubatch-size",
-      "512",
-      "--parallel",
-      "1",
-      "--flash-attn",
-      "auto",
-      "--cache-type-k",
-      "f16",
-      "--cache-type-v",
-      "f16",
-      "--model",
-      "/models/model/model.gguf"
-    ],
-    "environment": {}
+    "config": "tasks/harness-design/harness/development-benchmark.llmd.json",
+    "engine": "llmd",
+    "request_profile": "llmd_closed_thinking_v1",
+    "official_grade": false
   },
   "evidence": {
-    "experiment_log": "tasks/harness-design/harness/results.tsv",
-    "report": "tasks/harness-design/NOTES.md",
-    "development_reports": [
-      "tasks/harness-design/harness/reports/000-baseline.json",
-      "tasks/harness-design/harness/reports/001-threads-8.json",
-      "tasks/harness-design/harness/reports/002-threads-1.json",
-      "tasks/harness-design/harness/reports/003-ubatch-64.json",
-      "tasks/harness-design/harness/reports/004-repeat-penalty-1.5.json",
-      "tasks/harness-design/harness/reports/005-port-8001-misconfig.json",
-      "tasks/harness-design/harness/reports/006-avx512-on-host-without-avx512.json",
-      "tasks/harness-design/harness/reports/007-native-march.json",
-      "tasks/harness-design/harness/reports/008-lto-on.json",
-      "tasks/harness-design/harness/reports/009-flash-attn-on.json",
-      "tasks/harness-design/harness/reports/010-parallel-4-slots.json",
-      "tasks/harness-design/harness/reports/011-no-warmup.json",
-      "tasks/harness-design/harness/reports/012-kv-cache-q8.json",
-      "tasks/harness-design/harness/reports/013-openmp-off-cold-rebuild.json"
-    ],
-    "agent_transcripts": [],
-    "last_good": {
-      "tag": "abstract-harness-standin:013-openmp-off-cold-rebuild",
-      "digest": "sha256:531323d6ac7a55bc3e5f9e25b1c7abb29c65006eabe79781d90726372f3da974",
-      "experiment": "013-openmp-off-cold-rebuild",
-      "development_report": "tasks/harness-design/harness/reports/013-openmp-off-cold-rebuild.json"
-    },
-    "finish_reason": "proposer exhausted",
-    "api_usd_cumulative": 0.0
+    "baseline_report": "tasks/harness-design/harness/reports/live-mi355x-20261026/000-baseline.json",
+    "baseline_report_sha256": "f83cadc074363d7affe2b830a45af96ecacc22e234f8857a9767a4accdc2edff",
+    "baseline_results": "tasks/harness-design/harness/reports/live-mi355x-20261026/baseline-results.tsv",
+    "fresh_revalidation_report_sha256": "d1c197f3a4809af223b8c4d7536f78744df67ac25913b41b66158c91ca7f05b4",
+    "fresh_exact_greedy_usage_finish_requests_passed": 30,
+    "historical_cpu_evidence_manifest": "tasks/harness-design/submission.cpu-standin-legacy.json",
+    "optimization_gain_claimed": false,
+    "fresh_revalidation_execution_receipt": "tasks/harness-design/harness/reports/live-mi355x-20261026/fresh-revalidation-execution-receipt.json",
+    "fresh_revalidation_execution_receipt_sha256": "791d13eab647c37188946f9d4d6b69cd61d043d15923d67c633e70e2b875a3bc",
+    "fresh_revalidation_full_report_retained_offhost": false,
+    "fresh_revalidation_response_records_retained_offhost": false,
+    "fresh_revalidation_retention_scope": "Exact PASS execution receipt and original full-report hash only; the full report and its 30 fresh response records were not preserved offhost before teardown and cannot be independently re-audited. The complete original baseline report is retained."
+  },
+  "delivery": {
+    "kind": "public-github-release-assets",
+    "release_url": "https://github.com/sharonbasovich/performance_takehome/releases/tag/task2-llmd-baseline-20261026",
+    "archive_bytes": 5923200000,
+    "archive_sha256": "c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47",
+    "platform_manifest": "sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d",
+    "config": "sha256:0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f",
+    "anonymous_all_archive_bytes_independently_verified": true,
+    "root_verification_completed_utc": "2026-10-26T10:05:04.754872Z",
+    "registry_publication_verified": false,
+    "anonymous_docker_pull_verified": false,
+    "docker_load_verified": true,
+    "delivery_pr": "https://github.com/sharonbasovich/performance_takehome/pull/5",
+    "qualification": "Baseline delivery with delegated/root-reviewed CPU import evidence; not a completed Pi optimization or verified registry submission. PR5 tracks the separately versioned restore/import work.",
+    "docker_load_verification_scope": {
+      "source": "Delegated CPU validation in PR5 delivery evidence cpu_import_check, reviewed by root",
+      "started_utc": "2026-10-26T10:00:40Z",
+      "completed_utc": "2026-10-26T10:02:27Z",
+      "image_index_preserved": true,
+      "isolated_help_exit_code": 0,
+      "help_network": "none",
+      "independently_executed_by_root": false,
+      "gpu_inference_verified_by_this_check": false
+    }
   }
 }
