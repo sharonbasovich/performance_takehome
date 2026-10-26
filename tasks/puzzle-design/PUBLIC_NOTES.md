@@ -34,11 +34,11 @@ rejected malformed cases. The original frozen package is retained byte for byte.
 
 The statement is sufficient to define the mathematical task and answer format.
 Its reference to an attached verifier refers to the private organizer handoff;
-that verifier is not part of the public fork or either blind solver's input.
+that verifier is not part of the public fork or any blind trial's input.
 
-## Two separate blind development trials
+## Three separate blind development trials
 
-Both trials used a fresh `gpt-6.1-sol ultra` session with the same statement, Python,
+All three trials used a fresh `gpt-6.1-sol ultra` session with the same statement, Python,
 installed packages, local shell, and clock. Network access, package installation,
 delegation, private files, and correctness feedback were disallowed. These were
 instruction-level workspace boundaries, not OS sandboxes. Each solver returned one
@@ -48,22 +48,31 @@ final answer. They were not official Astra runs, and no equivalence is claimed.
 | --- | --- | --- | --- | --- |
 | 1 | 00:35:02.051448 | 00:55:02.051448 | 00:55:09.572 | Exact identity invalid; parent record is 7.520552 seconds late. |
 | 2 | 01:03:05.848606 | 01:23:05.848606 | 01:21:28.700 | Incomplete certificate; exact identity invalid; final recorded 97.148606 seconds before deadline. |
+| 3 | 10:32:24 | 10:52:24 | 10:52:05 | Exact identity invalid; important near-complete numerical partial; 1,181 seconds elapsed and 19 seconds before deadline. |
 
 Trial 1's own metadata places its file write before the deadline, but the parent
 log first records the final afterward. It is not presented as a confirmed on-time
 receipt. Trial 2 is a separate fresh repeat that supplies a timely final and a
 normal incomplete outcome. Both the independent exact checker and the frozen
 author verifier rejected each final, with structured results and no checker timeout.
-No grading feedback was sent back and neither final was revised.
+No grading feedback was sent back and no final was revised.
 
 Parent timestamps identify the matching final-answer records, independently of
 solver-created file timestamps. Their log format does not distinguish server
 generation, transport arrival, and local serialization, so no exact network delay
 or cryptographic time attestation is inferred.
 
-**Demonstrated outcome:** the second development proxy returned no valid answer
-within its allowed trial. One unsuccessful proxy run does not establish universal
-resistance, satisfy an unavailable official profile, or earn an official grade.
+**Demonstrated outcome:** trials 2 and 3 returned no valid complete certificate
+within their original 20-minute windows. The latest repeat independently passed
+the exact non-SOS component, while its positivity identity remained incomplete
+and numerically near complete. This is substantial partial progress, not a valid
+exact certificate. Candidate 11 V2 remains the most supported local development
+lead. These repeated proxy failures do not establish global hardness, satisfy an
+unavailable official Astra profile, attest an OS sandbox, or earn an official grade.
+
+Recent alternative development candidates were solved on time: candidate 19 in
+403 seconds, candidate 20 in 451 seconds, candidate 21 in 277 seconds, and
+candidate 22 in 253 seconds. Their outcomes are separate from this candidate.
 
 ## Packaging and protocol limits
 
