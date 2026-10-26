@@ -2,8 +2,9 @@
 
 This note clarifies the existing evaluator and its new descriptive diagnostics.
 It does not change the accepted frozen plan, calibration, raw captures or old reports.
-The resample count, minimum effects, validity gates and inconclusive precedence remain
-unchanged. No full/quick comparison, measured MI355X power or finite-sample family-wise
+The resample count, minimum effects, existing statistical/sufficiency rules and
+inconclusive precedence remain unchanged. New identity-consistency refusal checks
+are described below. No full/quick comparison, measured MI355X power or finite-sample family-wise
 guarantee is established by these diagnostics.
 
 The comparison family jointly covers **matched cell/load groups × four metrics**:
