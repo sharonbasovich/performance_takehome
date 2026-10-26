@@ -19,6 +19,22 @@ from typing import Any
 from benchmarks import metrics, streaming
 
 BENCHMARK_SCHEMA_VERSION = 1
+LLMD_CLOSED_THINKING_PROFILE = "llmd_closed_thinking_v1"
+_RESERVED_REQUEST_FIELDS = frozenset(
+    {
+        "model",
+        "messages",
+        "max_tokens",
+        "temperature",
+        "top_k",
+        "seed",
+        "stream",
+        "stream_options",
+        "continue_final_message",
+        "add_generation_prompt",
+        "request_profile",
+    }
+)
 
 
 @dataclass
@@ -100,6 +116,70 @@ def _positive_number(data: Mapping[str, Any], key: str) -> None:
         raise BenchmarkError(f"{key} must be a number > 0, got {value!r}")
 
 
+def _validate_request_policy(
+    request_profile: str | None, extra_fields: Mapping[str, Any] | None
+) -> None:
+    if request_profile is not None and request_profile != LLMD_CLOSED_THINKING_PROFILE:
+        raise BenchmarkError(f"unknown request_profile {request_profile!r}")
+    if extra_fields is not None and not isinstance(extra_fields, Mapping):
+        raise BenchmarkError("extra_request_fields must be an object")
+    fields = set(extra_fields or {})
+    reserved = fields & _RESERVED_REQUEST_FIELDS
+    if reserved:
+        raise BenchmarkError(f"extra_request_fields cannot override {sorted(reserved)!r}")
+    if request_profile is not None and fields & {
+        "enable_thinking",
+        "chat_template_kwargs",
+        "reasoning_effort",
+    }:
+        raise BenchmarkError("reasoning options conflict with the selected request_profile")
+
+
+def _benchmark_request_profile(benchmark: Mapping[str, Any]) -> str | None:
+    profile = benchmark.get("request_profile")
+    if "request_profile" in benchmark and profile != LLMD_CLOSED_THINKING_PROFILE:
+        raise BenchmarkError(f"unknown request_profile {profile!r}")
+    _validate_request_policy(profile, benchmark.get("extra_request_fields"))
+    return profile
+
+
+def build_chat_request(
+    model: str,
+    prompt: str,
+    *,
+    max_tokens: int,
+    temperature: float = 0.0,
+    seed: int = 0,
+    extra_fields: Mapping[str, Any] | None = None,
+    request_profile: str | None = None,
+) -> dict[str, Any]:
+    """Build the same explicit request policy for startup and every measured prompt.
+
+    The optional LLMD profile continues a fixed closed-thinking assistant prefix.
+    It changes neither the supplied user prompt nor the caller-selected model,
+    token limit, greedy sampling or streaming/usage settings. The prefix contains
+    no answer text. Omitted profile preserves the existing user-only body.
+    """
+    _validate_request_policy(request_profile, extra_fields)
+    messages = [{"role": "user", "content": prompt}]
+    body: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "top_k": 1,
+        "seed": seed,
+        "stream": True,
+        "stream_options": {"include_usage": True},
+    }
+    if request_profile == LLMD_CLOSED_THINKING_PROFILE:
+        messages.append({"role": "assistant", "content": "</think>\n\n"})
+        body["continue_final_message"] = True
+        body["add_generation_prompt"] = False
+    body.update(dict(extra_fields or {}))
+    return body
+
+
 def load_benchmark(path: Any) -> dict[str, Any]:
     """Load and schema-check ``development-benchmark.json`` (raises :class:`BenchmarkError`)."""
     try:
@@ -135,6 +215,7 @@ def load_benchmark(path: Any) -> dict[str, Any]:
     if not isinstance(probe, dict) or not isinstance(probe.get("prompt"), str):
         raise BenchmarkError("startup_probe needs a string 'prompt'")
     _positive_int(probe, "max_tokens")
+    _benchmark_request_profile(data)
     return data
 
 
@@ -177,6 +258,7 @@ def stream_chat_completion(
     *,
     prompt_id: str,
     extra_fields: Mapping[str, Any] | None = None,
+    request_profile: str | None = None,
     max_tokens: int,
     timeout_s: float,
     temperature: float = 0.0,
@@ -189,17 +271,15 @@ def stream_chat_completion(
     ``stream_options.include_usage`` for the independent token-count gate.
     """
     body = json.dumps(
-        {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-            "top_k": 1,
-            "seed": seed,
-            "stream": True,
-            "stream_options": {"include_usage": True},
-            **(dict(extra_fields) if extra_fields else {}),
-        }
+        build_chat_request(
+            model,
+            prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            seed=seed,
+            extra_fields=extra_fields,
+            request_profile=request_profile,
+        )
     ).encode("utf-8")
     trace = RequestTrace(prompt_id=prompt_id, ok=False)
     start = time.monotonic()
@@ -298,6 +378,7 @@ def wait_for_first_valid_generation(
     Readiness of ``/v1/models`` alone is not accepted; the server must stream a
     complete greedy generation (finish_reason ``stop`` or ``length``) first.
     """
+    request_profile = _benchmark_request_profile(benchmark)
     remaining = lambda: timeout_s - (time.monotonic() - started_at)  # noqa: E731
     model_id = wait_for_model_id(base_url, timeout_s=max(1.0, remaining()), is_alive=is_alive)
     probe = benchmark["startup_probe"]
@@ -313,6 +394,7 @@ def wait_for_first_valid_generation(
             max_tokens=int(probe["max_tokens"]),
             timeout_s=max(1.0, min(remaining(), float(benchmark["request_timeout_s"]))),
             extra_fields=benchmark.get("extra_request_fields"),
+            request_profile=request_profile,
         )
         if trace.ok and trace.finish_reason in {"stop", "length"}:
             return time.monotonic() - started_at, model_id
@@ -423,7 +505,9 @@ def correctness_gates(
     else:
         gates.append(
             GateResult(
-                "golden_output_match", True, "no golden set yet (this measurement establishes it)"
+                "golden_output_match",
+                True,
+                "no golden set yet (this measurement establishes it)",
             )
         )
     return gates
@@ -473,6 +557,7 @@ def run_benchmark(
     The per-repetition aggregate FTGR is kept in ``notes`` for the report.
     Correctness gates run over all traces.
     """
+    request_profile = _benchmark_request_profile(benchmark)
     reps = int(repetitions if repetitions is not None else benchmark["repetitions"])
     timeout_s = float(benchmark["request_timeout_s"])
     traces: list[RequestTrace] = []
@@ -495,6 +580,7 @@ def run_benchmark(
                 max_tokens=int(prompt.get("max_tokens", benchmark["max_tokens"])),
                 timeout_s=timeout_s,
                 extra_fields=benchmark.get("extra_request_fields"),
+                request_profile=request_profile,
             )
             rep_traces.append(trace)
         traces.extend(rep_traces)

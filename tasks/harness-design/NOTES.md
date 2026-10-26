@@ -1,14 +1,29 @@
 # Task 2 — Candidate notes (harness-design)
 
-**Read this first.** Everything measured in this submission is **CPU stand-in development
-evidence** produced on an 8-vCPU x86 VM against a **candidate-built llama.cpp server**, not
-the organizer's LLMD image on an MI355X. No official benchmark, grading report, GPU run,
-or coding-model (Pi) call happened. Where a value can only come from the real target it is
-written as `UNAVAILABLE_IN_DRAFT: <why>`, never estimated.
+**Read this first.** The performance tables below are historical **CPU stand-in development
+evidence** produced on an 8-vCPU x86 VM against a **candidate-built llama.cpp server**.
+They are not corrected GPU performance or Pi optimization results. Live LLMD request
+compatibility checks are described separately below; no official grade is claimed.
 
 Starter commit: `81aead87d78ed468c4c374fb42921471b44c3f80` (the organizer's `takehome-start`
 tag does not exist in this draft; the only upstream commit SHA is used instead and was **not**
 tagged by me). Integrity output is in the "Integrity" section below.
+
+## LLMD request compatibility profile
+
+Use `--development-benchmark tasks/harness-design/harness/development-benchmark.llmd.json`
+for the pinned LLMD target. The named `llmd_closed_thinking_v1` profile appends the fixed
+assistant prefix `</think>\n\n` and fixes continuation flags for both startup and measured
+requests. It contains no answer text. The default benchmark remains available for other
+engines; conflicting request overrides are rejected.
+
+On the actual MI355X/pinned target, this profile produced completed final answers without
+reasoning output, including a short integer, a planted long-context fact and a complete
+long integer sequence. These are compatibility observations, not performance comparisons.
+Ordinary short requests had exhausted their token caps in reasoning, and accepting a
+thinking-control field did not demonstrate that the server honored it. Establish fresh
+baseline and candidate measurements using the identical frozen profile and retain the
+complete benchmark JSON and its hash with the run evidence.
 
 ## Final review correction: historical FTGR is invalid
 
