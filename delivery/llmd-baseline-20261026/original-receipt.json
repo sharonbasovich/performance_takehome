@@ -1,0 +1,246 @@
+{
+  "format": "abstract-full-image-preservation-v1",
+  "status": "EXPORTED_AND_VERIFIED",
+  "image_id": "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540",
+  "source_id_kind": "image-index-digest",
+  "registry_publication_verified": false,
+  "identity": {
+    "layout": "docker-oci-hybrid",
+    "archive_sha256": "sha256:c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47",
+    "archive_bytes": 5923200000,
+    "config_digest": "sha256:0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f",
+    "platform_manifest_digest": "sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d",
+    "platform_manifest_media_type": "application/vnd.oci.image.manifest.v1+json",
+    "index_digests": [
+      "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540"
+    ],
+    "repo_tags": [],
+    "runtime_spec_sha256": "sha256:31ce7551f47826c366431ce42420e1607553a0ddc3b966d72a80021e3cdb2534",
+    "diff_ids": [
+      "sha256:50abe06dfc0957e14cb8332ed242e8b884ef2563a9eb202e5172f243f62792f7",
+      "sha256:621c35e751a51a9a9dc3e80aa0b7fe8be2a93402ea6ccd307d30852cd7776cda",
+      "sha256:c8b007d0206e4b10ed4d3b3d99dfeab47c2648e82011989fd78a5731baf33fc3",
+      "sha256:bec7e6bb35e05d1284f28b10d2150c259717d91c658c4c10c08424bb9466caba",
+      "sha256:275a30dd8ce958b21daa9ad962c6fbc09f98306ee2f486b65c9075dc257b1412",
+      "sha256:4d049f83d9cf21d1f5cc0e11deaf36df02790d0e60c1a3829538fb4b61685368",
+      "sha256:af5aa97ebe6ce1604747ec1e21af7136ded391bcabe4acef882e718a87c86bcc",
+      "sha256:6f1cdceb6a3146f0ccb986521156bef8a422cdbb0863396f7f751f575ba308f4",
+      "sha256:bd3cdfae1d3fdd83a2231d608969b38b82349777c2fff9a7c12d54f8ac5c9b38",
+      "sha256:4cde6b0bb6f50a5f255eef7b2a42162c661cf776b803225dcac9a659e396bb6b",
+      "sha256:ad51d0769d16ba578106a177987dfe3d2e02c1668c852b795b2f6b024068242a",
+      "sha256:187cfc6d1e3e8a40a5e64653bcd3239c140807dcf1c09e48021178705a5a6139",
+      "sha256:5fd2536c39c0700be8b7b4344e375196da2f126842fd8ede66996a18860a3890",
+      "sha256:3a7299f559d987305122c7669fc3643095eb0955f8ff4a38c9430d54d0b4452e",
+      "sha256:80bb2aedf42cbf9911cb9073be23406c0e7f799f8083bf13a1cd2d460a25e383",
+      "sha256:c0e409312adc366898967307565f692bb33d43a439d3de48e27d14b742389725",
+      "sha256:e4ba966d7f0527dfe0fcb559e4e18d4da42c4e6beae924719255e0dedb554ed0",
+      "sha256:1f5d28bd51650f429293f7730ede274b81dc0744aa918bc887133c4ad610258c",
+      "sha256:6e18ad80f3d64a8cbbcd1ff2e8a0d5ce7282cf664e816b86183a59d30a618e8a",
+      "sha256:c16b2ec4b1493bad1b1de23d659c899e60abb166bda756d02792f0a03ba54a43",
+      "sha256:7db505d90756626f425c6c5468eca565c82f589b144ecaa4f411ad9bbf79e614",
+      "sha256:18768a0e6b6d83d7a6d993448ad4ee9a60c4b0195cbef2e7ad5ffa05a2b70cb3",
+      "sha256:e58a48312834355c202cce92ec024446aaa11ee713bfd0579a1b86c7e11434a6"
+    ],
+    "layer_records": [
+      {
+        "blob_digest": "sha256:1eed391ea893e6015bf4ce4ed366909975d2acdbe907670919236a8d18ea6b07",
+        "diff_id": "sha256:50abe06dfc0957e14cb8332ed242e8b884ef2563a9eb202e5172f243f62792f7",
+        "stored_bytes": 85857,
+        "unpacked_bytes": 337920
+      },
+      {
+        "blob_digest": "sha256:c172f21841dff4c8cf45cde46589c1c2616cefe7e819965e92e6d3475c428aa0",
+        "diff_id": "sha256:621c35e751a51a9a9dc3e80aa0b7fe8be2a93402ea6ccd307d30852cd7776cda",
+        "stored_bytes": 12675,
+        "unpacked_bytes": 40960
+      },
+      {
+        "blob_digest": "sha256:99515e7b4d35e0652d3b0fde571b6ec269222ecacc506f026e1758d6261e9109",
+        "diff_id": "sha256:c8b007d0206e4b10ed4d3b3d99dfeab47c2648e82011989fd78a5731baf33fc3",
+        "stored_bytes": 288536,
+        "unpacked_bytes": 1167360
+      },
+      {
+        "blob_digest": "sha256:99ba982a9142213c751a1709dcf088e63d8601f03b3f211bae037be698fef270",
+        "diff_id": "sha256:bec7e6bb35e05d1284f28b10d2150c259717d91c658c4c10c08424bb9466caba",
+        "stored_bytes": 254453,
+        "unpacked_bytes": 1331200
+      },
+      {
+        "blob_digest": "sha256:d6b1b89eccacc15c2420b2776d72c1dae334a00805ed9af54bf2f71e4d536f28",
+        "diff_id": "sha256:275a30dd8ce958b21daa9ad962c6fbc09f98306ee2f486b65c9075dc257b1412",
+        "stored_bytes": 32093,
+        "unpacked_bytes": 102400
+      },
+      {
+        "blob_digest": "sha256:2780920e5dbfbe103d03a583ed75345306e572ec5a48cb10361f046767d9f29a",
+        "diff_id": "sha256:4d049f83d9cf21d1f5cc0e11deaf36df02790d0e60c1a3829538fb4b61685368",
+        "stored_bytes": 67,
+        "unpacked_bytes": 1536
+      },
+      {
+        "blob_digest": "sha256:7c12895b777bcaa8ccae0605b4de635b68fc32d60fa08f421dc3818bf55ee212",
+        "diff_id": "sha256:af5aa97ebe6ce1604747ec1e21af7136ded391bcabe4acef882e718a87c86bcc",
+        "stored_bytes": 188,
+        "unpacked_bytes": 2560
+      },
+      {
+        "blob_digest": "sha256:3214acf345c0cc6bbdb56b698a41ccdefc624a09d6beb0d38b5de0b2303ecaf4",
+        "diff_id": "sha256:6f1cdceb6a3146f0ccb986521156bef8a422cdbb0863396f7f751f575ba308f4",
+        "stored_bytes": 123,
+        "unpacked_bytes": 2560
+      },
+      {
+        "blob_digest": "sha256:52630fc75a18675c530ed9eba5f55eca09b03e91bd5bc15307918bbc1a7e7296",
+        "diff_id": "sha256:bd3cdfae1d3fdd83a2231d608969b38b82349777c2fff9a7c12d54f8ac5c9b38",
+        "stored_bytes": 162,
+        "unpacked_bytes": 2560
+      },
+      {
+        "blob_digest": "sha256:dd64bf2dd177757451a98fcdc999a339c35dee5d9872d8f4dc69c8f3c4dd0112",
+        "diff_id": "sha256:4cde6b0bb6f50a5f255eef7b2a42162c661cf776b803225dcac9a659e396bb6b",
+        "stored_bytes": 80,
+        "unpacked_bytes": 1536
+      },
+      {
+        "blob_digest": "sha256:b839dfae01f66e15c6a8b63520557ed315bdfe036342fa7a0c537259f10d7a9a",
+        "diff_id": "sha256:ad51d0769d16ba578106a177987dfe3d2e02c1668c852b795b2f6b024068242a",
+        "stored_bytes": 351,
+        "unpacked_bytes": 2048
+      },
+      {
+        "blob_digest": "sha256:ebddc55facdc6b1f7e0f30816a5fc7cc62f38abdf76c0a8b0a0ce52085754795",
+        "diff_id": "sha256:187cfc6d1e3e8a40a5e64653bcd3239c140807dcf1c09e48021178705a5a6139",
+        "stored_bytes": 311,
+        "unpacked_bytes": 3072
+      },
+      {
+        "blob_digest": "sha256:bdfd7f7e5bf6fc27e70b59101db21c3d8284d283884419dd5fe7020583bb79ca",
+        "diff_id": "sha256:5fd2536c39c0700be8b7b4344e375196da2f126842fd8ede66996a18860a3890",
+        "stored_bytes": 136993,
+        "unpacked_bytes": 249344
+      },
+      {
+        "blob_digest": "sha256:2d4d7adf627254a81515173c3ba0fee593d821176ce30ea7d5eb2d956bdf8379",
+        "diff_id": "sha256:3a7299f559d987305122c7669fc3643095eb0955f8ff4a38c9430d54d0b4452e",
+        "stored_bytes": 5077242,
+        "unpacked_bytes": 13291520
+      },
+      {
+        "blob_digest": "sha256:cf397222899a3b6b98c35941fd44d79f8ff61303349b3bece21b49dacc1ac106",
+        "diff_id": "sha256:80bb2aedf42cbf9911cb9073be23406c0e7f799f8083bf13a1cd2d460a25e383",
+        "stored_bytes": 3068063,
+        "unpacked_bytes": 8017920
+      },
+      {
+        "blob_digest": "sha256:bd8962e292918c50c90edebd9684c053bc386b9c5503acd8fec75d0c6f93a0b7",
+        "diff_id": "sha256:c0e409312adc366898967307565f692bb33d43a439d3de48e27d14b742389725",
+        "stored_bytes": 372772,
+        "unpacked_bytes": 870400
+      },
+      {
+        "blob_digest": "sha256:cac2ae0193cb073e7492050b05fc342a888651b4bbc966908c8793f889c299ba",
+        "diff_id": "sha256:e4ba966d7f0527dfe0fcb559e4e18d4da42c4e6beae924719255e0dedb554ed0",
+        "stored_bytes": 96148,
+        "unpacked_bytes": 174080
+      },
+      {
+        "blob_digest": "sha256:dd0d9bfd3bee080ad25a464362ec4f37ec5ca625695a4d7179fe69d207dc068d",
+        "diff_id": "sha256:1f5d28bd51650f429293f7730ede274b81dc0744aa918bc887133c4ad610258c",
+        "stored_bytes": 158447,
+        "unpacked_bytes": 358400
+      },
+      {
+        "blob_digest": "sha256:7cc70dfd88cf2327bb827123c9156f7cb95de95b2f98f3a7a931296aacec5786",
+        "diff_id": "sha256:6e18ad80f3d64a8cbbcd1ff2e8a0d5ce7282cf664e816b86183a59d30a618e8a",
+        "stored_bytes": 901291,
+        "unpacked_bytes": 2662400
+      },
+      {
+        "blob_digest": "sha256:8224d91da70b7992430d3b04040ea38ecdef4a7b719bee38397c89aaa886e198",
+        "diff_id": "sha256:c16b2ec4b1493bad1b1de23d659c899e60abb166bda756d02792f0a03ba54a43",
+        "stored_bytes": 84214,
+        "unpacked_bytes": 194560
+      },
+      {
+        "blob_digest": "sha256:1a4be5562d92d659f95e0b44b245ea5208bf5317481b9a351b07fad7fe5265ec",
+        "diff_id": "sha256:7db505d90756626f425c6c5468eca565c82f589b144ecaa4f411ad9bbf79e614",
+        "stored_bytes": 51535,
+        "unpacked_bytes": 122880
+      },
+      {
+        "blob_digest": "sha256:0438950bd9e91eb2094eb6f8ef463ad2ab9cf131cabc144da9b148dfb34b7bf0",
+        "diff_id": "sha256:18768a0e6b6d83d7a6d993448ad4ee9a60c4b0195cbef2e7ad5ffa05a2b70cb3",
+        "stored_bytes": 212060068,
+        "unpacked_bytes": 558265856
+      },
+      {
+        "blob_digest": "sha256:0deb9028a49b75d009a8b7c68f38ec44a0c0455f1be65f671cd031b42bdb9931",
+        "diff_id": "sha256:e58a48312834355c202cce92ec024446aaa11ee713bfd0579a1b86c7e11434a6",
+        "stored_bytes": 5700475974,
+        "unpacked_bytes": 14735947776
+      }
+    ],
+    "unpacked_bytes": 15323150848,
+    "os": "linux",
+    "architecture": "amd64"
+  },
+  "commands": [
+    {
+      "argv": [
+        "docker",
+        "image",
+        "inspect",
+        "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540"
+      ],
+      "exit_code": 0,
+      "stdout_bytes": 4518,
+      "stdout_sha256": "sha256:f62446aa1393403a30f8c369d6b2dd671287e6d21b57305c9788facc0a0a30e7",
+      "stderr_bytes_retained": 0,
+      "stderr_log": null,
+      "capacity_checks": 0,
+      "capacity_window_bytes": 8388608,
+      "capacity_window_seconds": 1.0
+    },
+    {
+      "argv": [
+        "docker",
+        "image",
+        "save",
+        "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540"
+      ],
+      "exit_code": 0,
+      "stdout_bytes": 5923200000,
+      "stdout_sha256": "sha256:c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47",
+      "stderr_bytes_retained": 0,
+      "stderr_log": null,
+      "capacity_checks": 707,
+      "capacity_window_bytes": 8388608,
+      "capacity_window_seconds": 1.0
+    },
+    {
+      "argv": [
+        "docker",
+        "image",
+        "inspect",
+        "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540"
+      ],
+      "exit_code": 0,
+      "stdout_bytes": 4518,
+      "stdout_sha256": "sha256:f62446aa1393403a30f8c369d6b2dd671287e6d21b57305c9788facc0a0a30e7",
+      "stderr_bytes_retained": 0,
+      "stderr_log": null,
+      "capacity_checks": 0,
+      "capacity_window_bytes": 8388608,
+      "capacity_window_seconds": 1.0
+    }
+  ],
+  "elapsed_seconds": 54.652654310999424,
+  "limits": {
+    "max_archive_bytes": 8589934592,
+    "max_unpacked_bytes": 25769803776,
+    "min_free_bytes": 10737418240,
+    "space_guards": []
+  },
+  "scope": "Original full save bytes retained; registry publication, GPU correctness and secret-free layer contents are not certified."
+}

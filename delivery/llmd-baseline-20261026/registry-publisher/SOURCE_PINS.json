@@ -1,0 +1,89 @@
+{
+  "approval_marker_supplied": false,
+  "created_utc": "2026-10-26T13:53:18.237742+00:00",
+  "files": {
+    "delivery/base-manifest.json": {
+      "bytes": 4469,
+      "sha256": "0a2cd01a2e53c78934a8cfef66f8668da7666be4954a5d18b72df089c54ea34f"
+    },
+    "delivery/metadata/000-0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f.bin": {
+      "bytes": 5405,
+      "sha256": "0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f"
+    },
+    "delivery/metadata/001-7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d.bin": {
+      "bytes": 4662,
+      "sha256": "7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d"
+    },
+    "delivery/metadata/002-ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540.bin": {
+      "bytes": 856,
+      "sha256": "ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540"
+    },
+    "delivery/metadata/003-de855e3be69b2363ead0c56750a0897674fcb8d9f06d607fb80eb6eacc4cbc81.bin": {
+      "bytes": 566,
+      "sha256": "de855e3be69b2363ead0c56750a0897674fcb8d9f06d607fb80eb6eacc4cbc81"
+    },
+    "delivery/selected.Dockerfile": {
+      "bytes": 1577,
+      "sha256": "7f8caeabc5b52b2fe1406287a57317bc6e56c7adb0a63e576a4710afe76a1225"
+    },
+    "evidence/legacy-selection-revision2.json": {
+      "bytes": 3431,
+      "sha256": "27b7ddcf1f9145d2e695dd2f79d9fd56a81c6f06ebff6c30c3ece291f4f19c39"
+    },
+    "evidence/selection.json": {
+      "bytes": 3986,
+      "sha256": "844306667045cb966908dbb15c7d2bd38204e40d3036b9ac0bebcc299e6ecd68"
+    },
+    "src/check_publication_approval.py": {
+      "bytes": 2728,
+      "sha256": "b73a19c909bde4b697b1f83bbc223648b8bf1d9e581d57bbd3030ac62db8c01f"
+    },
+    "src/publish_baseline_config_only.py": {
+      "bytes": 29089,
+      "sha256": "3853995b1490789579b532df3b0e237d42c4102d0c4503b100d124f9e4b9a531"
+    },
+    "workflow/execute-baseline-config-only.yml": {
+      "bytes": 3436,
+      "sha256": "25eb823e0b198fdcf6808b0a70a3b3132c7f482d73a0d11f8f1da1801d34e853"
+    },
+    "workflow/inspect-baseline-config-only.yml": {
+      "bytes": 1360,
+      "sha256": "63de068b5d30895cd556bd9d862d7610a8e9afaf35761e16c21480e5ed3aeafe"
+    }
+  },
+  "kind": "REVIEW_ONLY_NOT_EXECUTION_APPROVAL",
+  "public_overlay_integration": {
+    "changes": "Repository lint/format, local byte-preserving attributes, qualified package-existence wording; source-only nested layout. No workflow installation/approval.",
+    "greptile_fixes": {
+      "changes": "Checked absolute regctl launch path; exclusive pre-client final receipt and durable append-only attempt lifecycle, with stable owned final handle and preserved uncertainty on final-write failure.",
+      "discussions": [
+        "4378330107",
+        "4378330160"
+      ],
+      "reviewed_head": "e833fcad5eec175e712d323e621a5178f6ab6615"
+    },
+    "historical_revision3_selection_sha256": "80e6c040d49eea3d9e80ae728fcaf9f7e5c3d6569968483407ad3d9917448880",
+    "parent_revision3_seal_sha256": "d5ef27eebc1abba388cbca23d207c920b79b66003f804d262b46034e7a60ea00",
+    "journal_artifact_fix": {
+      "reviewed_head": "438b0e4fdd2a945e5dc3558b3052f53226b55783",
+      "discussion": "4379188245",
+      "changes": "Both inactive always-upload template steps retain the final JSON and sibling attempt journal, including partial-final-write failures. No workflow installation or upload verification."
+    },
+    "workflow_runtime_path_fix": {
+      "recorded_utc": "2026-10-27T22:54:00.807552+00:00",
+      "reason": "GitHub jobs.<job>.env does not support runner.temp; use private step runtime paths via GITHUB_ENV",
+      "failed_validation_run": "https://github.com/sharonbasovich/performance_takehome/actions/runs/40595105915",
+      "successful_execution_run": "https://github.com/sharonbasovich/performance_takehome/actions/runs/40596159814",
+      "execution_commit": "b56d284e4cb1ad5295bc4f7359fe28927d1e08f0",
+      "permissions_timeouts_publisher_checker_selection_unchanged": true,
+      "this_nested_source_installs_no_workflow_or_approval": true
+    }
+  },
+  "required_future_marker_fields": {
+    "checker_sha256": "b73a19c909bde4b697b1f83bbc223648b8bf1d9e581d57bbd3030ac62db8c01f",
+    "execute_workflow_sha256": "25eb823e0b198fdcf6808b0a70a3b3132c7f482d73a0d11f8f1da1801d34e853",
+    "publisher_sha256": "3853995b1490789579b532df3b0e237d42c4102d0c4503b100d124f9e4b9a531",
+    "selection_sha256": "844306667045cb966908dbb15c7d2bd38204e40d3036b9ac0bebcc299e6ecd68"
+  },
+  "updated_utc": "2026-10-26T16:20:11.109907+00:00"
+}

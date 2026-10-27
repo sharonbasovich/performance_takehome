@@ -1,0 +1,273 @@
+{
+  "anonymous_docker_pull_verified": false,
+  "cpu_checks_at_ad665d35": {
+    "offline_tests": {
+      "count": 12,
+      "files": [
+        "test_reconstruct_exact_archive.py (4)",
+        "test_restore_llmd_baseline_v2.py (8)"
+      ],
+      "result": "OK"
+    },
+    "pinned_metadata_segments_manifest_receipt_unchanged_vs_ff3f2880": true,
+    "ruff_0_16_10": {
+      "check": "All checks passed (3 Python files and whole repo)",
+      "format_check": "3 files already formatted"
+    }
+  },
+  "cpu_import_check": {
+    "archive_verified_before_load": {
+      "bytes": 5923200000,
+      "sha256": "c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47"
+    },
+    "command": "restore_llmd_baseline_v2.sh docker-load --dir <workdir> --output <workdir>/llmd-baseline.docker.tar",
+    "cpu_help_run": {
+      "command": "docker run --rm --network none --entrypoint /llmd/llmd sha256:ccd73fc2... --help",
+      "exit": 0,
+      "first_line": "Usage: llmd --model=<path> [options]",
+      "stdout_lines": 27
+    },
+    "docker_load": {
+      "exit": 0,
+      "loaded_image_id": "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540"
+    },
+    "host": "existing CPU VM, Docker 29.7.2 client/server, driver overlayfs, containerd snapshotter (io.containerd.snapshotter.v1), no GPU",
+    "inspect": {
+      "Architecture": "amd64",
+      "Cmd_equals_selected_Dockerfile_CMD": true,
+      "Comment": "buildkit.dockerfile.v0",
+      "Created": "2026-10-26T06:12:57.128323327Z",
+      "Descriptor": {
+        "digest": "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540",
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "size": 856
+      },
+      "Entrypoint": [
+        "/llmd/llmd"
+      ],
+      "Env_equals_pinned_config_blob": true,
+      "Env_keys": [
+        "PATH",
+        "SSL_CERT_FILE",
+        "LLMD_POSTHOG_TOKEN",
+        "LLMD_USAGE_STATS_ENDPOINT"
+      ],
+      "Id": "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540",
+      "Manifests_field": "empty in docker image inspect output",
+      "Os": "linux",
+      "RootFS_diff_ids_equal_pinned_config_blob": true,
+      "RootFS_diff_ids_equal_public_base_0a2cd01a": true,
+      "RootFS_layers": 23,
+      "Size": 5923168566,
+      "platform_manifest_or_config_digest_addressable_as_image_id": false
+    },
+    "limitations": [
+      "containerd store exposes only the index identity as image ID; platform manifest 7db01160 and config 0c06ab37 were not re-derived from the daemon",
+      "no inference, no model weights, no GPU",
+      "disk delta negligible because all 23 layers were already present from the public base"
+    ],
+    "raw_log_sha256": {
+      "15_docker_import.log": "f1cd2728151ca438fed7f612a928994f718895fc659dbb0517d6aaa338a66578",
+      "15b_llmd_help.txt": "5113b26064748620b0067eab2ab1c381e589b84c99ad6607ff149d20d1377048"
+    },
+    "receipt_file": "IMPORT_RECEIPT.md",
+    "receipt_sha256": "fd345466455a77454338dd8faca192f30d367949d7d0d398a0250aaf5479c82c",
+    "utc": "2026-10-26T10:00:40Z..10:02:27Z"
+  },
+  "fresh_selected_image_revalidation": {
+    "exact_greedy_baseline_and_usage_finish_gates_passed": true,
+    "owned_container_absence_confirmed": true,
+    "prompts": 6,
+    "repetitions": 5,
+    "report_sha256": "d1c197f3a4809af223b8c4d7536f78744df67ac25913b41b66158c91ca7f05b4",
+    "requests": 30,
+    "status": "PASS_FRESH_SELECTED_IMAGE_REVALIDATION"
+  },
+  "genuine_Pi_attempt": "Ran GLM-5.2 through Pi; provider response exceeded the gateway120s deadline after readonly tool calls, before any patch. Failed transcript and unknown full API reservation retained. No successful optimized candidate or keep/revert experiment claimed.",
+  "image_identity": {
+    "config": "sha256:0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f",
+    "kind": "image-index-digest",
+    "platform_manifest": "sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d",
+    "value": "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540"
+  },
+  "independent_anonymous_full_archive_verification": {
+    "by": "separate reviewer (not this session)",
+    "bytes": 5923200000,
+    "concatenation_sha256": "c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47",
+    "docker_load": false,
+    "method": "anonymous streaming of all release bytes",
+    "parts_sha256_pass": 4,
+    "payload_saved": false,
+    "small_assets_pass": 4,
+    "utc": "2026-10-26T09:53:54Z..10:05:04Z"
+  },
+  "model": "Qwen/Qwen3.6-27B",
+  "model_revision": "6a9e13bd6fc8f0983b9b99948120bc37f49c13e9",
+  "official_grade": false,
+  "optimization_gain_claimed": false,
+  "original_verified_export": {
+    "bytes": 5923200000,
+    "receipt_sha256": "ae7771fef2079f163856be33ac23f2914830dc038c00501d9a4b6409d045c55a",
+    "sha256": "c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47"
+  },
+  "provider_registry_publication_verified": false,
+  "public_delivery": {
+    "anonymous_docker_pull_verified": false,
+    "anonymous_verification": {
+      "asset_final_host": "release-assets.githubusercontent.com",
+      "asset_http": 200,
+      "authorization_header": false,
+      "docker_load_run": false,
+      "ordered_concatenation_sha256": "c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47",
+      "parts_sha256_ok": 4,
+      "release_api_http": 200,
+      "restore_script_full_archive_verified": true,
+      "utc": "2026-10-26T09:36:27Z..2026-10-26T09:38:24Z"
+    },
+    "concatenated_sha256": "c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47",
+    "kind": "github-release-assets",
+    "parts": [
+      {
+        "asset_id": 677669094,
+        "bytes": 1480800000,
+        "name": "llmd-baseline.docker.tar.part-01",
+        "sha256": "47ad0aa2e44ee9ebadd4e4cc96afd7e20fbf7e010206e126ecd2ecf1a5f7c973"
+      },
+      {
+        "asset_id": 677669124,
+        "bytes": 1480800000,
+        "name": "llmd-baseline.docker.tar.part-02",
+        "sha256": "5f9c4bc23ec3be010e72a4688269cde49898016b187ae6f9b74bcdeb50e27dad"
+      },
+      {
+        "asset_id": 677669137,
+        "bytes": 1480800000,
+        "name": "llmd-baseline.docker.tar.part-03",
+        "sha256": "7bd5e0bc9c395cf8dbd2d0cd885cc2a59efe3df78d5f4ed1eb2c2cd91944cc5f"
+      },
+      {
+        "asset_id": 677669128,
+        "bytes": 1480800000,
+        "name": "llmd-baseline.docker.tar.part-04",
+        "sha256": "164aaac821e1f9cb9591794996a867916fffce4c1bede32c1e2741862d6336ce"
+      }
+    ],
+    "pre_publish_authenticated_download_verified": true,
+    "published_utc": "2026-10-26T09:36:25Z",
+    "reconstruction": {
+      "all_blob_digests_and_sizes_verified": true,
+      "archive_bytes": 5923200000,
+      "independent_rehash_sha256": "c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47",
+      "public_blobs_fetched_anonymously": 23,
+      "utc": "2026-10-26T09:28:51Z..2026-10-26T09:29:44Z",
+      "utility": "reconstruct_exact_archive.py --execute-reviewed",
+      "utility_status": "BYTE_IDENTICAL_ARCHIVE_RECONSTRUCTED_AND_HASH_VERIFIED"
+    },
+    "registry_publication_verified": false,
+    "release_id": 424055820,
+    "release_url": "https://github.com/sharonbasovich/performance_takehome/releases/tag/task2-llmd-baseline-20261026",
+    "small_assets": [
+      {
+        "asset_id": 677669097,
+        "bytes": 487,
+        "name": "SHA256SUMS",
+        "sha256": "70431e5db4d3d9a39414d6be5e92adae9f9d42ce861db49015e1a1bbe740d02b"
+      },
+      {
+        "asset_id": 677669093,
+        "bytes": 5293,
+        "name": "README.md",
+        "sha256": "ee5a3b59edddb85b79b678d52fd6f5570f38592a18ac9ffad59dab211a582d71"
+      },
+      {
+        "asset_id": 677669092,
+        "bytes": 3033,
+        "name": "RELEASE_NOTES.md",
+        "sha256": "0419bb3c1e33b6b9bbb5a8ce28b647a078a647188781a428fdac2d22af410cd3"
+      },
+      {
+        "asset_id": 677669095,
+        "bytes": 2101,
+        "name": "restore_llmd_baseline.sh",
+        "sha256": "0e32d498963e7df2d476529b13a78de15e52b44bd63a84934cc1541643dd1ddc"
+      }
+    ],
+    "tag": "task2-llmd-baseline-20261026",
+    "target_commit": "ff3f2880caa25bd01a7cb7177382e298f93d9760"
+  },
+  "public_delivery_status": "PUBLISHED_RELEASE_ASSETS_ANONYMOUSLY_VERIFIED",
+  "reconstruction_manifest_sha256": "da39f7f6ec2fec5bb6ef4c42ed34b62867d69f01bfece904e5ac62e531776b5c",
+  "registry_publication_verified": false,
+  "restore_helper": {
+    "v1": {
+      "file": "restore_llmd_baseline.sh",
+      "known_issues": [
+        "re-run --docker-load always rejected an existing output",
+        "existing .partial overwritten",
+        "grep of SHA256SUMS could accept an incomplete part list",
+        "could not verify an existing exact archive"
+      ],
+      "release_asset_id": 677669095,
+      "sha256": "0e32d498963e7df2d476529b13a78de15e52b44bd63a84934cc1541643dd1ddc",
+      "status": "DEPRECATED_PROVENANCE_ONLY"
+    },
+    "v2": {
+      "file": "restore_llmd_baseline_v2.sh",
+      "interface": [
+        "verify-parts",
+        "assemble",
+        "verify-archive",
+        "docker-load",
+        "--dir DIR",
+        "--output FILE"
+      ],
+      "pinned": [
+        "4 part sha256 + size",
+        "archive sha256 + size",
+        "expected index/manifest/config digests"
+      ],
+      "release_asset": {
+        "bytes": 6471,
+        "checksum_asset_id": 677751513,
+        "id": 677751514,
+        "name": "restore_llmd_baseline_v2.sh",
+        "sha256": "2ffef91ea20d5a85714dbda666be0168bcd4ebaa89a982e0686c58b1c1e6f27d"
+      },
+      "review_finding": {
+        "commit_reviewed": "2faaeb1ce507b9f53ef9642ea37df2e562c1a0ff",
+        "fix": "ln -T -- plus directory/symlink regressions; *.sh LF attribute",
+        "fixed_in": "ad665d35439d4b1815c0bdb0791eaeadec7172f5",
+        "greptile_discussion_id": 4376052507,
+        "severity": "P2",
+        "summary": "directory or symlink-to-directory appearing at output during assembly let ln place the archive inside it and lose the documented partial"
+      },
+      "sha256": "2ffef91ea20d5a85714dbda666be0168bcd4ebaa89a982e0686c58b1c1e6f27d",
+      "status": "SUPERSEDED_PROVENANCE_ONLY",
+      "tests": {
+        "count": 7,
+        "file": "test_restore_llmd_baseline_v2.py",
+        "result": "OK (python3.10.12, CPU, fake docker, patched fixture copy; production pins asserted)",
+        "ruff_0_16_10": "All checks passed (test file)"
+      }
+    },
+    "v2_1": {
+      "anonymous_download_byte_identical_to_git_blob": true,
+      "bytes": 6474,
+      "git_commit": "ad665d35439d4b1815c0bdb0791eaeadec7172f5",
+      "git_file": "restore_llmd_baseline_v2.sh",
+      "release_asset": {
+        "checksum_asset": {
+          "bytes": 96,
+          "id": 677786558,
+          "name": "restore_llmd_baseline_v2_1.sh.sha256"
+        },
+        "id": 677786560,
+        "name": "restore_llmd_baseline_v2_1.sh"
+      },
+      "sha256": "d297276046133930dcaee522f24ddf11126eef8cf23e7ab23fbf4456d3463209",
+      "status": "CURRENT"
+    }
+  },
+  "source_commit": "09f52c25af380a0daefdea3a183fe45a6ec75730",
+  "status": "REAL_BASELINE_SELECTED_AND_FRESHLY_REVALIDATED"
+}
