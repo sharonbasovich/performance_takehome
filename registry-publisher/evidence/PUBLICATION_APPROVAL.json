@@ -1,0 +1,10 @@
+{
+  "repository": "sharonbasovich/performance_takehome",
+  "ref": "refs/heads/codex/task2-registry-publish-approved",
+  "acknowledge_baseline_fallback": true,
+  "acknowledge_private_package_access_pending": true,
+  "selection_sha256": "844306667045cb966908dbb15c7d2bd38204e40d3036b9ac0bebcc299e6ecd68",
+  "publisher_sha256": "3853995b1490789579b532df3b0e237d42c4102d0c4503b100d124f9e4b9a531",
+  "checker_sha256": "b73a19c909bde4b697b1f83bbc223648b8bf1d9e581d57bbd3030ac62db8c01f",
+  "execute_workflow_sha256": "b59fcb8d9e7e13fff93e2a230855ffbede9e3e654be0c4d341916dd283e063ba"
+}
