@@ -45,9 +45,23 @@ python3 -B -m unittest -v test_reconstruct_exact_archive test_restore_llmd_basel
 - CPU import: `IMPORT_RECEIPT.md` records the one actual `docker load` of the verified archive (Docker 29.7.2, containerd image store, loaded image ID `sha256:ccd73fc2…`, `/llmd/llmd --help` exit 0 with `--network none`), with raw-log hashes; no inference, weights or GPU.
 - Anonymous verification (no Authorization header) after publishing: release API and all eight assets fetched, every part hash and the streamed ordered concatenation matched `c759f7c2…`; see `evidence.json` (`public_delivery`).
 
-Limits: this is release-asset delivery only. Registry (GHCR) publication and anonymous `docker pull` remain separate, unverified checks and are not claimed. Loading the archive reproduces the image-index identity `ccd73fc2…` only on Docker's containerd image store.
+Registry delivery is now verified separately: the exact selected platform is public
+at `ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d`.
+Actual publication, a complete anonymous download of all image bytes, and an
+empty-client-config Docker 29.7.1 pull/inspect/CPU-help check passed. See
+[publication status and evidence](registry-publisher/PUBLICATION_STATUS.md).
+Docker reused cached inherited layers; the independent full download establishes
+anonymous body access. These checks do not establish fresh GPU inference or an
+optimization gain. Loading the original archive reproduces image-index identity
+`ccd73fc2…` on Docker's containerd image store; the registry reference identifies
+only its selected platform manifest.
 
 
 ## Inactive registry publication source
 
-The [reviewed publisher source and CPU tests](registry-publisher/README.md) prepare exact platform-digest delivery while preserving the original archive index as provenance. Templates are staged outside `.github/`; no workflow was installed and no upload, package access or anonymous pull is claimed. The nested source layout requires a separate deployment review before installation.
+The [reviewed publisher source and CPU tests](registry-publisher/README.md) provide
+exact platform-digest delivery while preserving the original archive index as
+provenance. This nested source installs no active workflow or approval marker.
+Its separately reviewed repository-root deployment passed publication and complete
+anonymous access checks, as recorded above. Future installations must retain the
+explicit branch, reviewed source layout and source-bound execution approval.

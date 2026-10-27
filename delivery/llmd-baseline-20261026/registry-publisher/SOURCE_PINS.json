@@ -43,8 +43,8 @@
       "sha256": "3853995b1490789579b532df3b0e237d42c4102d0c4503b100d124f9e4b9a531"
     },
     "workflow/execute-baseline-config-only.yml": {
-      "bytes": 3207,
-      "sha256": "b59fcb8d9e7e13fff93e2a230855ffbede9e3e654be0c4d341916dd283e063ba"
+      "bytes": 3436,
+      "sha256": "25eb823e0b198fdcf6808b0a70a3b3132c7f482d73a0d11f8f1da1801d34e853"
     },
     "workflow/inspect-baseline-config-only.yml": {
       "bytes": 1360,
@@ -68,11 +68,20 @@
       "reviewed_head": "438b0e4fdd2a945e5dc3558b3052f53226b55783",
       "discussion": "4379188245",
       "changes": "Both inactive always-upload template steps retain the final JSON and sibling attempt journal, including partial-final-write failures. No workflow installation or upload verification."
+    },
+    "workflow_runtime_path_fix": {
+      "recorded_utc": "2026-10-27T22:54:00.807552+00:00",
+      "reason": "GitHub jobs.<job>.env does not support runner.temp; use private step runtime paths via GITHUB_ENV",
+      "failed_validation_run": "https://github.com/sharonbasovich/performance_takehome/actions/runs/40595105915",
+      "successful_execution_run": "https://github.com/sharonbasovich/performance_takehome/actions/runs/40596159814",
+      "execution_commit": "b56d284e4cb1ad5295bc4f7359fe28927d1e08f0",
+      "permissions_timeouts_publisher_checker_selection_unchanged": true,
+      "this_nested_source_installs_no_workflow_or_approval": true
     }
   },
   "required_future_marker_fields": {
     "checker_sha256": "b73a19c909bde4b697b1f83bbc223648b8bf1d9e581d57bbd3030ac62db8c01f",
-    "execute_workflow_sha256": "b59fcb8d9e7e13fff93e2a230855ffbede9e3e654be0c4d341916dd283e063ba",
+    "execute_workflow_sha256": "25eb823e0b198fdcf6808b0a70a3b3132c7f482d73a0d11f8f1da1801d34e853",
     "publisher_sha256": "3853995b1490789579b532df3b0e237d42c4102d0c4503b100d124f9e4b9a531",
     "selection_sha256": "844306667045cb966908dbb15c7d2bd38204e40d3036b9ac0bebcc299e6ecd68"
   },
