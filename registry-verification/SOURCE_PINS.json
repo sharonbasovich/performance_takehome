@@ -1,0 +1,9 @@
+{
+  "kind": "PUBLIC_READ_ONLY_VERIFICATION_SOURCE_PINS",
+  "verifier_sha256": "0331957ab70b072a341b9b9176e3a4b512d4fdbe5c4a76b60ee0ceb76c0ab8c3",
+  "workflow_sha256": "0fbcb17902f2fe768c718ce63dff092044d2a04d71169f51a6475cc3376cc6db",
+  "accepted_existing_publisher_sha256": "3853995b1490789579b532df3b0e237d42c4102d0c4503b100d124f9e4b9a531",
+  "official_linux_regctl_sha256": "3737fbbdd791e04e7a831640b681f3397a376498e80e2ad9b1b2d27296f239bc",
+  "existing_registry_publisher_or_execute_workflow_changed": false,
+  "registry_login_upload_package_write_or_paid_resources": false
+}

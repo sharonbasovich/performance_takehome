@@ -1,0 +1,39 @@
+name: verify-task2-baseline-anonymous
+'on':
+  push:
+    branches: ['codex/task2-registry-publish-approved']
+    paths: ['registry-verification/**', '.github/workflows/verify-task2-baseline-anonymous.yml']
+permissions: {}
+concurrency:
+  group: exact-task2-anonymous-byte-verification
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.repository == 'sharonbasovich/performance_takehome' && github.event.repository.private == false && github.ref == 'refs/heads/codex/task2-registry-publish-approved'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch exact official read-only registry client
+        run: |
+          set -euo pipefail
+          curl --fail --location --proto '=https' --proto-redir '=https' --retry 0 --max-time 120 \
+            https://github.com/regclient/regclient/releases/download/v0.11.7/regctl-linux-amd64 --output regctl
+          printf '%s  %s\n' 3737fbbdd791e04e7a831640b681f3397a376498e80e2ad9b1b2d27296f239bc regctl | sha256sum --check --strict -
+          chmod 700 regctl
+      - name: Verify every immutable image byte with empty anonymous client configuration
+        run: |
+          set -euo pipefail
+          python3 -B registry-verification/verify_anonymous_graph.py \
+            --publisher-root registry-publisher --regctl "$PWD/regctl" \
+            --out anonymous-graph-proof --execute-read-only
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: anonymous-platform-graph-proof
+          path: anonymous-graph-proof/
+          if-no-files-found: warn
