@@ -93,6 +93,7 @@ class LoopConfig:
     estimated_attempt_s: float = 600.0
     keep_candidate_images: bool = False
     repo_relative_base: Path | None = None
+    baseline_path: Path | None = None
 
     def rel(self, path: Path) -> str:
         """Repository-root-relative POSIX path for TSV/report references."""
@@ -1208,21 +1209,48 @@ class Harness:
         )
         work = self.config.state_dir / "proposer"
         work.mkdir(parents=True, exist_ok=True)
+        current_context = (
+            self.last_good_context
+            if self.last_good_context.exists()
+            else self.engine.spec.build_context
+        )
+        dockerfile = self.engine.spec.dockerfile.relative_to(self.engine.spec.build_context)
+        readonly_inputs = {
+            f"Current build-context file {dockerfile.as_posix()}": (
+                current_context / dockerfile
+            ).read_text(encoding="utf-8"),
+            f"Selected development benchmark {self.config.benchmark_path}": (
+                self.config.benchmark_path.read_text(encoding="utf-8")
+            ),
+            "Current runtime binding and last-good image": json.dumps(
+                {
+                    "model_args": self.engine.spec.model_args,
+                    "model_directory": str(self.engine.spec.model_dir),
+                    "base_image": self.engine.spec.base_image,
+                    "last_good_digest": (
+                        self.state.last_good.digest if self.state.last_good else None
+                    ),
+                },
+                indent=2,
+            ),
+        }
+        if self.engine.name == "llmd":
+            baseline = self.config.baseline_path or self.config.repo_root / "baseline/lock.json"
+            readonly_inputs[f"Selected baseline image/model catalog {baseline}"] = (
+                baseline.read_text(encoding="utf-8")
+            )
         return ProposerContext(
             program_md=self.config.program_path.read_text(encoding="utf-8"),
             profile=profile,
             history=list(self.state.history),
-            context_dir=(
-                self.last_good_context
-                if self.last_good_context.exists()
-                else self.engine.spec.build_context
-            ),
+            context_dir=current_context,
             work_dir=work,
             engine=self.engine.name,
             budget_summary=summary,
             timeout_s=self._stage_timeout(self.config.timeouts.propose_s),
             should_abort=self._should_abort,
             deadline_monotonic=self._attempt_deadline,
+            readonly_inputs=readonly_inputs,
         )
 
     # ------------------------------------------------------------------ finalize

@@ -12,13 +12,13 @@
 #
 # Build (CPU-only host is fine; no GPU is needed to build the wrapper):
 #   docker buildx build --platform linux/amd64 --load \
-#     -f tasks/harness-design/Dockerfile -t candidate tasks/harness-design
+#     -f tasks/harness-design/Dockerfile -t candidate .
 ARG BASE_IMAGE=docker.io/zmlai/llmd@sha256:0a2cd01a2e53c78934a8cfef66f8668da7666be4954a5d18b72df089c54ea34f
 FROM ${BASE_IMAGE}
 
-# program.md H1 (startup): egress is disabled by contract, so usage telemetry can
-# only fail or retry. The hypothesis patch blanks these; the baseline keeps the
-# upstream values so baseline behaviour is byte-identical to the pinned image.
+# program.md startup hypothesis: egress is disabled, so usage telemetry can
+# only fail or retry. A hypothesis may blank one variable; the baseline keeps
+# both upstream values. Neither declaration is active in this wrapper.
 # ENV LLMD_USAGE_STATS_ENDPOINT=""
 # ENV LLMD_POSTHOG_TOKEN=""
 

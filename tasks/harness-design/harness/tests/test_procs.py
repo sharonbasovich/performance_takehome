@@ -94,6 +94,20 @@ class ProcessGroupTest(unittest.TestCase):
         self.assertEqual(result.returncode, 3)
         self.assertFalse(result.ok)
 
+    def test_separate_stderr_retains_both_streams_after_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            stdout, stderr = Path(tmp) / "stdout.jsonl", Path(tmp) / "stderr.log"
+            result = procs.run(
+                [sys.executable, "-u", "-c",
+                 'import sys,time; print("{} "); print("diagnostic", file=sys.stderr); '
+                 'time.sleep(30)'],
+                timeout_s=0.2, log_path=stdout, stderr_path=stderr,
+            )
+            self.assertTrue(result.timed_out)
+            self.assertEqual(stdout.read_text().strip(), "{}")
+            self.assertEqual(stderr.read_text().strip(), "diagnostic")
+            self.assertEqual(result.stderr.strip(), "diagnostic")
+
     def test_kill_process_group_on_already_dead_process_is_safe(self) -> None:
         proc = subprocess.Popen(["true"], start_new_session=True)
         proc.wait()

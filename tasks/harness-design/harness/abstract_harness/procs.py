@@ -61,18 +61,24 @@ def run(
     env: Mapping[str, str] | None = None,
     stdin_text: str | None = None,
     log_path: Path | None = None,
+    stderr_path: Path | None = None,
     should_abort: Callable[[], bool] | None = None,
 ) -> RunResult:
     """Run ``args`` in a new session; kill the process group if ``timeout_s`` elapses.
 
     ``log_path`` receives combined stdout+stderr as the process runs so a hung
-    build still leaves a partial log behind.
+    build still leaves a partial log behind. With ``stderr_path``, stderr is
+    retained separately so machine-readable stdout stays parseable.
     """
     start = time.monotonic()
     log_fh = None
+    stderr_fh = None
     if log_path is not None:
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log_fh = log_path.open("w", encoding="utf-8")
+    if stderr_path is not None:
+        stderr_path.parent.mkdir(parents=True, exist_ok=True)
+        stderr_fh = stderr_path.open("w", encoding="utf-8")
     try:
         proc = subprocess.Popen(
             list(args),
@@ -80,7 +86,7 @@ def run(
             env=dict(env) if env is not None else None,
             stdin=subprocess.PIPE if stdin_text is not None else subprocess.DEVNULL,
             stdout=log_fh if log_fh else subprocess.PIPE,
-            stderr=subprocess.STDOUT if log_fh else subprocess.PIPE,
+            stderr=stderr_fh if stderr_fh else subprocess.STDOUT if log_fh else subprocess.PIPE,
             text=True,
             start_new_session=True,
         )
@@ -88,6 +94,9 @@ def run(
         if log_fh:
             log_fh.write(f"failed to start: {exc}\n")
             log_fh.close()
+        if stderr_fh:
+            stderr_fh.write(f"failed to start: {exc}\n")
+            stderr_fh.close()
         return RunResult(tuple(args), None, "", str(exc), time.monotonic() - start, False)
     timed_out = False
     aborted = False
@@ -131,10 +140,14 @@ def run(
             kill_process_group(proc)
         if log_fh:
             log_fh.close()
+        if stderr_fh:
+            stderr_fh.close()
     duration = time.monotonic() - start
     if log_fh is not None:
         stdout = log_path.read_text(encoding="utf-8", errors="replace") if log_path else ""
         stderr = ""
+    if stderr_path is not None:
+        stderr = stderr_path.read_text(encoding="utf-8", errors="replace")
     return RunResult(
         tuple(args), proc.returncode, stdout or "", stderr or "", duration, timed_out, aborted
     )

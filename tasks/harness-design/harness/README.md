@@ -230,6 +230,25 @@ model's optimization ability or the real provider's billing behavior.
 
 ## Validate the log
 
+Prospective Pi attempts retain `prompt.md`, `pi-events.jsonl` (stdout),
+`pi-stderr.log`, `sessions/`, proposal files and atomic `attempt-status.json`
+under `<state-dir>/proposer/pi-attempt-*`, including failures before a proposal.
+The manifest lists status receipts even when no experiment report exists. A status
+left at `running` after abrupt termination does not prove terminal usage or success.
+The controller renders the actual current Dockerfile and selected benchmark with
+the profile and baseline catalog; a catalog does not verify mounted model bytes.
+
+Export the entire attempt tree with the configured gateway's provider-response
+retention files before teardown. Set `--provider-response-dir` to the operator-owned
+external gateway WAL directory so the attempt receipt and manifest retain that
+binding. This option neither captures bytes nor hashes a moving tree. Snapshot the
+complete WAL after the gateway stops, including failed/partial responses, and verify
+the offhost export independently. The public adapter captures Pi output; raw provider
+response retention belongs to that gateway. Final fresh validation and offhost
+verification of the full report and all 30 LLMD response traces remain runner duties.
+These prospective files do not replace the missing historical revalidation/provider
+bytes and do not establish a real Pi optimization gain.
+
 ```sh
 uv run --frozen python tasks/harness-design/harness/run.py validate-results --results tasks/harness-design/harness/results.tsv
 ```

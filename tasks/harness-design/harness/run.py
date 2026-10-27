@@ -202,6 +202,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--pi-model", default=None)
     run.add_argument("--pi-provider", default=None)
     run.add_argument(
+        "--provider-response-dir",
+        type=Path,
+        help="external gateway WAL directory; metadata only, no capture or verification",
+    )
+    run.add_argument(
         "--pi-usd-per-call",
         type=float,
         default=0.0,
@@ -331,6 +336,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             model=args.pi_model,
             provider=args.pi_provider,
             usd_per_call_estimate=args.pi_usd_per_call,
+            provider_response_dir=args.provider_response_dir,
         )
         proposer = PiProposer(pi_cfg, profile=profile)
         if not proposer.api_key_present():
@@ -356,6 +362,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         reports_dir=args.reports_dir,
         patches_dir=args.patches_dir,
         benchmark_path=args.development_benchmark,
+        baseline_path=args.baseline if args.engine == "llmd" else None,
         program_path=args.program,
         out_manifest=args.out,
         source_commit=source_commit,

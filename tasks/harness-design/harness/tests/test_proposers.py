@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -203,6 +204,39 @@ class PiProposerTest(unittest.TestCase):
         self.assertNotIn("sk-secret-value", prompt)
         self.assertIn("program", prompt)
 
+    def test_controller_supplies_current_context_and_selected_inputs(self) -> None:
+        from abstract_harness.budget import BudgetVerdict
+        from abstract_harness.engines import LlmdEngine
+        from abstract_harness.state import ImageRef
+
+        from .test_recovery import make_harness
+
+        root = Path(self.tmp.name)
+        harness = make_harness(root)
+        try:
+            harness.engine = LlmdEngine.from_lock(_paths.REPO_ROOT, root / "model")
+            current = harness.last_good_context
+            current.mkdir(parents=True)
+            relative = Path("tasks/harness-design/Dockerfile")
+            (current / relative).parent.mkdir(parents=True)
+            (current / relative).write_text("FROM current-last-good\n")
+            benchmark = root / "selected-benchmark.json"
+            benchmark.write_text('{"selected": "external-benchmark"}')
+            baseline = root / "selected-baseline.json"
+            baseline.write_text('{"selected": "external-baseline"}')
+            harness.config.benchmark_path = benchmark
+            harness.config.baseline_path = baseline
+            harness.state.last_good = ImageRef("last-good", "sha256:current")
+            context = harness._proposer_context(BudgetVerdict(True, "ok", 0, 0, 1, 30, 30))
+            prompt = self.proposer.render_prompt(context, root / "out.patch", root / "out.json")
+            self.assertIn("FROM current-last-good", prompt)
+            self.assertIn("external-benchmark", prompt)
+            self.assertIn("external-baseline", prompt)
+            self.assertIn("sha256:current", prompt)
+            self.assertIn("--model=/models/model", prompt)
+        finally:
+            harness._release_locks()
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -240,6 +274,7 @@ class FakePiEndToEndTest(unittest.TestCase):
             agent_dir=self.agent_dir,
             api_key_env="HARNESS_TEST_KEY",
             timeout_s=timeout_s,
+            provider_response_dir=self.work / "external-provider-wal",
             extra_env={"FAKE_PI_MODE": mode},
         )
         return PiProposer(cfg, profile=PROFILES["profiles"]["harness-design"])
@@ -272,6 +307,17 @@ class FakePiEndToEndTest(unittest.TestCase):
         transcript = self._transcript().read_text("utf-8")
         self.assertEqual(json.loads(transcript.splitlines()[0])["type"], "session")
         self.assertNotIn("not-a-real-key", transcript)
+        receipt = json.loads((self._transcript().parent / "attempt-status.json").read_text())
+        self.assertEqual(receipt["status"], "complete")
+        self.assertTrue(receipt["accounting_resolved"])
+        self.assertEqual(receipt["returncode"], 0)
+        prompt = self._transcript().parent / "prompt.md"
+        self.assertEqual(receipt["prompt_sha256"], hashlib.sha256(prompt.read_bytes()).hexdigest())
+        self.assertTrue((prompt.parent / receipt["stderr"]).is_file())
+        self.assertEqual(
+            receipt["provider_response_dir"], str((self.work / "external-provider-wal").resolve())
+        )
+        self.assertFalse((self.work / "external-provider-wal").exists())
 
     def test_malformed_lines_are_skipped_without_losing_cost(self) -> None:
         proposal = self._propose("malformed")
@@ -310,6 +356,11 @@ class FakePiEndToEndTest(unittest.TestCase):
             self._propose("hang", timeout_s=2)
         self.assertLess(time.monotonic() - start, 15)
         self.assertIn("timed out", str(ctx.exception))
+        receipt = json.loads((self._transcript().parent / "attempt-status.json").read_text())
+        self.assertEqual(receipt["status"], "failed")
+        self.assertTrue(receipt["timed_out"])
+        self.assertFalse(receipt["accounting_resolved"])
+        self.assertEqual(receipt["api_usd_known"], 0.0)
 
     def test_run_without_edits_is_rejected(self) -> None:
         with self.assertRaises(ProposerError) as ctx:

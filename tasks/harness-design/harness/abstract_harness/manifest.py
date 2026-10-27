@@ -145,6 +145,9 @@ def build_manifest(
         "engine": engine.name,
     }
     runtime_args: list[str] = []
+    provider_response_dir = getattr(
+        getattr(harness.proposer, "config", None), "provider_response_dir", None
+    )
     if last_good:
         try:
             from . import docker_runtime as docker
@@ -163,6 +166,19 @@ def build_manifest(
             not in {"build-provenance.json", "agent-provenance.json", "final-manifest.json"}
         ],
         "agent_transcripts": _transcripts(cfg),
+        "agent_attempt_statuses": [
+            cfg.rel(p)
+            for p in sorted((cfg.state_dir / "proposer").glob("pi-attempt-*/attempt-status.json"))
+        ],
+        "provider_response_retention": {
+            "directory": (
+                str(provider_response_dir.resolve())
+                if isinstance(provider_response_dir, Path)
+                else None
+            ),
+            "capture_owner": "external gateway",
+            "verification": "operator binding only; verify stopped snapshot and offhost bytes",
+        },
         "last_good": {
             "tag": last_good.tag if last_good else "",
             "digest": last_good.digest if last_good else "",

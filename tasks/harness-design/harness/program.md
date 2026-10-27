@@ -1,125 +1,110 @@
-# Agent program: unattended LLMD optimization (Task 2)
+# Agent program: one genuine optimization proposal (Task 2)
 
-You are the proposer inside an automated loop. Each call you get this program,
-the Pi profile, the budget summary, and the history of every attempt so far.
-You output exactly ONE experiment: a hypothesis plus a unified diff against the
-build context. The harness builds a fresh image, measures it, and keeps it only
-if it is correct and significantly better. You never run docker or servers.
+Choose your own hypothesis and write exactly ONE attributable patch. The controller
+supplies the current Dockerfile, selected development benchmark, baseline image/model
+catalog, runtime binding, stock Pi profile, budget and attempt history below. Use those
+actual inputs, including any changed last-good Dockerfile. No optimization patch or
+winning knob has been selected for you. Build, inference, measurement and keep/revert
+belong to the harness; you never run Docker or servers.
 
-## Rules (non-negotiable)
+## Scope and contract
 
-1. **One change per attempt.** A patch edits one knob (one `ARG` default, one
-   CMD flag, or one build option). Two knobs in one patch cannot be attributed.
-2. **Correctness first.** Any change that alters greedy outputs on the golden
-   prompts, truncates output, breaks `finish_reason`, or breaks streamed-token
-   vs `usage` accounting is rejected (`gate_failed`) no matter how fast it is.
-3. **Same model, same tokenizer, same greedy semantics.** Speculative decoding
-   (`--speculative-drafter-model`, `--speculative-draft-count`) is allowed ONLY
-   if the drafter is the built-in `native` drafter or a drafter whose accepted
-   tokens are verified by the target model, so greedy outputs are bit-identical.
-   `--topk` must stay at a value that does not change argmax sampling at
-   temperature 0. Changing the model path, quantization, tokenizer, chat
-   template, or stop behaviour is out of scope: propose nothing of the kind.
-4. **Real flags only.** Use the flags the pinned binary prints in `--help`
-   (listed below). `--io-impl=zio` is accepted but undocumented: keep it, do
-   not invent other `--io-impl` values. Unknown flags make the binary exit 1
-   (`error: unexpected argument`), which the loop logs as `error`.
-5. **Read the history.** Do not repeat an experiment with the same outcome. If a
-   knob regressed, try the opposite direction once, then move on. Prefer the
-   highest-ranked untested hypothesis.
-6. **Budget awareness.** Each attempt costs one full build + startup + benchmark.
-   When `usable_seconds_remaining` is below two attempt durations, propose only
-   low-risk config changes (no compile-flag or image-structure changes).
-7. **No shortcuts.** Never special-case benchmark prompts, cache answers, or
-   change what the server returns. Never touch files outside the build context.
+For `engine=llmd`, the scratch build context is the repository root. Edit **only
+`tasks/harness-design/Dockerfile`**, one knob per attempt (one flag or one ENV variable).
+Preserve the current file's other bytes. The pinned image has no shell; no `RUN` steps.
+Keep `/llmd/llmd`, `--model=/models/model`, port 8000, `--io-impl=zio` and
+`--max-context-len=128000`. Do not lower the context contract because short prompts fit.
+Do not change the model, weights, tokenizer, quantization, chat template, greedy
+sampling, stop behavior, request profile, benchmark, measurement, gates or accounting.
+Never special-case prompts or cache answers. Read no private evidence or credentials.
+Do not install tools, make network calls or run inference yourself.
 
-## How to read the measurements
+The renderer's baseline catalog identifies available pinned models; the runtime
+binding names the mounted model directory and arguments. Do not infer which snapshot
+was mounted from a catalog entry alone. Full file pins are separately preflighted and
+retained by the runner. If essential context is missing, state that and stop.
 
-* `local_ttft_speedup` = baseline median TTFT / candidate median TTFT (per
-  repetition medians, >1 is better).
-* `local_ftgr_speedup` = candidate / baseline Etalon fluid token generation
-  rate (`benchmarks.metrics.fluid_token_generation_rate`, >1 is better).
-* `local_startup_s` = seconds from `docker run` until the first complete greedy
-  generation; one cold start per side. It is a **hard gate**, not a bootstrap
-  metric: a candidate whose startup is more than 1.5x the last-good startup
-  (`--startup-regression-limit`) is `regressed` whatever TTFT/FTGR say. A startup
-  win alone is `no_change`.
-* Decision: 90% bootstrap CI of the ratio of medians must exclude 1.0 AND the
-  effect must exceed `min_effect` (3%) to count. Otherwise `no_change`. A kept
-  image becomes the new baseline, so later speedups are relative to it.
-* `error` rows (build failure, startup timeout, crash) carry the failure in
-  `notes` and the report; read them before proposing a neighbouring change.
+The setup is already supplied. If a file check is necessary, batch only the actual
+scratch Dockerfile and necessary pinned input checks in one read-only tool action.
+Do not repeat a repository investigation. Read the history, choose your mechanism,
+write your own patch and metadata, then stop. A concise prompt does not promise that
+provider latency, response limits or billing have been repaired.
 
-## LLMD flags verified from the pinned image (`/llmd/llmd --help`, CPU run)
+## Frozen LLMD workload
 
-```
---batch-size=<number>               default 16
---token-batch-size=<number>         default 1024
---max-context-len=<number>          default 128000
---prefill-chunk-size=<number>       default 256
---page-chunk-size=<number>          default 16
---backend=<backend>                 auto, cuda_fa2, cuda_fa3, triton, mosaic_tpu (default auto)
---gpu-memory-fraction=<fraction>    default 0.9
---cache-memory-fraction=<fraction>  default 0.95
---topk=<number>                     default 50
---speculative-drafter-model=<path>  "native" or path; off by default
---speculative-draft-count=<num>
---model-name=<string>
---listen=<addr>                     default 0.0.0.0:8000 (do not change; contract port)
---io-impl=zio                       accepted, not in --help (lock default)
-```
+The controller must explicitly select
+`tasks/harness-design/harness/development-benchmark.llmd.json`; the CLI default is a
+different generic benchmark. Read the **selected** benchmark supplied below. Its
+`llmd_closed_thinking_v1` profile fixes temperature 0, `top_k=1`, empty-thinking
+assistant prefill `</think>\n\n`, `continue_final_message=true`, and
+`add_generation_prompt=false`, identically for startup and measurement. This serving
+profile and the stock Pi tool profile are separate contracts, neither a speed change.
 
-Build context for LLMD: `tasks/harness-design/Dockerfile` (ARG defaults and
-the CMD line). The ENTRYPOINT `/llmd/llmd` and `--model=/models/model` are
-fixed by the image contract and must not change.
+The LLMD development workload is sequential, six short prompts × five repetitions.
+Output ceilings are colors 48, capital 48, sum 16, haiku 64, explain 96 and list 48
+(the top-level default 48 does not override individual ceilings). The startup probe
+is “Say hello.” with four tokens. Each request has a 120-second timeout. Historical
+baseline inputs were 15–27 tokens. This does not measure concurrent queueing or long
+prefill; do not claim those benefits or change the benchmark to make a knob look good.
 
-## Ranked hypotheses for LLMD (MI355X target; unexecuted in this draft)
+## Decision you are optimizing against
 
-### Startup (time to first valid generation)
-- **H1 telemetry off**: with egress disabled, PostHog usage reporting may block
-  or retry at startup. Blank `LLMD_USAGE_STATS_ENDPOINT`/`LLMD_POSTHOG_TOKEN`
-  (already default in the candidate Dockerfile; measure vs the raw base image).
-  Gate: outputs unchanged.
-- **H2 `--max-context-len`** 128000 -> 32768: smaller KV-page reservation and
-  faster cache allocation; gate: no benchmark prompt exceeds the new limit.
-- **H3 `--cache-memory-fraction`** 0.95 -> 0.80: fewer pages to pre-fill at load.
-- **H4 `--gpu-memory-fraction`** 0.9 -> 0.95: more headroom may avoid
-  allocation retries (risk: OOM on a shared card -> `error`).
-- **H5 io impl**: `--io-impl=zio` is the only accepted value seen; probe nothing
-  else (rule 4). Weight-loading improvements must come from the organizer's
-  source, which is unavailable; record as a gap.
+`decision.py::bootstrap_speedup` groups samples by prompt. Each prompt's ratio uses
+the median over its repetitions: baseline/candidate for TTFT, candidate/baseline for
+Etalon FTGR. The reported speedup is the geometric mean of those prompt ratios
+(>1 is better). The seeded 2,000-resample percentile bootstrap resamples within prompt
+groups and computes a 90% CI. A gain needs the lower bound above 1 and at least the
+configured 3% point effect; a significant primary-metric regression vetoes a keep.
+This is not a ratio of pooled per-repetition medians.
 
-### TTFT (prefill)
-- **H6 `--prefill-chunk-size`** 256 -> 1024: fewer chunked-prefill steps for
-  2k-token prompts; watch fluidity of concurrent decodes (bigger chunks stall
-  decode steps).
-- **H7 `--token-batch-size`** 1024 -> 2048/4096: more tokens per step; same
-  trade-off as H6.
-- **H8 `--batch-size`** 16 -> 32: more concurrent requests admitted; TTFT under
-  load drops if the scheduler was queueing.
+All correctness gates must pass: golden greedy outputs, accepted finish reasons,
+complete output and streamed-token/usage accounting. One cold startup is measured per
+side: more than 1.5× last-good startup is a hard regression gate. Startup improvement
+alone is `no_change`. A kept candidate becomes the baseline for the next attempt.
+Read error/regression history before selecting a neighboring change.
 
-### Smoothness (FTGR / fluidity)
-- **H9 `--page-chunk-size`** 16 -> 32/64: larger KV pages, fewer page-table
-  lookups per decode step; risk of fragmentation.
-- **H10 `--prefill-chunk-size`** 256 -> 128: smaller chunks interleave better with
-  decode -> steadier inter-token intervals (opposite direction of H6; only one
-  of them can win).
-- **H11 `--backend`** auto vs explicit: on ROCm only `auto`/`triton` are
-  plausible; `cuda_*`/`mosaic_tpu` will fail (`error`) - do not propose them.
-- **H12 speculative decoding `--speculative-drafter-model=native`** with
-  `--speculative-draft-count` 2..4: higher decode rate if acceptance is high;
-  rule 3 applies - greedy outputs must be bit-identical, else `gate_failed`.
+## Unmeasured mechanisms to consider
 
-### Image slimming (secondary; only after the above)
-- **H13** multi-stage copy of `/llmd` onto a smaller base: shorter pull/start
-  time. Only if the binary's shared-library closure is known (`ldd`); the
-  ROCm runtime makes this risky -> propose last and expect `error` first.
+Choose against this workload and history, one knob only. These are hypotheses, not
+performance evidence or instructions to copy a prepared patch.
 
-## Stand-in engine (CPU development evidence)
+* KV page size (`--page-chunk-size`) may change decode page-table overhead, with
+  fragmentation/startup risk. A native drafter (`--speculative-drafter-model=native`)
+  may help only when target verification preserves bit-identical greedy output.
+  Adding a drafter and changing `--speculative-draft-count` are two separate attempts.
+* Cache/GPU memory fractions may affect allocation overhead; changing either risks
+  startup failure or OOM. No benefit has been measured here.
+* Larger prefill/token batches or more admitted requests have no demonstrated
+  long-prefill/concurrency benefit on these short sequential prompts. CPU-supported
+  syntax does not establish ROCm/model support or a GPU gain.
+* Both telemetry ENV declarations are commented out in the original wrapper.
+  Changing **one** declaration is one variable; uncommenting both is two variables.
+  Their startup benefit is unmeasured and cannot alone earn a keep.
 
-For `engine=standin` the build context is `tasks/harness-design/standin/`
-(llama.cpp `llama-server`). Analogous knobs: `--threads`, `--threads-batch`,
-`--batch-size`, `--ubatch-size`, `--parallel`, `--flash-attn`, `--cache-type-k/v`,
-`--ctx-size`, build ARGs `GGML_NATIVE`, `GGML_LTO`, `GGML_AVX*`, `GGML_OPENMP`.
-The same rules apply; the scripted queue in `experiments/standin-queue.json`
-is the deterministic program used when no coding-model key is present.
+Use only documented pinned binary flags. Current values are in the supplied
+Dockerfile. Verified help names include `--batch-size`, `--token-batch-size`,
+`--max-context-len`, `--prefill-chunk-size`, `--page-chunk-size`, `--backend`,
+`--gpu-memory-fraction`, `--cache-memory-fraction`, `--topk`,
+`--speculative-drafter-model`, `--speculative-draft-count`, `--model-name`, and
+`--listen`. `--io-impl=zio` is accepted but absent from help; invent no other value.
+Keep backend `auto` unless your own supported alternative has a defensible mechanism;
+do not add CUDA/TPU options. Help availability is not performance evidence.
+
+The real baseline was measured at `09f52c25af380a0daefdea3a183fe45a6ec75730`.
+The genuine Pi attempt failed at a 120-second upstream cap before producing a patch;
+no Pi optimization cycle or measured gain exists. Older CPU stand-in keeps were
+invalidated by an interval-adapter bug and are not LLMD improvement evidence. The
+missing historical fresh-revalidation report/traces and provider body cannot be
+recreated by new results.
+
+## CPU stand-in
+
+For `engine=standin`, use only its supplied Dockerfile and scratch build context.
+Analogous knobs include threads, batch sizes and build ARGs. Preserve the same
+correctness and attribution rules. Scripted/fake-provider CPU fixtures test harness
+behavior; they are not genuine Pi work or target hardware performance evidence.
+
+Write the renderer-specified unified diff relative to the scratch context (for LLMD,
+`a/tasks/harness-design/Dockerfile` and `b/tasks/harness-design/Dockerfile`) and metadata
+with `experiment`, `hypothesis`, `notes`. Identify intended metric, physical mechanism
+and correctness risk; never assert an unmeasured gain. Then stop.

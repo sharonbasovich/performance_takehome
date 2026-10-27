@@ -16,6 +16,7 @@ to any log, report, or transcript produced here.
 from __future__ import annotations
 
 import difflib
+import hashlib
 import json
 import math
 import os
@@ -24,7 +25,7 @@ import shutil
 import tempfile
 import time
 from collections.abc import Callable, Iterator, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -92,6 +93,7 @@ class ProposerContext:
     timeout_s: float | None = None
     should_abort: Callable[[], bool] | None = None
     deadline_monotonic: float | None = None
+    readonly_inputs: Mapping[str, str] = field(default_factory=dict)
 
 
 class Proposer:
@@ -350,6 +352,7 @@ class PiLaunchConfig:
     extra_env: dict[str, str] = field(default_factory=dict)
     timeout_s: float = 900.0
     usd_per_call_estimate: float = 0.0
+    provider_response_dir: Path | None = None
 
 
 def pi_version(pi_bin: Path, *, timeout_s: float = 60) -> str:
@@ -469,6 +472,12 @@ class PiProposer(Proposer):
                 f"`{context.engine}`. Build context (the ONLY files you may change): "
                 f"`{context.context_dir}`",
                 "",
+                "## Current inputs supplied by the controller (read-only)",
+                *[
+                    f"### {name}\n```\n{content.rstrip()}\n```"
+                    for name, content in context.readonly_inputs.items()
+                ],
+                "",
                 "## Budget",
                 context.budget_summary or "(not provided)",
                 "",
@@ -476,8 +485,8 @@ class PiProposer(Proposer):
                 *history_lines,
                 "",
                 "## What you must output",
-                "1. Pick exactly ONE experiment (one change), guided by the ranked hypotheses "
-                "above and the history.",
+                "1. Pick exactly ONE experiment (one change), guided by the supplied workload "
+                "and history.",
                 f"2. Edit files inside `{context.context_dir}` only. Do not run docker, "
                 "do not start servers, do not touch anything else.",
                 "3. Write a unified diff of your change (as produced by "
@@ -506,34 +515,93 @@ class PiProposer(Proposer):
         patch_out = attempt_dir / "proposal.patch"
         meta_out = attempt_dir / "proposal.json"
         prompt_path = attempt_dir / "prompt.md"
-        scratch_context = ProposerContext(
-            context.program_md,
-            context.profile,
-            context.history,
-            scratch,
-            context.work_dir,
-            context.engine,
-            context.budget_summary,
-        )
+        scratch_context = replace(context, context_dir=scratch)
         prompt_path.write_text(
             self.render_prompt(scratch_context, patch_out, meta_out), encoding="utf-8"
         )
         session_dir = attempt_dir / "sessions"
         session_dir.mkdir()
+        status = {
+            "status": "prepared",
+            "prompt_sha256": hashlib.sha256(prompt_path.read_bytes()).hexdigest(),
+            "transcript": "pi-events.jsonl",
+            "stderr": "pi-stderr.log",
+            "sessions": "sessions",
+            "patch": "proposal.patch",
+            "metadata": "proposal.json",
+            "provider_response_dir": (
+                str(self.config.provider_response_dir.resolve())
+                if self.config.provider_response_dir is not None
+                else None
+            ),
+            "provider_response_capture": "External gateway binding; bytes unverified here.",
+        }
+        self._write_status(attempt_dir, status)
+        try:
+            proposal = self._run_attempt(context, attempt_dir, scratch, prompt_path, status)
+        except BaseException as exc:
+            status.update(
+                status="failed",
+                error_type=type(exc).__name__,
+                api_usd_known=getattr(exc, "api_usd", None),
+                accounting_resolved=(
+                    isinstance(exc, ProposerError)
+                    and not isinstance(exc, ProposerAccountingError)
+                    and exc.api_usd is not None
+                ),
+            )
+            self._write_status(attempt_dir, status)
+            raise
+        status.update(status="complete", accounting_resolved=True, api_usd_known=proposal.api_usd)
+        self._write_status(attempt_dir, status)
+        return proposal
+
+    @staticmethod
+    def _write_status(attempt_dir: Path, status: Mapping[str, Any]) -> None:
+        """Atomically retain attempt state; a killed process leaves its last known stage."""
+        pending = attempt_dir / "attempt-status.json.tmp"
+        with pending.open("w", encoding="utf-8") as fh:
+            json.dump(dict(status), fh, indent=2, sort_keys=True)
+            fh.write("\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+        pending.replace(attempt_dir / "attempt-status.json")
+
+    def _run_attempt(
+        self,
+        context: ProposerContext,
+        attempt_dir: Path,
+        scratch: Path,
+        prompt_path: Path,
+        status: dict[str, Any],
+    ) -> Proposal:
+        patch_out = attempt_dir / "proposal.patch"
+        meta_out = attempt_dir / "proposal.json"
         transcript = attempt_dir / "pi-events.jsonl"
         timeout_s = min(self.config.timeout_s, context.timeout_s or self.config.timeout_s)
         if context.deadline_monotonic is not None:
             timeout_s = min(timeout_s, context.deadline_monotonic - time.monotonic())
         if timeout_s <= 0:
             raise ProposerError("allocation deadline reached before Pi launch")
+        status.update(status="running", timeout_s=timeout_s)
+        self._write_status(attempt_dir, status)
         result = procs.run(
-            self.build_command(prompt_path, session_dir),
+            self.build_command(prompt_path, attempt_dir / "sessions"),
             timeout_s=timeout_s,
             cwd=scratch,
             env=self.build_env(),
             log_path=transcript,
+            stderr_path=attempt_dir / "pi-stderr.log",
             should_abort=context.should_abort,
         )
+        status.update(
+            status="process_exited",
+            returncode=result.returncode,
+            timed_out=result.timed_out,
+            aborted=result.aborted,
+            duration_s=result.duration_s,
+        )
+        self._write_status(attempt_dir, status)
         model_error = self._error_from_events(transcript)
         accounting_error = None
         try:

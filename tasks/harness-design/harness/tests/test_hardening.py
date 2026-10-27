@@ -355,10 +355,14 @@ class ManifestPinsTest(unittest.TestCase):
             harness.engine = StandinEngine.create(_paths.REPO_ROOT, root, cpus=1)
             try:
                 harness.state.harness_tree_sha256 = "a" * 64
+                failed = root / "state/proposer/pi-attempt-failed/attempt-status.json"
+                failed.parent.mkdir(parents=True)
+                failed.write_text('{"status":"failed","accounting_resolved":false}')
                 manifest = manifest_mod.write_manifest(harness)
             finally:
                 harness._release_locks()
             self.assertEqual(manifest["source"]["harness_tree_sha256"], "a" * 64)
+            self.assertEqual(manifest["evidence"]["agent_attempt_statuses"], [str(failed)])
             self.assertEqual(
                 manifest["source"]["image_identity_kind"], manifest_mod.IMAGE_IDENTITY_KIND
             )

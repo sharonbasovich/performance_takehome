@@ -493,3 +493,37 @@ paths can default under `--state-dir`. Documentation source
 protected integrity and all 14 historical rows passing. Its implementation hash
 is unchanged from `bed51c3`; only the README and the preceding verification note
 differ. Earlier measurements and frozen evidence remain intact.
+
+## 2026-10-27 prospective proposer and retention corrections
+
+The default program now describes the actual prompt-stratified geometric-mean
+bootstrap, six sequential prompts with individual token ceilings, unchanged serving
+profile and context contract. It corrects the inactive telemetry declarations and
+requires one variable per patch. No hypothesis is a preselected optimization.
+
+The controller supplies the actual current Dockerfile, selected benchmark, stock Pi
+profile, runtime binding and selected baseline catalog in the retained prompt. A
+catalog entry alone does not prove which model snapshot is mounted; independent
+model preflight remains required. The Dockerfile's build-example comment now uses
+the actual repository-root context. Runtime flags are unchanged.
+
+Each prospective Pi attempt retains its prompt, sessions, stdout JSON transcript,
+separate stderr and atomic attempt-status receipt under the existing external state
+directory's `proposer/pi-attempt-*`. Receipts record process exit/timeout/abort and
+known accounting status, including failed attempts; a killed controller leaves its
+last durable stage. The manifest discovers these receipts independently of whether
+a proposal reached an experiment report. Provider response bytes belong to the
+configured gateway's separate retention path and must be exported with this tree.
+`--provider-response-dir` / `PiLaunchConfig.provider_response_dir` records that
+external operator binding in each attempt receipt and manifest, without claiming
+that the directory exists or that moving files were verified. Stop the gateway,
+snapshot its complete WAL, and verify the independent offhost export.
+The harness cannot recover provider bodies it never received.
+
+These are offline changes, not another genuine Pi trial or evidence of a latency
+fix. The real baseline remains attributed to
+`09f52c25af380a0daefdea3a183fe45a6ec75730`; no optimization gain exists. Historical
+CPU evidence, missing fresh-revalidation report/30 traces, unretained timed-out body,
+unresolved API reservation and frozen source/deployment packets are unchanged.
+A future admitted run still requires final fresh validation, all 30 complete response
+traces, verified offhost bytes and confirmed cleanup before resource teardown.
