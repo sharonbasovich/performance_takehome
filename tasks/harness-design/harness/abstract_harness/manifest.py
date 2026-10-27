@@ -170,6 +170,14 @@ def build_manifest(
             cfg.rel(p)
             for p in sorted((cfg.state_dir / "proposer").glob("pi-attempt-*/attempt-status.json"))
         ],
+        "measurement_workers": [
+            {
+                "input": cfg.rel(p),
+                "stdout": cfg.rel(p.with_name("stdout.json")),
+                "stderr": cfg.rel(p.with_name("stderr.log")),
+            }
+            for p in sorted((cfg.state_dir / "measurement-workers").glob("worker-*/input.json"))
+        ],
         "provider_response_retention": {
             "directory": (
                 str(provider_response_dir.resolve())

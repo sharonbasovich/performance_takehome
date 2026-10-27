@@ -27,7 +27,8 @@ class ProcessGroupTest(unittest.TestCase):
                 "pid = os.fork()\n"
                 "if pid == 0:\n"
                 "    signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
-                f"    Path({str(pidfile)!r}).write_text(str(os.getpid()))\n"
+                f"    Path({str(pidfile.with_suffix('.tmp'))!r}).write_text(str(os.getpid()))\n"
+                f"    Path({str(pidfile.with_suffix('.tmp'))!r}).replace({str(pidfile)!r})\n"
                 "    time.sleep(120)\n"
                 "else:\n"
                 f"    while not Path({str(pidfile)!r}).exists(): time.sleep(0.01)\n"
@@ -37,7 +38,8 @@ class ProcessGroupTest(unittest.TestCase):
             try:
                 start = time.monotonic()
                 result = procs.run(
-                    [sys.executable, "-c", script], timeout_s=0.5,
+                    [sys.executable, "-c", script],
+                    timeout_s=3.0,
                     log_path=root / "child.log" if log_output else None,
                 )
                 self.assertLess(time.monotonic() - start, 10.0)
@@ -98,10 +100,16 @@ class ProcessGroupTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             stdout, stderr = Path(tmp) / "stdout.jsonl", Path(tmp) / "stderr.log"
             result = procs.run(
-                [sys.executable, "-u", "-c",
-                 'import sys,time; print("{} "); print("diagnostic", file=sys.stderr); '
-                 'time.sleep(30)'],
-                timeout_s=0.2, log_path=stdout, stderr_path=stderr,
+                [
+                    sys.executable,
+                    "-u",
+                    "-c",
+                    'import sys,time; print("{} "); print("diagnostic", file=sys.stderr); '
+                    "time.sleep(30)",
+                ],
+                timeout_s=0.2,
+                log_path=stdout,
+                stderr_path=stderr,
             )
             self.assertTrue(result.timed_out)
             self.assertEqual(stdout.read_text().strip(), "{}")

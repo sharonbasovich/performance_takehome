@@ -300,20 +300,38 @@ class Harness:
         remaining = stage_deadline - time.monotonic()
         if remaining <= 0:
             raise measure_mod.MeasurementError(f"{operation} exceeded its time budget")
+        worker_root = self.config.state_dir / "measurement-workers"
+        worker_root.mkdir(parents=True, exist_ok=True)
+        worker_dir = Path(tempfile.mkdtemp(prefix=f"worker-{operation}-", dir=worker_root))
+        worker_input = json.dumps({"operation": operation, **payload})
+        (worker_dir / "input.json").write_text(worker_input + "\n", encoding="utf-8")
+        self.log(f"[harness] {operation} worker logs: {self.config.rel(worker_dir)}")
+        remaining = stage_deadline - time.monotonic()
+        if remaining <= 0:
+            raise measure_mod.MeasurementError(
+                f"{operation} exceeded its time budget (worker logs: {worker_dir})"
+            )
         result = procs.run(
             [sys.executable, str(Path(measure_mod.__file__).with_name("measurement_worker.py"))],
-            stdin_text=json.dumps({"operation": operation, **payload}),
+            stdin_text=worker_input,
             timeout_s=remaining,
             should_abort=should_abort,
+            log_path=worker_dir / "stdout.json",
+            stderr_path=worker_dir / "stderr.log",
         )
         self._checkpoint()
         if container_stopped:
-            raise measure_mod.MeasurementError(f"engine container stopped during {operation}")
+            raise measure_mod.MeasurementError(
+                f"engine container stopped during {operation} (worker logs: {worker_dir})"
+            )
         if result.timed_out:
-            raise measure_mod.MeasurementError(f"{operation} exceeded its time budget")
+            raise measure_mod.MeasurementError(
+                f"{operation} exceeded its time budget (worker logs: {worker_dir})"
+            )
         if not result.ok:
             raise measure_mod.MeasurementError(
-                f"{operation} failed: {(result.stderr or result.stdout)[-1500:]}"
+                f"{operation} failed: {(result.stderr or result.stdout)[-1500:]} "
+                f"(worker logs: {worker_dir})"
             )
         return json.loads(result.stdout)
 

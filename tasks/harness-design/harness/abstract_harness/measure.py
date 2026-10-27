@@ -12,7 +12,7 @@ import json
 import math
 import time
 import urllib.parse
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -372,18 +372,27 @@ def wait_for_first_valid_generation(
     *,
     timeout_s: float,
     is_alive: Any = None,
+    max_probe_attempts: int = 3,
+    on_probe: Callable[[RequestTrace], None] | None = None,
 ) -> tuple[float, str]:
     """Startup metric: seconds from container start until the first valid, complete generation.
 
     Readiness of ``/v1/models`` alone is not accepted; the server must stream a
     complete greedy generation (finish_reason ``stop`` or ``length``) first.
+    Completion probes are capped independently of the readiness/time deadline;
+    repeated invalid model output is a failed compatibility check.
     """
+    if type(max_probe_attempts) is not int or max_probe_attempts < 1:
+        raise BenchmarkError("max_probe_attempts must be a positive integer")
     request_profile = _benchmark_request_profile(benchmark)
     remaining = lambda: timeout_s - (time.monotonic() - started_at)  # noqa: E731
+    if remaining() <= 0:
+        raise MeasurementError("startup deadline exhausted before readiness")
     model_id = wait_for_model_id(base_url, timeout_s=max(1.0, remaining()), is_alive=is_alive)
     probe = benchmark["startup_probe"]
     last_error = "not attempted"
-    while remaining() > 0:
+    attempts = 0
+    while remaining() > 0 and attempts < max_probe_attempts:
         if is_alive is not None and not is_alive():
             raise MeasurementError(f"engine process exited during startup probe ({last_error})")
         trace = stream_chat_completion(
@@ -396,11 +405,18 @@ def wait_for_first_valid_generation(
             extra_fields=benchmark.get("extra_request_fields"),
             request_profile=request_profile,
         )
+        attempts += 1
+        if on_probe is not None:
+            on_probe(trace)
         if trace.ok and trace.finish_reason in {"stop", "length"}:
             return time.monotonic() - started_at, model_id
         last_error = trace.error or f"finish_reason={trace.finish_reason!r}"
-        time.sleep(0.5)
-    raise MeasurementError(f"no valid generation within {timeout_s:.0f}s of start: {last_error}")
+        if attempts < max_probe_attempts and remaining() > 0:
+            time.sleep(min(0.5, max(0.0, remaining())))
+    raise MeasurementError(
+        f"no valid generation after {attempts}/{max_probe_attempts} probes "
+        f"within {timeout_s:.0f}s of start: {last_error}"
+    )
 
 
 def correctness_gates(

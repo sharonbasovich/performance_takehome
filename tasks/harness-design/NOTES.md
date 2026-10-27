@@ -520,6 +520,15 @@ that the directory exists or that moving files were verified. Stop the gateway,
 snapshot its complete WAL, and verify the independent offhost export.
 The harness cannot recover provider bodies it never received.
 
+Startup completion admission is now capped at three probes, within the existing
+startup deadline. Repeated invalid generations fail the attempt early. The worker
+flushes each complete probe trace to its separate stderr capture, including the
+successful probe, while preserving the result protocol on stdout. The parent
+retains each worker's input, stdout and stderr in a unique external-state
+`measurement-workers/worker-*` directory, including failures, timeouts and aborts.
+The manifest discovers these files independently of completed experiment reports.
+Readiness, correctness, metric arithmetic and candidate keep/revert rules are unchanged.
+
 These are offline changes, not another genuine Pi trial or evidence of a latency
 fix. The real baseline remains attributed to
 `09f52c25af380a0daefdea3a183fe45a6ec75730`; no optimization gain exists. Historical

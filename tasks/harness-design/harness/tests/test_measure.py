@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import tempfile
 import threading
 import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from unittest import mock
 
 from abstract_harness import measure
 from abstract_harness.decision import decide
@@ -130,3 +133,79 @@ class BrokenServerTest(unittest.TestCase):
 
     def test_readiness_reports_served_model_id(self) -> None:
         self.assertEqual(measure.wait_for_model_id(self.base_url, timeout_s=3.0), "broken-model")
+
+    def test_completion_retries_stop_before_the_long_startup_deadline(self) -> None:
+        probes = []
+        start = time.monotonic()
+        with self.assertRaisesRegex(measure.MeasurementError, "3/3 probes"):
+            measure.wait_for_first_valid_generation(
+                self.base_url, start, self.benchmark, timeout_s=90.0, on_probe=probes.append
+            )
+        self.assertEqual(len(probes), 3)
+        self.assertTrue(all(p.status == 500 for p in probes))
+        self.assertLess(time.monotonic() - start, 10.0)
+
+    def test_worker_retains_failed_startup_traces_separately_from_result(self) -> None:
+        worker = Path(measure.__file__).with_name("measurement_worker.py")
+        result = subprocess.run(
+            [sys.executable, "-B", str(worker)],
+            input=json.dumps(
+                {
+                    "operation": "startup",
+                    "base_url": self.base_url,
+                    "started_at": time.monotonic(),
+                    "benchmark": self.benchmark,
+                    "timeout_s": 90.0,
+                }
+            ),
+            text=True,
+            capture_output=True,
+            timeout=15,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+        events = [
+            json.loads(line) for line in result.stderr.splitlines() if line.startswith('{"event":')
+        ]
+        self.assertEqual(len(events), 3)
+        self.assertTrue(
+            all(e["event"] == "startup_probe" and e["trace"]["status"] == 500 for e in events)
+        )
+        self.assertIn("3/3 probes", result.stderr)
+
+    def test_third_valid_probe_is_accepted_and_all_attempts_are_observed(self) -> None:
+        traces = [
+            measure.RequestTrace("startup-probe", False, error="warming up"),
+            measure.RequestTrace("startup-probe", False, error="empty content"),
+            measure.RequestTrace("startup-probe", True, text="Hello", finish_reason="stop"),
+        ]
+        observed = []
+        with (
+            mock.patch.object(measure, "wait_for_model_id", return_value="model"),
+            mock.patch.object(measure, "stream_chat_completion", side_effect=traces) as request,
+            mock.patch.object(measure.time, "sleep"),
+        ):
+            elapsed, model_id = measure.wait_for_first_valid_generation(
+                self.base_url,
+                time.monotonic(),
+                self.benchmark,
+                timeout_s=90.0,
+                on_probe=observed.append,
+            )
+        self.assertEqual(model_id, "model")
+        self.assertGreaterEqual(elapsed, 0)
+        self.assertEqual(request.call_count, 3)
+        self.assertEqual(observed, traces)
+
+    def test_invalid_probe_limit_is_refused_before_network(self) -> None:
+        with mock.patch.object(measure, "wait_for_model_id") as readiness:
+            for value in (0, -1, True, 2.5):
+                with self.assertRaises(measure.BenchmarkError):
+                    measure.wait_for_first_valid_generation(
+                        self.base_url,
+                        time.monotonic(),
+                        self.benchmark,
+                        timeout_s=90.0,
+                        max_probe_attempts=value,
+                    )
+        readiness.assert_not_called()
