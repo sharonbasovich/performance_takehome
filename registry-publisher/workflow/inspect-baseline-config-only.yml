@@ -1,0 +1,33 @@
+# STAGED ONLY. A branch push runs inspection, never uploads. No default-branch registration needed.
+name: inspect-baseline-config-only
+'on':
+  push:
+    branches: ['codex/task2-registry-inspection']
+    paths: ['registry-publisher/**', '.github/workflows/inspect-baseline-config-only.yml']
+permissions: {}
+jobs:
+  inspect:
+    if: github.repository == 'sharonbasovich/performance_takehome' && github.event.repository.private == false && github.ref == 'refs/heads/codex/task2-registry-inspection'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate exact baseline without registry access
+        run: >-
+          python3 registry-publisher/src/publish_baseline_config_only.py
+          --metadata-dir registry-publisher/delivery/metadata
+          --base-manifest registry-publisher/delivery/base-manifest.json
+          --dockerfile registry-publisher/delivery/selected.Dockerfile
+          --selection registry-publisher/evidence/selection.json
+          --receipt receipt-inspection.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: inspection-receipt
+          path: |
+            receipt-inspection.json
+            receipt-inspection.json.attempt.jsonl

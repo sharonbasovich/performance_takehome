@@ -1,0 +1,68 @@
+{
+  "archive_bytes": 5923200000,
+  "archive_sha256": "c759f7c2a7dd3b6a1deb083c0df46c435c0165e237f50d6b7e52097031497b47",
+  "baseline_measurement": {
+    "all_passed": true,
+    "report_bytes": 45430,
+    "report_sha256": "f83cadc074363d7affe2b830a45af96ecacc22e234f8857a9767a4accdc2edff",
+    "requests": 30
+  },
+  "delivery_pr": "https://github.com/sharonbasovich/performance_takehome/pull/5",
+  "delivery_pr_head": "60a0512b8ad1a9ca3e5233a4bb7e95b95ccc272c",
+  "destination": {
+    "by_digest": "ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d",
+    "mutable_tag": "baseline-ccd73fc2",
+    "original_index_published": false,
+    "published_object": "selected_linux_amd64_platform_manifest",
+    "registry": "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+    "tag_is_mutable": true
+  },
+  "fresh_revalidation": {
+    "execution_receipt_pass": true,
+    "raw_report_retained": false,
+    "report_sha256": "d1c197f3a4809af223b8c4d7536f78744df67ac25913b41b66158c91ca7f05b4",
+    "requests": 30,
+    "retention_gap": "only the execution receipt/PASS summary and full-report hash were exported before teardown; the full fresh report and 30 response traces were lost and are not substituted",
+    "traces_retained": false
+  },
+  "image": {
+    "compressed_layer_bytes": 5923157643,
+    "config": "sha256:0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f",
+    "index": "sha256:ccd73fc2f663734f222070502bca7928d62cfad1cee733170357e1c3dd957540",
+    "inherited_layers": 23,
+    "platform": "linux/amd64",
+    "platform_manifest": "sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d",
+    "public_base": "docker.io/zmlai/llmd@sha256:0a2cd01a2e53c78934a8cfef66f8668da7666be4954a5d18b72df089c54ea34f"
+  },
+  "legacy_selection_provenance": {
+    "meaning": "Preserved original selection evidence only. Its destination.by_digest referred to the original index and immutable_tag was misleading; neither is the current publication contract.",
+    "path": "evidence/legacy-selection-revision2.json",
+    "sha256": "27b7ddcf1f9145d2e695dd2f79d9fd56a81c6f06ebff6c30c3ece291f4f19c39"
+  },
+  "license_and_provenance": "upstream LLMD source/license provenance inherited from the public base; the whole image is NOT labelled Apache-2.0; engine source is organizer-held (lock.json engine_source_status)",
+  "model": {
+    "repository": "Qwen/Qwen3.6-27B",
+    "revision": "6a9e13bd6fc8f0983b9b99948120bc37f49c13e9"
+  },
+  "optimized_gain_claimed": false,
+  "pi_attempt": {
+    "detail": "exceeded the upstream 120 s response deadline after 13 read-only tool calls; all 146 workspace files unchanged; no propose/build/measure/keep-or-revert cycle completed; unknown API reservation retained",
+    "outcome": "failed_before_patch",
+    "patch_produced": false,
+    "proposer": "genuine Pi (GLM-5.2)"
+  },
+  "public_release_fallback": "https://github.com/sharonbasovich/performance_takehome/releases/tag/task2-llmd-baseline-20261026",
+  "publication_state": "UNVERIFIED: this preparation performed no registry upload; current package existence, visibility, organizer access and anonymous Docker pull remain unverified",
+  "root_approval": "REQUIRED before execute; approval = the SHA-256 of this exact file passed as --root-approved-selection-sha256",
+  "schema_version": 2,
+  "source": {
+    "commit": "09f52c25af380a0daefdea3a183fe45a6ec75730",
+    "dockerfile": "tasks/harness-design/Dockerfile",
+    "dockerfile_sha256": "7f8caeabc5b52b2fe1406287a57317bc6e56c7adb0a63e576a4710afe76a1225",
+    "pr3_documentation_head": "8a97a43fa7ec7d4000a6ff2602f878fbcb66349b",
+    "repository": "https://github.com/sharonbasovich/performance_takehome"
+  },
+  "status": "BASELINE_FALLBACK",
+  "status_meaning": "The exact measured, unchanged LLMD baseline image is the publication candidate. This is NOT a REAL_PI_LAST_GOOD image: no optimized candidate was kept.",
+  "weights_in_image": false
+}
