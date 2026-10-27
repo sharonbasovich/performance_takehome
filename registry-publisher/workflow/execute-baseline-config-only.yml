@@ -17,9 +17,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    env:
-      REGCTL_CONFIG: ${{ runner.temp }}/baseline-regctl/config.json
-      DOCKER_CONFIG: ${{ runner.temp }}/baseline-empty-docker
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,6 +27,12 @@ jobs:
           python3 registry-publisher/src/check_publication_approval.py registry-publisher > approved-selection.sha256
           test "$(wc -c < approved-selection.sha256)" -eq 65
           grep -Eq '^[0-9a-f]{64}$' approved-selection.sha256
+      - name: Initialize private client paths in the runner step
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/baseline-regctl" "$RUNNER_TEMP/baseline-empty-docker"
+          printf 'REGCTL_CONFIG=%s\nDOCKER_CONFIG=%s\n' "$RUNNER_TEMP/baseline-regctl/config.json" "$RUNNER_TEMP/baseline-empty-docker" >> "$GITHUB_ENV"
       - name: Fetch exact client without changing accounts or billing
         run: |
           set -euo pipefail
