@@ -4,12 +4,12 @@
   "status": "complete-synthetic-reproduced-and-independently-audited",
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
-    "commit": "fef4a2f91faab65665578db44eb56fccd714f14b",
+    "commit": "12833e8982c1f08bb8748c2d674e381339404154",
     "commit_note": "Clean committed source used for final synthetic reproduction and independent audit. A later artifact commit records generated outputs without changing this research tree.",
-    "research_tree_sha": "42c02f2868f7abc104836d58800684c79f197bb3",
-    "branch": "codex/abstract-quant-audit",
-    "pull_request": "https://github.com/sharonbasovich/performance_takehome/pull/1",
-    "source_sha256": "5f4ff3df99524ab9e35bf711a4ec5dcb84a3052a2ff8c6efc9313ceafa36b71e",
+    "research_tree_sha": "3c941316a9777b2f8c3749ce0c7e4d19595a9ce0",
+    "branch": "codex/task3-quant-final",
+    "pull_request": "https://github.com/sharonbasovich/performance_takehome/pull/6",
+    "source_sha256": "64f6c66ca640c79d7094e1be3b3e0a50886f12b6f7d8aae400fa51113bb5bfaf",
     "source_bytes": "canonical LF checkout of the recorded Git commit",
     "working_tree_dirty": false
   },

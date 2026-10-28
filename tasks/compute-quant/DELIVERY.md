@@ -64,3 +64,9 @@ The documented candidate-defined schemas, digest convention and optional input
 extensions are usable as supplied. The absent organizer tag, official receipt and
 held-out grading fixtures are recorded limitations; no substitute organizer approval,
 market evidence or official score is asserted.
+
+## Final review fixes — 28 October 2026
+
+The final review corrected omitted supply-anchor defaults, report rendering without the optional cheap-compute scenario, and complete exclusion reasons in the uncapped normalization CSV. The numerical curve, valuation and report remain byte-identical to the prior delivery.
+
+A genuine clean Linux Git checkout of source `12833e8982c1f08bb8748c2d674e381339404154` passed all 173 candidate tests, root tests, protected-file integrity and the independent cash-flow/source-byte audit. Two fresh runs reproduced the curve, valuation, normalization CSV and report byte-for-byte. The run manifest and submission record that committed research tree and its actual LF source bytes.
