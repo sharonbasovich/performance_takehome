@@ -67,6 +67,7 @@ class HarnessState:
     last_clock_ts: float = 0.0
     harness_tree_sha256: str = ""
     attempt_durations_s: list[float] = field(default_factory=list)
+    delivery_policy: str = "none"
 
     def to_json(self) -> dict[str, Any]:
         """Plain-dict form."""

@@ -33,9 +33,9 @@ from pathlib import Path
 from typing import Any
 
 from . import budget as budget_mod
+from . import configuration_delivery, procs
 from . import docker_runtime as docker
 from . import measure as measure_mod
-from . import procs
 from . import results as results_mod
 from .decision import Decision, decide
 from .engines import CONTAINER_PORT, Engine
@@ -94,6 +94,7 @@ class LoopConfig:
     keep_candidate_images: bool = False
     repo_relative_base: Path | None = None
     baseline_path: Path | None = None
+    delivery_policy: str = "none"
 
     def rel(self, path: Path) -> str:
         """Repository-root-relative POSIX path for TSV/report references."""
@@ -126,6 +127,12 @@ class Harness:
         log: Callable[[str], None] = print,
         clock: Callable[[], float] = time.time,
     ) -> None:
+        if config.delivery_policy not in {"none", configuration_delivery.POLICY}:
+            raise ValueError("unknown delivery policy")
+        if config.delivery_policy != "none":
+            if engine.name != "llmd":
+                raise ValueError("llmd-config-v1 delivery policy requires the llmd engine")
+            configuration_delivery.validate_initial_source(engine.spec.build_context)
         spec = getattr(engine, "spec", None)
         if spec is not None:
             validate_state_directory(config.state_dir, spec.build_context)
@@ -149,6 +156,12 @@ class Harness:
             lease_start_ts=config.budget.lease_start_ts,
             lease_deadline_ts=config.budget.lease_deadline_ts,
         )
+        if prior_state and prior_state.delivery_policy != config.delivery_policy:
+            self._release_locks()
+            raise StateError(
+                "delivery policy differs from original state; use a fresh state directory"
+            )
+        self.state.delivery_policy = config.delivery_policy
         if prior_state and self.clock() < prior_state.last_clock_ts:
             self._release_locks()
             raise StateError("wall clock is behind saved accounting time; reconcile the lease")
@@ -770,6 +783,25 @@ class Harness:
             report["patch_apply"] = {"ok": ok, "output": output[-2000:]}
             if not ok:
                 raise RuntimeError(f"patch did not apply: {output[-300:]}")
+            if self.config.delivery_policy != "none":
+                self._checkpoint()
+
+                def policy_checkpoint():
+                    self._checkpoint()
+                    self._stage_timeout(self.config.timeouts.build_s)
+
+                try:
+                    report["delivery_eligibility"] = configuration_delivery.validate_patch_context(
+                        source_context, scratch, checkpoint=policy_checkpoint
+                    )
+                except ValueError as exc:
+                    report["delivery_eligibility"] = {
+                        "policy": self.config.delivery_policy,
+                        "status": "REJECTED_BEFORE_BUILD",
+                        "reason": str(exc),
+                        "image_or_layer_verification": False,
+                    }
+                    raise
             self._checkpoint()
             build = self.build(
                 scratch, tag, self.config.state_dir / "logs" / f"{experiment}.build.log"

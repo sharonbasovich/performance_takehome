@@ -14,8 +14,13 @@ The genuine GLM-5.2/Pi attempt failed at a buffered upstream 120-second response
 deadline after 13 read-only tool calls, before any patch. All 146 workspace files
 matched the baseline. No successful propose/build/measure/keep-or-revert experiment,
 optimized image or speedup is claimed. The unresolved final API request retains its
-full charge reservation. Registry publication and anonymous `docker pull` remain
-unverified; release-asset delivery is complete. Delegated CPU validation in
+full charge reservation. The baseline was later published and anonymously verified through the separate
+[delivery PR 5](https://github.com/sharonbasovich/performance_takehome/pull/5):
+`ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d`.
+The [full anonymous object check](https://github.com/sharonbasovich/performance_takehome/actions/runs/40598808475)
+verified all 25 objects (5,923,167,710 bytes); a separate anonymous Docker pull,
+identity inspection and CPU help check also passed. These support baseline
+delivery only. No optimized image or GPU inference result follows from them. Delegated CPU validation in
 [draft PR 5](https://github.com/sharonbasovich/performance_takehome/pull/5), reviewed by
 the root agent, confirms `docker load`, preservation of the image index and an isolated
 `--help` run with network disabled. The root agent did not execute that import test.
@@ -36,6 +41,27 @@ compatibility checks are described separately below; no official grade is claime
 Starter commit: `81aead87d78ed468c4c374fb42921471b44c3f80` (the organizer's `takehome-start`
 tag does not exist in this draft; the only upstream commit SHA is used instead and was **not**
 tagged by me). Integrity output is in the "Integrity" section below.
+
+## Optional prebuild delivery eligibility (28 October)
+
+`--delivery-policy llmd-config-v1` rejects an actual applied candidate before
+build or measurement when it changes files outside the selected Dockerfile,
+uses filesystem instructions or parser directives, or changes more than one
+semantic tuning knob. Separately kept single-knob changes can accumulate; the
+reviewed flag family includes the built-in native drafter. Generic mode defaults
+to `none`. Select the policy for both the fresh baseline and genuine Pi run;
+resume must preserve the original mode. See [DELIVERY-POLICY.md](harness/DELIVERY-POLICY.md).
+
+The [CPU verification receipt](harness/reports/delivery-policy-cpu-20261028.json)
+records 273 tests: 272 pass and one actual-image check is skipped because the
+pinned image is absent. The policy has 22 new cases; independent review also
+checked 60 directive/comment boundaries. Protected integrity and whole-Harness
+Ruff pass. A formatter-only loop change has an identical complete AST to the
+tested source. Initial verification environment failures and the unchanged
+protected-root lint finding remain disclosed in the receipt. This optional
+source policy does not establish image layers, runtime flag support, a successful
+Pi cycle or a performance gain. Final publication must still check actual config
+and the complete immutable graph.
 
 ## LLMD request compatibility profile
 

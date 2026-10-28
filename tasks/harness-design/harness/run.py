@@ -223,6 +223,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--gpus", type=int, default=1, help="GPUs allocated (0 for the CPU stand-in)")
     run.add_argument("--max-attempts", type=int, default=None)
+    run.add_argument(
+        "--delivery-policy",
+        choices=["none", "llmd-config-v1"],
+        default="none",
+        help=(
+            "optional pre-build LLMD configuration-only/one-knob delivery guard; "
+            "persisted on resume"
+        ),
+    )
     run.add_argument("--estimated-attempt-minutes", type=float, default=10.0)
     run.add_argument("--build-timeout-s", type=float, default=1800.0)
     run.add_argument("--startup-timeout-s", type=float, default=300.0)
@@ -380,11 +389,12 @@ def cmd_run(args: argparse.Namespace) -> int:
         min_samples=args.min_samples,
         estimated_attempt_s=args.estimated_attempt_minutes * 60,
         keep_candidate_images=args.keep_candidate_images,
+        delivery_policy=args.delivery_policy,
     )
     # Harness aligns the scripted queue after interruption recovery while holding its locks.
     try:
         harness = Harness(config, engine, proposer)
-    except (StateError, LockError) as exc:
+    except (StateError, LockError, ValueError) as exc:
         print(f"[run] {exc}", file=sys.stderr)
         return 4
     if args.manifest_only:
