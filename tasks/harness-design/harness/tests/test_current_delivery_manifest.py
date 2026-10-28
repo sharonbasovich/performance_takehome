@@ -277,8 +277,8 @@ class CurrentDeliveryManifestTests(unittest.TestCase):
 
     def test_actual_pi2_gpu_build_identity_and_original_source_are_bound(self):
         (experiment,) = CURRENT["additional_experiments"]
-        built = load("pi2-measured/build/result.json")
-        actual = load("pi2-measured/build/candidate-inspect.json")
+        built = load("pi2-measured/candidate-build/result.json")
+        actual = load("pi2-measured/candidate-build/candidate-inspect.json")
         self.assertEqual(built["image_id"], experiment["candidate_image_id"])
         self.assertEqual(actual["Id"], built["image_id"])
         self.assertEqual(load("pi2-measured/candidate/result.json")["image_id"], built["image_id"])

@@ -297,23 +297,23 @@
       "bytes": 1185,
       "sha256": "db7282bbecee5c8e9005fa668770249a1dbbbce667a0e17e885d04906cbab756"
     },
-    "pi2-measured/build/attempt.json": {
+    "pi2-measured/candidate-build/attempt.json": {
       "bytes": 1396,
       "sha256": "b5323a3c2a21fe43430492ce4de46059106179b63e5fcc13f8e09156e654fbc9"
     },
-    "pi2-measured/build/result.json": {
+    "pi2-measured/candidate-build/result.json": {
       "bytes": 1312,
       "sha256": "b729ca283f7f14e5b89acf0c7837c6af4dbd8ea1c237128ecbdfbd66bf25bb26"
     },
-    "pi2-measured/build/build.stderr": {
+    "pi2-measured/candidate-build/build.stderr": {
       "bytes": 206,
       "sha256": "d86cb49dd44ce17a9da506b4e732433d5755f98bac9a709da0462523638defc5"
     },
-    "pi2-measured/build/build.stdout": {
+    "pi2-measured/candidate-build/build.stdout": {
       "bytes": 785,
       "sha256": "06550532c1c64d9d39b6fc9213d3086cb076394db2bd21f9d48ff8b1094ef9ff"
     },
-    "pi2-measured/build/candidate-inspect.json": {
+    "pi2-measured/candidate-build/candidate-inspect.json": {
       "bytes": 3772,
       "sha256": "6d1d05cfb85934761bbb91c8c9e21a12f07b9ad9726e86329d8d61043fd56680"
     },
