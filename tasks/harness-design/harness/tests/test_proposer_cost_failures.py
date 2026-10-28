@@ -115,3 +115,28 @@ class PaidOutputFailureTest(unittest.TestCase):
             self.assertEqual(len(rows), 1)
             self.assertEqual(rows[0].outcome, "error")
             self.assertEqual(float(rows[0].api_usd_cumulative), 0.02)
+
+    def test_length_terminal_rejects_partial_artifacts_and_preserves_paid_cost(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proposer, context = self.setup_pi(Path(tmp))
+
+            def truncated(command, **kwargs):
+                result = self.paid_result("metadata")(command, **kwargs)
+                (kwargs["cwd"].parent / "proposal.json").write_text(
+                    '{"experiment":"partial","hypothesis":"unfinished"}\n', encoding="utf-8"
+                )
+                event = json.loads(kwargs["log_path"].read_text())
+                event["message"]["stopReason"] = "length"
+                kwargs["log_path"].write_text(json.dumps(event) + "\n", encoding="utf-8")
+                return result
+
+            with (
+                mock.patch.dict("os.environ", {"HARNESS_TEST_KEY": "fixture-only"}),
+                mock.patch.object(proposers.procs, "run", side_effect=truncated),
+                self.assertRaisesRegex(ProposerError, "output limit.*partial proposal refused")
+                as failure,
+            ):
+                proposer.propose(context)
+            self.assertEqual(failure.exception.api_usd, 0.02)
+            self.assertEqual(proposer.estimated_usd_per_call(), 0.02)
+            self.assertEqual((context.context_dir / "Dockerfile").read_text(), "FROM scratch\n")

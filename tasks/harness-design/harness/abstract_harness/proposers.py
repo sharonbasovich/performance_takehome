@@ -736,13 +736,15 @@ class PiProposer(Proposer):
 
     @staticmethod
     def _error_from_events(transcript: Path) -> str | None:
-        """Return the first ``errorMessage`` of an errored/aborted assistant message."""
+        """Return terminal model failure, including output-limit partial responses."""
         for event in _iter_events(transcript):
             if event.get("type") != "message_end":
                 continue
             message = event.get("message")
             if not isinstance(message, dict):
                 continue
+            if message.get("stopReason") == "length":
+                return "response output limit reached (length); partial proposal refused"
             if message.get("stopReason") in {"error", "aborted"}:
                 return str(message.get("errorMessage") or message.get("stopReason"))
         return None
