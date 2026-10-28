@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import re
 import unittest
 from collections import Counter
 
@@ -29,6 +30,24 @@ def load(relative):
 
 
 class CurrentDeliveryManifestTests(unittest.TestCase):
+    def test_llmd_readme_invocations_use_the_actual_llmd_request_profile(self):
+        readme = (_paths.HARNESS_DIR / "README.md").read_text(encoding="utf-8")
+        blocks = [
+            b
+            for b in re.findall(r"```[^\n]*\n(.*?)```", readme, flags=re.S)
+            if "--engine llmd" in b
+        ]
+        self.assertEqual(len(blocks), 2)
+        for block in blocks:
+            self.assertIn(
+                "--development-benchmark tasks/harness-design/harness/development-benchmark.llmd.json",
+                block,
+            )
+        self.assertEqual(
+            load("actual-source/development-benchmark.llmd.json")["request_profile"],
+            "llmd_closed_thinking_v1",
+        )
+
     def test_historical_manifest_bytes_and_assertions_are_preserved(self):
         local = (TASK / "submission.live-mi355x-20261026.json").read_bytes()
         git = (TASK / "submission.live-mi355x-20261026.git.json").read_bytes()

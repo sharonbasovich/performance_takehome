@@ -23,7 +23,7 @@ python tasks/harness-design/harness/run.py run \
   --proposer pi --pi-bin /opt/pi/node_modules/.bin/pi \
   --pi-provider anthropic --api-key-env ANTHROPIC_API_KEY \
   --baseline baseline/lock.json \
-  --development-benchmark tasks/harness-design/harness/development-benchmark.json \
+  --development-benchmark tasks/harness-design/harness/development-benchmark.llmd.json \
   --budget-minutes 360 \
   --api-spend-limit-usd 200 \
   --state-dir /var/tmp/harness-state \
@@ -150,7 +150,7 @@ existing state directory without running attempts, keeping the state's `source_c
 `harness_tree_sha256` (that is how the committed manifest was regenerated after the Round-4
 metadata fixes; the rows were not touched).
 
-Real target (MI355X host + coding-model key; **not executed in this draft**):
+Example canonical unattended invocation (distinct from the external measured packet above):
 
 ```sh
 export ANTHROPIC_API_KEY=...             # never passed on the command line, never logged
@@ -158,6 +158,7 @@ uv run --frozen python tasks/harness-design/harness/run.py run \
   --engine llmd --model-dir /path/to/model-repo \
   --proposer pi --pi-bin /opt/pi/node_modules/.bin/pi \
   --pi-provider anthropic --api-key-env ANTHROPIC_API_KEY \
+  --development-benchmark tasks/harness-design/harness/development-benchmark.llmd.json \
   --state-dir /var/tmp/harness-state --out /var/tmp/harness-state/submission.json \
   --budget-minutes 1380 --api-spend-limit-usd 40 --gpus 1 --gpu-hours 24
 ```
