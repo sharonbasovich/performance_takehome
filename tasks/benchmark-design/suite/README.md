@@ -14,12 +14,14 @@ evidence it cannot trust.
 
 The candidate interfaces are the self-contained execution path; a future organizer
 replacement is optional, not a prerequisite. See [EXECUTION.md](../EXECUTION.md) for the
-next real-target workflow: `workload.efficient.json`, separate baseline calibration,
+real-target workflow: `workload.efficient.json`, separate baseline calibration,
 bounded `capture.py`, independent timing checks, owned-container cleanup and verified
 evidence export. The original plan/examples and committed mock reports below remain
-historical development evidence. Actual MI355X calibration and quick results are
+historical development evidence. Actual MI355X calibration, quick and full results are
 recorded separately in [REAL-RUN-20261028.md](../REAL-RUN-20261028.md), including
-their source identities, uncertainty and the full-run status.
+their source identities, uncertainty and the completed full population. The linked
+public packet contains compressed raw evidence and a CPU-only replay procedure using
+CPython 3.14.4, Unicode 16.0.0 and Tokenizers 0.22.2; no organizer release is needed.
 
 `capture.py` launches the attached Docker client through `owned_docker.py`.
 Between cold repetitions, the supervisor checks the complete container ID,

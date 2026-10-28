@@ -1,18 +1,25 @@
 # Task 1 — Benchmark design report
 
-**Current result:** real baseline calibration passed on one MI355X with the pinned
-Qwen3.6-27B/LLMD target: 60 measured requests, eight warmups and a completed-generation
-startup. The evaluator and independent timing audit passed. A fresh offhost CPU replay
-reproduced the fitted receipt and frozen plan byte for byte. See the
-[raw evidence, results and limits](validation/live-calibration-20261026/README.md).
-**The full suite and official quick mode remain unfinished.** No full-suite three-hour
-runtime, real A/A decision, comparison power or official grade is claimed. A later
-separate AA-only diagnostic timed out and is recorded as a failed partial attempt.
+**Current result:** calibration, quick and full development captures completed on
+one MI355X with Qwen3.6-27B and a digest-bound LLMD wrapper. Calibration had 60
+measured requests; quick completed 242/242; full completed 1,453/1,455 with two
+retained nonce-validation failures. All evidence and timing audits passed.
+Full capture/export completion was 7,572.171 seconds from the original start,
+including prior setup, calibration, quick and a failed initial full attempt.
+See [actual results and limitations](REAL-RUN-20261028.md) and the
+[complete public replay packet](validation/real-run-20261028/README.md).
+Full A/A is inconclusive overall: fluidity, minimum-decode p99 and TTFT p90
+report no difference; TTFT p50 remains inconclusive. No measured power,
+configuration speedup or organizer grade is claimed.
 
-[EXECUTION.md](EXECUTION.md) describes the candidate recorder/schema/fixtures,
-calibration/freeze and bounded capture, export and cleanup. The original plan and CPU
-mock results in sections 1–6 below remain historical evidence: their planned durations
-are arithmetic and their measured numbers describe the mock, rather than the real GPU.
+[EXECUTION.md](EXECUTION.md) describes the self-contained candidate recorder,
+calibration/freeze, bounded capture, export and cleanup. The organizer's future
+runner is not needed to replay these supplied results. The original plan and
+CPU mock results in sections 1–6 below are historical evidence. Their planned
+GPU durations remain arithmetic and their measured mock numbers remain CPU
+results. The actual efficient plan was calibrated separately and frozen before
+fresh quick/full captures; it is included in the public packet. Earlier October
+26 calibration and failed attempts retain their own dates and source identities.
 
 Source identities: suite version `1.0.0` (`suite/bench/__init__.py`), plan
 `abstract-t1-llmd-mi355x-v1` schema `1.0.0`, event schema `1.0.0`, report schema `1.0.0`.
@@ -52,8 +59,8 @@ so text validity is deterministic), and any "quality" judged by another model.
 The historical rates were chosen to fit the 3-hour cap in unmeasured planning arithmetic
 (see §5), with three repetitions spanning from an unloaded server (0.5 rps chat, ~1 request in flight)
 to a saturating one (4 rps chat ≈ 8–10 concurrent decodes at 30 tok/s per stream, and
-closed-loop 32). Rates are *planning* values: the first pilot replaces the planning
-assumptions in `planning_assumptions` and the `--dry-run` arithmetic re-sizes the cells.
+closed-loop 32). These are historical planning values. The completed October 28
+captures use the frozen efficient plan and retain every scored arrival rate.
 
 ### Prompts
 
@@ -296,11 +303,11 @@ of `max_tokens` produced.
 
 These historical assumptions predict a run within the 3-hour suite ceiling
 (`docs/BUDGETS.md`) and proposed 4 GPU-hour grading allowance (`budgets.toml`). They do not
-establish actual feasibility. The next efficient plan and measurement/freeze policy are
-in `EXECUTION.md`; the actual full-suite clock includes setup, analysis, export and cleanup.
-The first real baseline pilot must replace the relevant assumptions before a full run is
-scheduled. Calibration, quick and full captures are separate experiments; their combined
-allocated time/cost must also fit the controller's cash/deletion envelope.
+establish actual feasibility. The completed October 28 run instead uses the frozen
+efficient plan. Its measured clock includes prior setup, calibration, quick,
+failed-attempt time, analysis, exact container cleanup and export; transfer and allocation
+deletion are tracked separately. See `REAL-RUN-20261028.md` for the measured result.
+Calibration, quick and full remain separate captures, never pooled as one population.
 
 ### Measured CPU/mock cost
 
@@ -316,7 +323,8 @@ These measure the candidate tooling only.
 ## 6. Reproducibility
 
 ```bash
-git clone <fork> && cd performance_takehome && git checkout submission/benchmark-design
+git clone https://github.com/sharonbasovich/performance_takehome.git
+cd performance_takehome && git checkout codex/task1-real-run-final
 uv sync --frozen --extra dev
 uv run --frozen ruff check .
 uv run --frozen python -m unittest discover -s tests -v              # root (organizer) tests
@@ -338,8 +346,10 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
 
 ## 7. Threats to validity
 
-1. **No completed GPU comparison.** Real calibration evidence is linked above; the
-   discrimination and control tables below remain mock results with injected delays.
+1. **One completed development run, no configuration speedup.** October 28
+   calibration/quick/full evidence is linked above. The discrimination/control tables
+   in section 4 remain mock results with injected delays. Real A/A remains inconclusive
+   overall and establishes neither measured power nor population coverage.
 2. **Tokenizer evidence** (§2): historical mock counts are regex pre-tokens. An optional
    pinned-model Tokenizers 0.22.2 adapter now re-encodes completed decoded output, with
    exact snapshot/runtime identities and conservative NFC-cluster timing. Real capture
@@ -368,7 +378,7 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
 | `baseline/lock.json`, `budgets.toml`, `tools/check_integrity.py`, root tests | yes (read only) | — | `takehome-start` tag |
 | Measurement recorder | no | `suite/runner/` 1.1.0; bounded streams, immutable output; `capture.py` lifecycle/export | Usable candidate recorder, not an organizer-trusted timestamp authority |
 | Plan / raw-event schemas | no | `suite/workload*.json`, frozen event schema 1.0.0 in `suite/schema/` | Reproducible as supplied; future adapters are optional |
-| Pinned engine on MI355X | pinned image/model supplied | Real baseline calibration and historical `suite/mock_server/` fixtures | Calibration passes; full/quick comparisons and measured power remain incomplete |
+| Pinned engine on MI355X | pinned image/model supplied | Real calibration/quick/full on digest-bound LLMD wrapper; historical mock fixtures | A/A overall inconclusive; measured power not established; actual wrapper image digest disclosed separately |
 | Fault / control fixtures | no | `suite/fixtures/{public,heldout}` plus independent timing checks | Development fixtures; opaque original key is not retained locally, so its keyed check skips explicitly |
 | Engine tokenizer / per-token timing | no | pinned model assets + output re-encoding adapter (`delta`); regex for historical mocks/approximate prompts | LLMD parity, chat-template prompt adapter and true per-token arrival evidence |
 | Enhanced Pi harness, profile/release digests, receipts | no | Candidate execution/calibration/audit/cleanup tooling; source and run receipts | No official enhanced profile, receipt or grading result is asserted |
@@ -393,10 +403,13 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
   a successful full-suite runtime. Earlier failed allocations remain in the private
   resource ledger; they are not erased or charged again here.
 * CPU use: fixture generation and validation on one VM (`validation/timing.md`).
-* Cuts: no completed real full/quick comparison; no model-judged quality metric; no multi-turn or
-  prefix-cache-hit cells. Historical reports used placeholder prefill deadlines. The new
-  separate baseline calibration procedure now has real raw evidence and a frozen fit;
-  fresh scored captures and real control/noise checks are still required.
+* October 28 calibration, quick and full completed; capture/export completion was
+  126.203 minutes from the original preparation start. Transfer and cloud deletion
+  require separate controller evidence; no provider invoice is inferred here.
+* Cuts and limits: no configuration A/B speedup, measured power, model-judged quality,
+  multi-turn or prefix-cache-hit cells. Historical mocks retain placeholder prefill
+  deadlines; October 28 real scoring uses its own prior frozen fit. A brief CPU-only
+  metadata build overlapped full capture and is disclosed in provenance.
 
 ## 10. Issues found in supplied infrastructure
 
