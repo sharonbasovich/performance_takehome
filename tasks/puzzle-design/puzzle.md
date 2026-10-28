@@ -1,72 +1,99 @@
-# A compact positivity certificate beyond sums of squares
+# A dense sextic with two kinds of certificate
 
-All arithmetic in this task is exact. Construct one JSON certificate for the homogeneous ternary sextic F listed below. The objective is a **short algebraic positivity proof** and a simultaneous proof that F is not a sum of squares of real polynomials. A generic large sum-of-squares residual is not a qualifying short proof.
+Find an exact short certificate that the following homogeneous polynomial is
+nonnegative on R³ and is not a sum of squares of real polynomials.
 
-For any three real linear forms A, B, C, define
+For degree d, order exponent triples (a,b,c), a+b+c=d, by decreasing a and then
+decreasing b. Thus the cubic order is
 
-    T(A,B,C) = A^4 B^2 + A^2 B^4 + C^6 - 3 A^2 B^2 C^2.
+    x³, x²y, x²z, xy², xyz, xz², y³, y²z, yz², z³.
 
-This is nonnegative by the ordinary three-term arithmetic–geometric mean inequality. Find an exact identity
+The target P is the degree-six polynomial with this coefficient vector in the
+same order:
 
-    F = sum_(i=1)^r a_i T(A_i,B_i,C_i) + sum_(j=1)^s b_j q_j^2,
+```text
+[2194272, 368112, -10923768, 364357801, -369245757,
+ 340599099, -689506346, 1130661763, -1053458211, 747624746,
+ 311295385, -1816626909, 1145506683, -1805670453, 419381643,
+ 11195736, 1013220383, -1239453771, 1057379611, -1165618467,
+ 26443440, 1797696, 25203984, 1119910345, 691276010,
+ 1078087225, -44165880, 1342656]
+```
 
-where 0 <= r,s <= 3, all a_i,b_j are nonnegative rational numbers, A_i,B_i,C_i are rational linear forms in x,y,z, and q_j are rational homogeneous cubics. Zero weights and zero forms are allowed. The compactness bounds are part of the mathematical task, not a restriction on the method used to discover the certificate.
+The first seven sextic monomials are x⁶,x⁵y,x⁵z,x⁴y²,x⁴yz,x⁴z²,x³y³;
+the last three are y²z⁴,yz⁵,z⁶. This convention specifies every coefficient.
 
-Also give 28 rational moments y_e, one for each degree-six exponent e in the order below. With v the ten cubic monomials in the specified order, form the 10 by 10 matrix H with H_ab = y_(a+b), where a and b are their exponent triples. Require H positive semidefinite and sum_e F_e y_e < 0. These conditions imply that F is not a sum of squares.
+## The mathematical certificate
 
-## The polynomial
+Use the elementary templates
 
-F = sum_e F_e x^(e_1) y^(e_2) z^(e_3). The index column starts at zero. Every one of the 28 degree-six monomials is listed; a negative coefficient retains its sign.
+    T(A,B,C) = A⁴B² + A²B⁴ + C⁶ − 3A²B²C²,
+    U(A,B,C) = A⁴B² + B⁴C² + C⁴A² − 3A²B²C².
 
-| Index | Exponent (x,y,z) | F_e |
-| --- | --- | --- |
-| 0 | (6, 0, 0) | 586225 |
-| 1 | (5, 1, 0) | 1213088 |
-| 2 | (5, 0, 1) | -1992004 |
-| 3 | (4, 2, 0) | -632306 |
-| 4 | (4, 1, 1) | -2012588 |
-| 5 | (4, 0, 2) | 2536216 |
-| 6 | (3, 3, 0) | -1947584 |
-| 7 | (3, 2, 1) | 4233880 |
-| 8 | (3, 1, 2) | -69542 |
-| 9 | (3, 0, 3) | -1462910 |
-| 10 | (2, 4, 0) | 1799008 |
-| 11 | (2, 3, 1) | 2020660 |
-| 12 | (2, 2, 2) | -5024670 |
-| 13 | (2, 1, 3) | 1423786 |
-| 14 | (2, 0, 4) | 359623 |
-| 15 | (1, 5, 0) | 4572752 |
-| 16 | (1, 4, 1) | -7809808 |
-| 17 | (1, 3, 2) | 3024152 |
-| 18 | (1, 2, 3) | 988784 |
-| 19 | (1, 1, 4) | -548770 |
-| 20 | (1, 0, 5) | -29794 |
-| 21 | (0, 6, 0) | 2125120 |
-| 22 | (0, 5, 1) | -5792128 |
-| 23 | (0, 4, 2) | 5973956 |
-| 24 | (0, 3, 3) | -2756632 |
-| 25 | (0, 2, 4) | 482903 |
-| 26 | (0, 1, 5) | -7594 |
-| 27 | (0, 0, 6) | 3373 |
+For arbitrary real A,B,C, each is nonnegative: the first three nonnegative
+terms have geometric mean A²B²C², so three-term AM–GM applies.
 
-The cubic coefficient order is:
+The first part of a certificate is an identity
 
-    (3, 0, 0), (2, 1, 0), (2, 0, 1), (1, 2, 0), (1, 1, 1), (1, 0, 2), (0, 3, 0), (0, 2, 1), (0, 1, 2), (0, 0, 3)
+    P = sum(i=1..r) w_i V_i(A_i,B_i,C_i) + sum(j=1..s) v_j q_j²,
 
-Thus it is x^3, x^2 y, x^2 z, x y^2, x y z, x z^2, y^3, y^2 z, y z^2, z^3. Each linear-form row is its x,y,z coefficient vector. The moments use exactly the degree-six table order.
+where r≤2, s≤3, each V_i is T or U, all weights are strictly positive
+rationals, A_i,B_i,C_i are arbitrary rational linear forms in x,y,z, and each
+q_j is a rational homogeneous cubic. Degenerate or zero forms are permitted;
+no coordinate map, factorization, or particular answer is prescribed.
 
-## Answer format and bounds
+The second part is 28 rational moments y_(a,b,c), in the sextic order. With
+the ten cubic exponent triples α_i in the cubic order above, define
 
-Return only one UTF-8 JSON object with exactly these three keys:
+    M_ij = y_(α_i+α_j).
+
+Require M to be positive semidefinite over the reals and require
+
+    sum_(a+b+c=6) coefficient(P,x^a y^b z^c) · y_(a,b,c) < 0.
+
+These requirements rule out every real SOS representation, with no bound on
+its number of squares. The bounds r≤2 and s≤3 apply only to the submitted
+nonnegativity identity.
+
+Every scalar in the certificate must, after reduction to n/d with d>0,
+satisfy |n|≤2⁶³−1 and d≤2⁶³−1. This is a compactness bound, not a requested
+denominator or a hidden coordinate key. The supplied instance has a
+certificate far below it. All exact certificates satisfying these stated
+conditions are accepted.
+
+## JSON submission
+
+Submit one UTF-8 JSON object, at most 32768 bytes including whitespace:
 
 ```json
 {
-  "blocks": [{"weight": "a", "forms": [["Ax","Ay","Az"],["Bx","By","Bz"],["Cx","Cy","Cz"]]}],
-  "squares": [{"weight": "b", "coefficients": ["q0","q1","q2","q3","q4","q5","q6","q7","q8","q9"]}],
-  "moments": ["y0", "...", "y27"]
+  "templates": [
+    {"kind": "T", "weight": "1/2", "forms": [[1,0,0],[0,1,0],[0,0,1]]}
+  ],
+  "squares": [
+    {"weight": 1, "coefficients": [0,0,0,0,1,0,0,0,0,0]}
+  ],
+  "moments": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 }
 ```
 
-The quoted symbolic names above are placeholders. Replace each scalar by a JSON integer or a rational string matching `[+-]?[0-9]+(?:/[0-9]+)?`, with nonzero denominator. Fractions need not be written in reduced form. After reduction, every numerator has absolute value at most 2^48 and every positive denominator is at most 2^48. JSON booleans, decimal numbers, NaN, duplicate keys, extra keys, and comments are invalid. The whole answer must occupy at most 65536 bytes. No additional conditions are imposed on the forms, supports, signs of their coefficients, normalization, or moment rank.
+This is only a format example, not a valid answer. Each row of `forms` lists
+the coefficients of x,y,z; each cubic vector and moment vector uses the order
+specified above. `templates` may have zero through two entries, and `squares`
+zero through three. Exactly the displayed object fields are allowed.
 
-The attached standard-library verifier checks the identity, rational bounds, the two compactness limits, exact positive semidefiniteness, and strict negativity. Run it with `python verifier.py answer.json`. Discovery may use any mathematical reasoning or computation permitted by the challenge session. No numerical tolerance is used for acceptance.
+A rational is a JSON integer or a string matching
+`[+-]?[0-9]+(?:/[+-]?[0-9]+)?`, with nonzero denominator. Equivalent unreduced
+fractions and negative denominator strings are allowed; height is checked
+after reduction. Floats, exponent notation, nonfinite values, booleans,
+duplicate keys, extra fields, and malformed JSON are rejected.
+
+Run the deterministic Python 3.11+ standard-library verifier as:
+
+```text
+python verify.py < answer.json
+```
+
+It prints one JSON result and returns exit status 0 exactly on acceptance.
+It uses exact rational arithmetic throughout and does not compare against a
+stored solution.

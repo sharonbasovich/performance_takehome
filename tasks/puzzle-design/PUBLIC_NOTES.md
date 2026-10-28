@@ -1,161 +1,59 @@
 # Public evaluation and provenance — Task 4
 
-The current candidate is **A compact positivity certificate beyond sums of squares**
-(candidate 11, V2). The public deliverables are `puzzle.md`, these non-solution-bearing
-notes, and `PUBLIC_MANIFEST.json`. The answer, worked proof, verifier, construction
-source, test cases, and blind-run workspaces remain in the separate private handoff.
+The current local development lead is **A dense sextic with two kinds of certificate** (candidate 53). The selection follows three clean timely incomplete development trials and completed quality review. It is a local comparative decision, not an official score or a claim of universal hardness. The proposed public artifacts are only `puzzle.md`, these notes, and `PUBLIC_MANIFEST.json`. The answer, proof, verifier, construction, test code, and solver workspaces remain private.
 
-This is a candidate-run development exercise. No official Astra profile, organizer
-clock, private-upload receipt, or official result is asserted. The private handoff
-is prepared for review and has not been delivered to the organizer.
+Candidate 11 V2 remains preserved in Git history. Its preceding public statement and notes are permanently addressable at [the C11 statement](https://github.com/sharonbasovich/performance_takehome/blob/c8c873f002d8ba24f9c66a6e4913c8e323d8544a/tasks/puzzle-design/puzzle.md) and [the C11 evaluation record](https://github.com/sharonbasovich/performance_takehome/blob/c8c873f002d8ba24f9c66a6e4913c8e323d8544a/tasks/puzzle-design/PUBLIC_NOTES.md). This selection does not erase that development history. The prior public head is `c8c873f002d8ba24f9c66a6e4913c8e323d8544a`.
 
-## Authoring and freeze
+## Original author interval and immutable freeze
 
-All times below are UTC. The fresh author interval was **2026-10-26 00:02:04 through
-00:22:04**, with no extension. The author used `gpt-6.1-sol` at `ultra` reasoning and
-Python. No live solver trial occurred during authoring. Earlier candidates are
-development history, not results for this instance.
+All times are UTC on 28 October 2026. The unchanged original author window was **09:58:39.295998–10:18:39.295998**. Self-completion was recorded at **10:14:02.619735** and the first parent-recorded completed author final at **10:16:39.917314**, both before the deadline. The original completed mathematical/parser package needed no corrective successor from independent QA. The later administrative adapter described below is separate.
 
-V1 froze at 00:11:30. Independent pre-blind QA then found that Python's default
-decimal integer-conversion limit rejected some legal, long, unreduced fractions.
-That was a verifier defect. The author received external QA feedback within the
-original interval and produced V2 in a new directory; V1 remains unchanged. V2
-removes that interpreter limit after enforcing the stated input-byte cap. Its
-statement, polynomial, answer, and mathematical acceptance conditions are unchanged
-from V1. This was a successor with external QA, rather than an unaided single freeze.
+The original private frozen archive is **35,728 bytes**, SHA-256 `adf2c5792f7a341ba4fcd55c9cfb996e6757bd5b72f9b2cc096df509df7fdc95`, and remains byte-for-byte unchanged. Its private contents include the complete answer and supporting evidence; the archive is not a public deliverable. The public statement is copied from the original with only CRLF-to-LF normalization for Git. The statement defines the full task; its attached-verifier reference refers to the private handoff, not a public code attachment.
 
-The V2 sealing record is **00:19:01.406784**. Its declared conservative freeze boundary
-is **00:20:00**, not an exact observed write time. The recorded post-freeze author
-and parent clock observations were 00:20:10 and 00:20:23, before the original deadline.
-The frozen author package includes 42 ordinary tests, 11 isolated parser tests, a
-worked proof, and exact algebra checks. Later independent review confirmed the
-known answer and valid alternatives, including a legal 65,536-byte answer, and
-rejected malformed cases. The original frozen package is retained byte for byte.
+## Four separate statement-only proxy trials
 
-The statement is sufficient to define the mathematical task and answer format.
-Its reference to an attached verifier refers to the private organizer handoff;
-that verifier is not part of the public fork or any blind trial's input.
+These were fresh `gpt-6.1-sol` sessions at `ultra` reasoning with the same frozen statement, Python/installed packages, local shell, and clock. Network access, installations, further delegation, private solution material, and correctness feedback were disallowed. Boundaries were instruction-level, not OS sandboxes. They are development proxies, not the unavailable official Astra profile. Each original maximum window and original final were preserved without feedback-driven revision or extension.
 
-## Four separate blind development trials
+Elapsed values below are conservative dispatch-clock-start to first-parent-recorded-final upper bounds, rounded upward to one millisecond. Start times identify the recorded original window, rather than attesting exact server delivery. Parent records do not distinguish generation, transport arrival, and serialization; no exact network-delay or cryptographic time-attestation claim is made.
 
-All four trials used a fresh `gpt-6.1-sol ultra` session with the same statement, Python,
-installed packages, local shell, and clock. Network access, package installation,
-delegation, private files, and correctness feedback were disallowed. These were
-instruction-level workspace boundaries, not OS sandboxes. Each solver returned one
-final answer. They were not official Astra runs, and no equivalence is claimed.
+| Trial | Original clock start | Unchanged deadline | First parent-recorded final | Elapsed upper seconds, rounded up | Outcome |
+| --- | --- | --- | --- | ---: | --- |
+| 1 | 10:18:15.524929 | 10:38:15.524929 | 10:37:48.029474 | 1172.505 | Clean timely incomplete |
+| 2 | 10:40:12.064509 | 11:00:12.064509 | 10:59:12.857096 | 1140.793 | Timely incomplete; dispatch-confounded, excluded |
+| 3 | 11:01:50.852826 | 11:21:50.852826 | 11:21:05.895960 | 1155.044 | Clean timely incomplete |
+| 4 | 11:21:23.711528 | 11:41:23.711528 | 11:40:30.628343 | 1146.917 | Clean timely incomplete |
 
-| Trial | Statement delivery | Hard receipt deadline | First parent-recorded final | Evaluation |
-| --- | --- | --- | --- | --- |
-| 1 | 00:35:02.051448 | 00:55:02.051448 | 00:55:09.572 | Exact identity invalid; parent record is 7.520552 seconds late. |
-| 2 | 01:03:05.848606 | 01:23:05.848606 | 01:21:28.700 | Incomplete certificate; exact identity invalid; final recorded 97.148606 seconds before deadline. |
-| 3 | 10:32:24 | 10:52:24 | 10:52:05 | Exact identity invalid; important near-complete numerical partial; 1,181 seconds elapsed and 19 seconds before deadline. |
-| 4 (28 October) | 08:20:31.183947 | 08:40:31.183947 | 08:39:56.589236 | Incomplete positivity identity; exact non-SOS component valid; 1,165.406 seconds conservative elapsed upper bound. |
+Trials **1, 3, and 4** form the three clean timely incomplete results used for selection. Each passed the exact non-SOS moment component but lacked the required compact positivity identity. These are substantial mathematical partial results. They do not show inability to prove the broader claims by any method: the published task specifically requires the stated short certificate. Trial 1 also retained a broader exact positivity identity outside the allowed square count; it is not a qualifying complete answer.
 
-Trial 1's own metadata places its file write before the deadline, but the parent
-log first records the final afterward. It is not presented as a confirmed on-time
-receipt. Trial 2 is a separate fresh repeat that supplies a timely final and a
-normal incomplete outcome. Both the independent exact checker and the frozen
-author verifier rejected each final, with structured results and no checker timeout.
-No grading feedback was sent back and no final was revised.
+Trial **2** is excluded from clean full-window resistance evidence. Its recorded start was 10:40:12.064509, but the actual spawn was bounded between 10:43:14 and 10:44:37.032421, while the original 11:00:12.064509 deadline remained unchanged. Its timely incomplete outcome is retained transparently, without counting it as another clean full-window result.
 
-Parent timestamps identify the matching final-answer records, independently of
-solver-created file timestamps. Their log format does not distinguish server
-generation, transport arrival, and local serialization, so no exact network delay
-or cryptographic time attestation is inferred.
+## Independent quality review and interface boundary
 
-**Demonstrated outcome:** trials 2, 3 and 4 returned no valid complete certificate
-within their original 20-minute windows. Trial 3 reached an important near-complete
-numerical positivity identity. Trial 4 independently passed the exact non-SOS
-component but supplied no positivity decomposition. These are substantial partial
-results, not valid complete exact certificates. Candidate 11 V2 remains the most supported local development
-lead. These repeated proxy failures do not establish global hardness, satisfy an
-unavailable official Astra profile, attest an OS sandbox, or earn an official grade.
+Independent untimed, witness-informed review passed **54 certificate/parser cases**, **759 exhaustive small symmetric PSD comparisons**, and **24 bounded resource runs**. It checked exact statement/verifier correspondence, alternative representations, full singular-PSD acceptance, long legal unreduced fractions, malformed data, byte limits, standard-library execution, and archive integrity. No blocking correctness, parser, or fairness defect was found. Observed resource probes were within the draft limits; they are not a guarantee on every host or an OS sandbox attestation.
 
-Alternative development trials through 26 October 2026, 16:59 UTC, returned valid
-mathematical answers within their original windows:
+The original frozen verifier natively reads stdin and enforces a **32 KiB (32768-byte)** answer limit. Its original output is `accepted` with `pairing` on success or `reason` on rejection. The draft starter proposes `valid` and `reason`, so the immutable original has an output-schema gap against that draft.
 
-| Candidates | Independently accepted first-parent elapsed seconds, in order |
-| --- | --- |
-| 19–22 | 403, 451, 277, 253 |
-| 23–27 | 259, 516, 691, 755, 837 |
-| 30–37 | 243, 319, 204, 242, 305, 328, 120, 169 |
+An **optional later administrative adapter** checks an exact copy of the original checker and changes only the output interface to `valid` and `reason`. It is separate from the timed freeze. Nine parent CLI equivalence checks and six independent actual CLI equivalence checks passed, including singular PSD and the exact byte limit. Neither the adapter nor this documentation is original timed author work, official protocol approval, organizer upload, or official conformance. Final organizer requirements remain controlling.
 
-These are separate fresh development authors and statement/data/format-only blind
-trials, not additional resistance results for candidate 11. Candidate 18 was also
-solved, but its first-parent author clock was not retained. Attempts 28 and 29 failed
-at agent dispatch or unsupported-model setup before producing a puzzle result;
-infrastructure failures receive no resistance credit. Candidate 30 lacked an
-original general-submission verifier. Candidate 37's actual answer passes every
-mathematical rule, but later review found two frozen-verifier JSON contract defects:
-a legal long integer in an ignored field is rejected, while an invalid non-finite
-constant in an ignored field is accepted. No timed artifact was repaired afterward.
-These limitations remain separate from the accepted mathematical answers.
+Compared with C11 V2, C53 has cleaner original authoring/parser provenance and closer native stdin/32-KiB interface fit. C11 V2 transparently required a parent-QA-identified long-integer parser correction within its author interval and remains valid development history. These distinctions, the completed review, and the three clean proxy incompletes support the current local selection; none alone establishes official resistance.
 
-Six further fresh development candidates were authored and tested on 28 October
-2026. Each author received a new 20-minute window and delivered a complete frozen
-bundle before its original deadline. Post-author independent checks confirmed a
-valid answer and alternative answers; those later checks are not timed authorship.
-Each blind solver received only its candidate's statement, data and answer format,
-under the same development profile described above. Fractional elapsed upper bounds
-are rounded upward to the next millisecond; original timestamp records are unchanged.
+## Recent alternative development results
 
-| Candidate | Blind dispatch (UTC) | Original deadline (UTC) | First parent-recorded final (UTC) | Conservative elapsed upper bound | Exact grade |
-| --- | --- | --- | --- | --- | --- |
-| 43 | 06:24:00.5886355 | 06:44:00.5886355 | 06:27:03.6932392 | 183.105 seconds | Valid complete answer |
-| 44 | 06:44:25.5786942 | 07:04:25.5786942 | 06:48:12.6992388 | 227.121 seconds | Valid complete answer |
-| 45 | 07:32:20.9162628 | 07:52:20.9162628 | 07:35:12.4517193 | 171.536 seconds | Valid complete answer |
-| 46 | 08:04:14.4316651 | 08:24:14.4316651 | 08:12:28.6221248 | 494.191 seconds | Valid complete answer |
-| 47 | 08:40:07.481241 | 09:00:07.481241 | 08:43:09.114070 | 181.633 seconds | Valid complete answer |
-| 48 | 09:01:37.298182 | 09:21:37.298182 | 09:04:25.623783 | 168.326 seconds | Valid complete answer |
+Candidates 43–52 were all solved with independently accepted original finals within their original windows. Their conservative first-parent elapsed upper bounds are rounded upward to one millisecond. They receive no resistance credit from these runs.
 
-All six original finals passed their frozen verifiers and separate exact constraint
-checks. No trial received correctness feedback or revised its final. The
-elapsed bounds include dispatch and parent recording; they are not an assertion
-of exact generation or network time. All six candidates were solved on time and earn
-no resistance credit in these proxy trials. Candidate 11 V2 remains the strongest
-supported local lead. Their private construction, proofs, verifiers and trial
-workspaces remain outside public Git; no official Astra result is claimed.
+| Candidate | Elapsed upper seconds, rounded up | Outcome |
+| --- | ---: | --- |
+| 43 | 183.105 | Solved timely; no resistance credit |
+| 44 | 227.121 | Solved timely; no resistance credit |
+| 45 | 171.536 | Solved timely; no resistance credit |
+| 46 | 494.191 | Solved timely; no resistance credit |
+| 47 | 181.633 | Solved timely; no resistance credit |
+| 48 | 168.326 | Solved timely; no resistance credit |
+| 49 | 229.970 | Solved timely; no resistance credit |
+| 50 | 362.823 | Solved timely; no resistance credit |
+| 51 | 87.537 | Solved timely; no resistance credit |
+| 52 | 249.540 | Solved timely; no resistance credit |
 
-Candidate 48 encountered a model-capacity interruption during authorship and
-resumed with its existing context inside the same original window. Its archive
-froze at 09:00:12.669738 and its completed author final was parent-recorded at
-09:00:41.146272, before the unchanged 09:03:09.124264 deadline. No new author
-window, external mathematical feedback or live solver test was supplied. This
-infrastructure recovery is retained in the private provenance.
+Earlier development history remains in the preserved C11 record. These alternative results are separate candidate runs, not extra C53 trials.
 
-## Packaging and protocol limits
-
-The immutable timed author ZIP and its manifests are separate from the later
-administrative handoff, evaluation receipts, and public Git update. Later packaging
-and review time is not counted as work completed inside the original 20 minutes.
-The public manifest distinguishes frozen CRLF statement bytes from Git's LF blob;
-their text is identical after newline normalization.
-
-A later private organizer-core ZIP is 15,686 bytes with 13 members (32,950 bytes
-uncompressed), below the draft 256 KiB bundle limit. With the unchanged 2,593-byte
-statement-only ZIP, the two archives total 18,279 bytes. The core preserves the
-original statement, polynomial, known answer, proof, verifier and selected provenance
-byte for byte; new administrative notes disclose their scope. The complete 698,863-byte
-trial/audit history remains separate. This reduces administrative delivery size only;
-it does not create a new timed author artifact or establish official conformance.
-The exact known answer is 1,809 bytes and fits the draft 32 KiB answer cap.
-
-The starter protocol is a draft. This statement permits 65,536 answer bytes, whereas
-the draft proposes 32 KiB. The original verifier takes an answer filename, whereas
-the draft proposes stdin. A separately labelled, later administrative stdin adapter
-is retained separately in the full private audit handoff; it preserves the exact
-mathematical checks and is not
-relabeled as part of the timed authoring artifact. Official profile, runner, size,
-and private-upload conformance remain subject to organizer validation.
-
-## Preserved history
-
-The prior public candidate, **The stuttering carousel**, remains at
-`9d16ef17d9833f9d23bd8f3dcf9c4ff57125f639`. A fresh proxy solved it in 3 minutes
-52 seconds; it has no demonstrated proxy resistance. Earlier prototypes, including
-the order-50 orthogonal-mate candidate, remain in Git history and private audit
-records. Their results are not attributed to candidate 11.
-
-Protected starter materials remain based on
-`81aead87d78ed468c4c374fb42921471b44c3f80`. This update contains no private answer,
-proof, verifier, construction, solver transcript, or experiment script.
+No official Astra profile identity/hash is available, no organizer private upload has occurred, and no official grade, profile equivalence, global-hardness claim, or exact network-timing claim is asserted. The private handoff is retained for review and delivery when authorized.
