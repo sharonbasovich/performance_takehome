@@ -118,6 +118,7 @@ def bounded_command(
     log: Path,
     env: dict[str, str] | None = None,
     max_log_bytes: int = 16 << 20,
+    shutdown_grace_s: float = 1.0,
 ) -> int:
     """Run without a shell; deadline includes termination and output flushing.
 
@@ -128,7 +129,10 @@ def bounded_command(
 
     if os.name != "posix":
         raise CaptureError("bounded capture requires the assigned Linux host")
-    if deadline - time.monotonic() <= 2:
+    if not math.isfinite(shutdown_grace_s) or shutdown_grace_s <= 0:
+        raise CaptureError("positive finite subprocess shutdown grace required")
+    shutdown_reserve_s = shutdown_grace_s + 1.0
+    if deadline - time.monotonic() <= shutdown_reserve_s:
         raise CaptureError("insufficient time for a bounded stage and termination")
     if max_log_bytes <= 0:
         raise CaptureError("positive log cap required")
@@ -148,7 +152,7 @@ def bounded_command(
         written = 0
         try:
             while True:
-                if time.monotonic() >= deadline - 2:
+                if time.monotonic() >= deadline - shutdown_reserve_s:
                     raise CaptureError("stage deadline reached")
                 for key, _ in selector.select(timeout=min(0.05, deadline - time.monotonic())):
                     data = os.read(key.fileobj.fileno(), 65536)
@@ -174,7 +178,7 @@ def bounded_command(
                         written += len(data)
                     return proc.returncode
         finally:
-            _stop(proc)
+            _stop(proc, grace_s=shutdown_grace_s)
             selector.close()
             proc.stdout.close()
 
@@ -568,7 +572,14 @@ def _run_capture(args: argparse.Namespace, env: dict[str, str]) -> int:
             "MI355X",
         ]
         record["runner_exit_code"] = bounded_command(
-            run_argv, deadline=work_end, log=out / "runner.log", env=env
+            run_argv,
+            deadline=work_end,
+            log=out / "runner.log",
+            env=env,
+            # The runner allows ten seconds for its separate-session supervisor
+            # to stop/reap the Docker client and remove exact-owned daemon state.
+            # Reserve that cleanup before this stage's deadline, not after it.
+            shutdown_grace_s=12,
         )
         if record["runner_exit_code"] == 0:
             record["evaluation_exit_code"] = bounded_command(

@@ -65,7 +65,7 @@ from benchmarks.streaming import (  # noqa: E402
     sse_data,
 )
 
-RUNNER_VERSION = "1.1.0"
+RUNNER_VERSION = "1.1.1"
 ADAPTER = {"name": "native", "version": EVENT_SCHEMA_VERSION}
 MAX_STREAM_BYTES = 2 << 20
 MAX_STREAM_EVENTS = 8192
@@ -135,13 +135,24 @@ class LagMonitor:
 
     def summary(self, windows: list[tuple[str, float, float]]) -> dict[str, Any]:
         """Lag statistics restricted to the measurement windows ``(unit_id, start, end)``."""
-        # A sample counts only if the whole sleep interval lies inside one window, so
-        # work done just before a window starts cannot be attributed to it.
-        inside = [
-            (now, lag)
-            for before, now, lag in self.samples
-            if any(a <= before and now <= b for _, a, b in windows)
-        ]
+        # The overdue part starts at the scheduled wakeup, not at sleep's start.
+        # Clip it to the union of measurement windows: dropping boundary-crossing
+        # samples hides stalls, while counting the full lag can blame pre-window work.
+        merged: list[tuple[float, float]] = []
+        for a, b in sorted((a, b) for _, a, b in windows if a < b):
+            if merged and a <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+            else:
+                merged.append((a, b))
+        inside = []
+        for before, now, lag in self.samples:
+            if any(before < b and a < now for a, b in merged):
+                overlap = sum(
+                    max(0.0, min(now, b) - max(before + self.interval_s, a)) for a, b in merged
+                )
+                # Never report more delay than was actually observed, including
+                # floating-point rounding at the scheduled wakeup boundary.
+                inside.append((now, min(lag, overlap)))
         result: dict[str, Any] = {
             "event_loop_lag_max_s": None,
             "event_loop_lag_p99_s": None,
@@ -826,7 +837,7 @@ def main(argv: list[str] | None = None) -> int:
         print(str(exc), file=sys.stderr)
         return 2
     try:
-        asyncio.run(runner.run())
+        asyncio.run(_run_until_stopped(runner))
     except FileExistsError as exc:
         print(str(exc), file=sys.stderr)
         return 2
@@ -841,6 +852,27 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
     return 0 if runner.status == "completed" else 1
+
+
+async def _run_until_stopped(runner: Runner) -> None:
+    """Give SIGTERM the same cleanup path as an asyncio cancellation.
+
+    The outer capture stops this runner's group, but launched engine supervisors
+    have separate sessions. They must be stopped and reaped by Runner.run's finally
+    block before the outer capture can check daemon-owned container absence.
+    """
+    loop = asyncio.get_running_loop()
+    task = asyncio.current_task()
+    previous = signal.getsignal(signal.SIGTERM)
+    if os.name == "posix":
+        assert task is not None
+        loop.add_signal_handler(signal.SIGTERM, task.cancel)
+    try:
+        await runner.run()
+    finally:
+        if os.name == "posix":
+            loop.remove_signal_handler(signal.SIGTERM)
+            signal.signal(signal.SIGTERM, previous)
 
 
 if __name__ == "__main__":
