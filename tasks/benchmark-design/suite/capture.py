@@ -511,6 +511,9 @@ def _run_capture(args: argparse.Namespace, env: dict[str, str]) -> int:
         Path(args.render_device).stat().st_gid,
         owner,
     )
+    # The Docker daemon can keep an engine alive after its attached client exits.
+    # Reap an exact-owned container before the recorder's next cold launch.
+    command = [sys.executable, "-B", str(SUITE / "owned_docker.py"), *command]
     record: dict[str, Any] = {
         "schema_version": "1.0.0",
         "status": "incomplete",

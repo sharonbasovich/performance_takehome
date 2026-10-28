@@ -17,7 +17,17 @@ replacement is optional, not a prerequisite. See [EXECUTION.md](../EXECUTION.md)
 next real-target workflow: `workload.efficient.json`, separate baseline calibration,
 bounded `capture.py`, independent timing checks, owned-container cleanup and verified
 evidence export. The original plan/examples and committed mock reports below remain
-historical development evidence; no real-GPU result is claimed.
+historical development evidence. Actual MI355X calibration and quick results are
+recorded separately in [REAL-RUN-20261028.md](../REAL-RUN-20261028.md), including
+their source identities, uncertainty and the full-run status.
+
+`capture.py` launches the attached Docker client through `owned_docker.py`.
+Between cold repetitions, the supervisor checks the complete container ID,
+capture owner label, name and immutable image, removes that exact container,
+and confirms absence before exiting. Stopping the attached Docker client alone
+can leave the daemon-managed engine serving, which invalidates a subsequent
+cold start. Cleanup failure remains an error; it never becomes a warm startup
+measurement. The engine arguments, request population and evaluator are unchanged.
 
 ## Layout
 
