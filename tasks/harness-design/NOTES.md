@@ -4,6 +4,14 @@ The selected image is the already published LLMD baseline:
 
 `ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d`
 
+The latest measured feedback cycle tested Pi's later `--page-chunk-size=64`
+proposal on a fresh cohort. Control, candidate and fresh selected-final each
+passed all six gates over 30 requests. The canonical decision was **no_change**:
+TTFT speedup 1.0178 with 90% CI [0.9937, 1.0530], FTGR speedup 0.9972 with
+90% CI [0.9922, 1.0486]. The baseline remained selected. See the
+[complete Pi2 result](harness/reports/live-mi355x-20261028/pi2-measured/README.md).
+Across the two retained cycles there are 180 measured requests; no gain is claimed.
+
 On 28 October, a genuine stock Pi 1.0.0 proposal changed one Docker CMD knob to
 `--speculative-drafter-model=native`. The candidate passed the canonical
 `llmd-config-v1` source guard and built successfully, preserving the baseline's
@@ -12,7 +20,7 @@ model repository (`FileNotFound`), before any measured request. It was rejected.
 The baseline was selected again and a **fresh final 30-request run passed all
 six development correctness gates**. No optimized image or speedup is claimed.
 
-| Actual phase | Measured requests | Result |
+| First cycle phase | Measured requests | Result |
 |---|---:|---|
 | Initial baseline | 30 | All six gates passed; establishes the six golden outputs |
 | Same-attempt control | 30 | All six gates passed against those golden outputs |
@@ -60,16 +68,18 @@ layers or model weights are included in this small evidence packet, and the
 rejected candidate is not tagged or described as the winner.
 
 A later Pi proposal completed at `2026-10-28T19:38:16.133592Z`, changing only
-`--page-chunk-size=16` to `64`. It is retained under `later-unmeasured-pi2/` as an
-**unmeasured proposal snapshot from that completion time**, with no GPU
-measurement, selected-image status, or gain attributed to it in this packet.
-Later CPU-only build/help work is outside this snapshot and establishes no GPU
-performance result. Its later gateway supports an effective
-16,384 output-token cap; that does not change the earlier continuation's cap.
-Any future experiment needs its own receipts and must preserve this rejected
-candidate and baseline result.
+`--page-chunk-size=16` to `64`. Its original unmeasured completion snapshot remains
+unchanged under `later-unmeasured-pi2/`. The subsequently measured cycle finished
+at 23:14:09Z and is retained separately under `pi2-measured/`: all 90 requests
+passed, the canonical decision was no_change, and the fresh final baseline passed.
+The actual GPU candidate was manifest `047fca293b9b...`; the earlier CPU-only
+build `ed4b4477876e...` is not substituted for that measured image. Identical
+Dockerfile bytes do not imply a bit-reproducible build. Its later gateway supports
+an effective 16,384 output-token cap, which does not change Pi1's historical cap.
+Further genuine feedback work is separate and pending a later packet; no result,
+build, keep or gain from it is claimed here.
 
-Reported newly settled model API cost through that later proposal is
+Reported newly settled model API cost through the Pi2 proposal is
 **$0.3664702**. Earlier unresolved holds remain fully reserved; errors and missing
 usage are not assumed free. This figure is not a private billing reconciliation.
 No financial ledger, account information, card data, provider key, or SSH material
@@ -100,3 +110,5 @@ The exact public packet at `b1a4b11946d2adc2095b2e5890b5c61db8be7fd7` passed
 and protected-file integrity in a clean native Linux CPython 3.14.4 checkout.
 See [the software receipt](harness/reports/live-mi355x-20261028/software-validation.json).
 The receipt and this later wording clarification add no new GPU or provider result.
+The subsequent Pi2 packet records the separately observed GPU cycle above; it does
+not replace that software-validation receipt or earlier failed evidence.

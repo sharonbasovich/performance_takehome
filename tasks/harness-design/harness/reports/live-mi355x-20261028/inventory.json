@@ -224,6 +224,171 @@
       "bytes": 1071,
       "sha256": "1a8ba540ec618cb4436a947dedc5395f146937d7eb1a9704f25677fbf4eb03c1",
       "format": "derived sanitized native software receipt"
+    },
+    "pi2-measured/control/full-report.json": {
+      "bytes": 35325,
+      "sha256": "1911e62387c35ecf934e119b44675b733ee1232979128fe46da13774140c55e7"
+    },
+    "pi2-measured/control/all-request-traces.jsonl": {
+      "bytes": 23491,
+      "sha256": "2c64bd6a3228a9013fda1a816e823441451f14ebe47d82af09886c9c8e6646a5"
+    },
+    "pi2-measured/control/samples.json": {
+      "bytes": 1943,
+      "sha256": "2448b6fa6519f3e71803453b16f524e5c9ecf4a1d374395af5c5ce0ab7b52747"
+    },
+    "pi2-measured/control/result.json": {
+      "bytes": 1153,
+      "sha256": "b3527580b1dc386c2f804a7dae99e9d18173a499735281fa4faca3785b6e1dff"
+    },
+    "pi2-measured/control/container.stderr": {
+      "bytes": 2938,
+      "sha256": "0373a13868ef4400fd08d051878c66204d3cbb7e2453441e244255efbd1328ae"
+    },
+    "pi2-measured/control/container.stdout": {
+      "bytes": 1185,
+      "sha256": "db7282bbecee5c8e9005fa668770249a1dbbbce667a0e17e885d04906cbab756"
+    },
+    "pi2-measured/candidate/full-report.json": {
+      "bytes": 35378,
+      "sha256": "e840fb5f251310163b91161279631764d697127a57ddd676ac0b03395e668587"
+    },
+    "pi2-measured/candidate/all-request-traces.jsonl": {
+      "bytes": 23518,
+      "sha256": "8f756f979e88e9dc493399bf0b3b6fc0e52dcd43173febfd3141c8c5e8fd5281"
+    },
+    "pi2-measured/candidate/samples.json": {
+      "bytes": 1956,
+      "sha256": "e242a17f88e160210aeaf2d5d5038616745c97f0d831977f9844b6bb809a6a23"
+    },
+    "pi2-measured/candidate/result.json": {
+      "bytes": 1152,
+      "sha256": "5de06c42d25cefeaebbf1566fdb59e053f697e210b15478484f7cef4183cc025"
+    },
+    "pi2-measured/candidate/container.stderr": {
+      "bytes": 2939,
+      "sha256": "93fe2740fcd9606bcc56518e5da7a70e070da6ae408518f650cf11993233b33c"
+    },
+    "pi2-measured/candidate/container.stdout": {
+      "bytes": 1185,
+      "sha256": "db7282bbecee5c8e9005fa668770249a1dbbbce667a0e17e885d04906cbab756"
+    },
+    "pi2-measured/selected-final/full-report.json": {
+      "bytes": 35315,
+      "sha256": "13b0aec019468f9c55aa5b867c6f09befd014c43368dbfaa696f63cebff5db26"
+    },
+    "pi2-measured/selected-final/all-request-traces.jsonl": {
+      "bytes": 23495,
+      "sha256": "1c6ddcad6d627b146c5b2ce2170dc3b6337b1b3dec8783c4538c5c9ebbb39f46"
+    },
+    "pi2-measured/selected-final/samples.json": {
+      "bytes": 1937,
+      "sha256": "7ed58848bdb1a55cf2dd030d0d545938e55e5f9eb4de7c379e8e4355735df464"
+    },
+    "pi2-measured/selected-final/result.json": {
+      "bytes": 1154,
+      "sha256": "57457aedf6e9b4287299322029ba3a6e76f9099dcc7814897da9442742211c61"
+    },
+    "pi2-measured/selected-final/container.stderr": {
+      "bytes": 2939,
+      "sha256": "9641a2d26f0226460bebfce41743532b6e670737ebee2370abaa8749e6598c85"
+    },
+    "pi2-measured/selected-final/container.stdout": {
+      "bytes": 1185,
+      "sha256": "db7282bbecee5c8e9005fa668770249a1dbbbce667a0e17e885d04906cbab756"
+    },
+    "pi2-measured/build/attempt.json": {
+      "bytes": 1396,
+      "sha256": "b5323a3c2a21fe43430492ce4de46059106179b63e5fcc13f8e09156e654fbc9"
+    },
+    "pi2-measured/build/result.json": {
+      "bytes": 1312,
+      "sha256": "b729ca283f7f14e5b89acf0c7837c6af4dbd8ea1c237128ecbdfbd66bf25bb26"
+    },
+    "pi2-measured/build/build.stderr": {
+      "bytes": 206,
+      "sha256": "d86cb49dd44ce17a9da506b4e732433d5755f98bac9a709da0462523638defc5"
+    },
+    "pi2-measured/build/build.stdout": {
+      "bytes": 785,
+      "sha256": "06550532c1c64d9d39b6fc9213d3086cb076394db2bd21f9d48ff8b1094ef9ff"
+    },
+    "pi2-measured/build/candidate-inspect.json": {
+      "bytes": 3772,
+      "sha256": "6d1d05cfb85934761bbb91c8c9e21a12f07b9ad9726e86329d8d61043fd56680"
+    },
+    "pi2-measured/selected-metadata/config.json": {
+      "bytes": 5405,
+      "sha256": "0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f"
+    },
+    "pi2-measured/selected-metadata/manifest.json": {
+      "bytes": 4662,
+      "sha256": "7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d"
+    },
+    "pi2-measured/selected-metadata/receipt.json": {
+      "bytes": 1459,
+      "sha256": "48173dcf72d4486d70195ee67d8a49b200b5e80ef93bceb37bbe835adec974b7"
+    },
+    "pi2-measured/pi/candidate.Dockerfile": {
+      "bytes": 1542,
+      "sha256": "bba48efed8f310ba56ad104acfacf4212a188ca151254253cf8107c336d559b0"
+    },
+    "pi2-measured/pi/proposal.json": {
+      "bytes": 1596,
+      "sha256": "da92dfbccfc3c2869f8f3b2925d426030c31f2b093c925ba1211a40dc5b2a324"
+    },
+    "pi2-measured/actual-source/measure.py.txt": {
+      "bytes": 25198,
+      "sha256": "1a4eded8d4eae3d8ffc544c8501070abcd2c14b91a3c905be6aa09477412900a"
+    },
+    "pi2-measured/actual-source/decision.py.txt": {
+      "bytes": 12713,
+      "sha256": "1849dc0e28129412a053bbb8d291fd624ef615347edbb226247d7aa62e77b28e"
+    },
+    "pi2-measured/actual-source/configuration_delivery.py.txt": {
+      "bytes": 12214,
+      "sha256": "2d257107dd2d552fdc777b2cf0d32fb642c450f95787d3bac6b6aed57908b397"
+    },
+    "pi2-measured/actual-source/profile.json": {
+      "bytes": 2118,
+      "sha256": "4492447b810ebd6af3ed36737e5f26f866a27fbbebb0d86d5563bad1fbcf16bf"
+    },
+    "pi2-measured/actual-source/baseline.Dockerfile": {
+      "bytes": 1542,
+      "sha256": "166ae2e3bef39dfc564bc09891f1c15111f11e27fa71d32245ee56bf5d56ab81"
+    },
+    "pi2-measured/actual-orchestration/build_candidate.py.txt": {
+      "bytes": 3945,
+      "sha256": "8aa755ff69bc11fa866bbe2e5f0d594bc86c05430dac693d05f065c9308b5b06"
+    },
+    "pi2-measured/actual-orchestration/measure_pair_and_final.py.txt": {
+      "bytes": 7803,
+      "sha256": "6900a0aa36cc561004320b93796c8b42ebcfb88cb2a31d76d6225966c5b07f3d"
+    },
+    "pi2-measured/actual-orchestration/export_exact_metadata.py.txt": {
+      "bytes": 5397,
+      "sha256": "fd91a7c528c128d0c3c8f8b710a5459d800f4633172c19d12eb3b27b2117d267"
+    },
+    "pi2-measured/paired-result.json": {
+      "bytes": 6062,
+      "sha256": "e0b72961f082377b9f5108cda75636b8d1e269b1f9f3b0421725bd021beece88"
+    },
+    "pi2-measured/golden.json": {
+      "bytes": 653,
+      "sha256": "68491b953c7ab54239d50b2650c81326632d3ee1204da12cc17b792a8094ce64"
+    },
+    "pi2-measured/original-built-candidate.Dockerfile": {
+      "bytes": 1542,
+      "sha256": "bba48efed8f310ba56ad104acfacf4212a188ca151254253cf8107c336d559b0"
+    },
+    "pi2-measured/reviewed-summary.json": {
+      "bytes": 6493,
+      "sha256": "76b8b93367fa841db8ad8dcc282849e55b0bbd5981b9e669d67ea3e0eadbdb1b",
+      "format": "derived sanitized actual-cycle summary"
+    },
+    "pi2-measured/results.tsv": {
+      "bytes": 537,
+      "sha256": "5c23a07d8ad58df72e6faff7139710dc610f04162cd2493626e9098dbb0d65ae"
     }
   }
 }

@@ -4,6 +4,10 @@ This packet supports a genuine stock Pi proposal, an exact one-knob candidate
 build, a failed candidate startup, reversion to the baseline, and a fresh final
 baseline measurement. It claims no speedup and no official grade.
 
+The later [measured Pi2 feedback cycle](pi2-measured/README.md) adds 90 actual
+control/candidate/final requests, all passing, with a no_change decision. The
+baseline remains selected. The first cycle and its failed candidate are preserved.
+
 The selected immutable reference is
 `ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d`.
 The rejected candidate is platform manifest
@@ -35,7 +39,8 @@ The two identities are kept separate; the candidate was not published as a winne
   reviewed outer-bundle identity. The outer bundle was 76,372 bytes, SHA-256
   `f3a564f3df1e20129eb2f888087fc2e382b83e6d4db775540310c5d86f3404c4`.
 - `later-unmeasured-pi2/`: a later page-chunk-size proposal and completion receipt,
-  with no measurement or selected-image claim.
+  preserved as its original unmeasured snapshot. Its later actual measurements
+  live separately in `pi2-measured/`; they do not rewrite this completion receipt.
 
 The external helpers call canonical `configuration_delivery`, `measure`, and
 `decision` functions. They do not invoke the canonical unattended harness loop.

@@ -40,7 +40,8 @@ class CurrentDeliveryManifestTests(unittest.TestCase):
         self.assertEqual(len(blocks), 2)
         for block in blocks:
             self.assertIn(
-                "--development-benchmark tasks/harness-design/harness/development-benchmark.llmd.json",
+                "--development-benchmark "
+                "tasks/harness-design/harness/development-benchmark.llmd.json",
                 block,
             )
         self.assertEqual(
@@ -204,8 +205,9 @@ class CurrentDeliveryManifestTests(unittest.TestCase):
             load("pi/runtime-verification.json")["pi_distribution_files_checked"], 1243
         )
 
-    def test_later_pi_proposal_remains_unmeasured(self):
-        (pending,) = CURRENT["pending_proposals"]
+    def test_original_later_pi_completion_snapshot_remains_unmeasured(self):
+        historical = json.loads((TASK / "submission.pi1-live-20261028.json").read_text())
+        (pending,) = historical["pending_proposals"]
         self.assertEqual(pending["status"], "UNMEASURED_PROPOSAL_ONLY")
         self.assertFalse(pending["GPU_build_or_measurement_performed"])
         self.assertFalse(pending["selected"])
@@ -214,6 +216,81 @@ class CurrentDeliveryManifestTests(unittest.TestCase):
         dockerfile = (EVIDENCE / "later-unmeasured-pi2/candidate.Dockerfile").read_text()
         self.assertIn('"--page-chunk-size=64"', dockerfile)
         self.assertNotIn('"--speculative-drafter-model=native"', dockerfile)
+
+    def test_later_measured_pi_cycle_has_90_real_passing_requests_and_no_change(self):
+        from dataclasses import asdict
+
+        from abstract_harness import decision, measure
+
+        (experiment,) = CURRENT["additional_experiments"]
+        self.assertEqual(CURRENT["pending_proposals"], [])
+        self.assertEqual(experiment["status"], "MEASURED_NO_CHANGE")
+        pair = load("pi2-measured/paired-result.json")
+        profile = load("pi2-measured/actual-source/profile.json")
+        golden = load("pi2-measured/golden.json")
+        samples = {}
+        total = 0
+        for phase in ("control", "candidate", "selected-final"):
+            report = load("pi2-measured/" + phase + "/full-report.json")
+            durable = [
+                json.loads(line)
+                for line in (EVIDENCE / "pi2-measured" / phase / "all-request-traces.jsonl")
+                .read_text()
+                .splitlines()
+            ]
+            self.assertEqual(len(durable), 31)
+            self.assertEqual(durable[1:], report["traces"])
+            self.assertEqual(
+                Counter(t["prompt_id"] for t in report["traces"]), dict.fromkeys(golden, 5)
+            )
+            traces = [measure.RequestTrace(**t) for t in report["traces"]]
+            self.assertEqual(
+                [asdict(g) for g in measure.correctness_gates(traces, profile, golden)],
+                report["gates"],
+            )
+            self.assertTrue(report["gates_passed"])
+            self.assertTrue(all(g["passed"] for g in report["gates"]))
+            recomputed = {}
+            for trace in traces:
+                rate, _ = measure.ftgr_for_traces([trace], profile)
+                recomputed.setdefault(trace.prompt_id, []).append(rate)
+            self.assertEqual(recomputed, report["ftgr_by_prompt"])
+            samples[phase] = load("pi2-measured/" + phase + "/samples.json")
+            total += len(traces)
+        self.assertEqual(total, experiment["measured_requests"])
+        expected = decision.decide(
+            samples["control"],
+            samples["candidate"],
+            gates_passed=True,
+            min_effect=0.03,
+            min_samples=3,
+            expected_samples=dict.fromkeys(golden, 5),
+        )
+        self.assertEqual(json.loads(json.dumps(asdict(expected))), pair["decision"])
+        self.assertEqual(pair["decision"], experiment["decision"])
+        self.assertEqual(expected.outcome, "no_change")
+        self.assertFalse(expected.kept)
+        self.assertEqual(pair["selected_image_id"], SELECTED)
+        self.assertFalse(experiment["registry_publication_required"])
+        self.assertFalse(experiment["optimization_gain_claimed"])
+        self.assertEqual(CURRENT["evidence"]["combined_actual_measured_requests"], 180)
+
+    def test_actual_pi2_gpu_build_identity_and_original_source_are_bound(self):
+        (experiment,) = CURRENT["additional_experiments"]
+        built = load("pi2-measured/build/result.json")
+        actual = load("pi2-measured/build/candidate-inspect.json")
+        self.assertEqual(built["image_id"], experiment["candidate_image_id"])
+        self.assertEqual(actual["Id"], built["image_id"])
+        self.assertEqual(load("pi2-measured/candidate/result.json")["image_id"], built["image_id"])
+        source = (EVIDENCE / "pi2-measured/original-built-candidate.Dockerfile").read_bytes()
+        self.assertEqual(hashlib.sha256(source).hexdigest(), built["Dockerfile_sha256"])
+        self.assertEqual(
+            source, (EVIDENCE / "later-unmeasured-pi2/candidate.Dockerfile").read_bytes()
+        )
+        self.assertEqual(built["policy"]["changed_knobs"], ["--page-chunk-size"])
+        self.assertEqual(
+            actual["RootFS"]["Layers"], load("selected-image-inspect.json")[0]["RootFS"]["Layers"]
+        )
 
 
 if __name__ == "__main__":
