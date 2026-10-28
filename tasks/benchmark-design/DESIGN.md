@@ -6,11 +6,20 @@ measured requests; quick completed 242/242; full completed 1,453/1,455 with two
 retained nonce-validation failures. All evidence and timing audits passed.
 Full capture/export completion was 7,572.171 seconds from the original start,
 including prior setup, calibration, quick and a failed initial full attempt.
+Separate GPU absence was confirmed at 18:30:02.437658 UTC, 2h19m28.194252s
+after the original start, with offhost receipt verification also within three hours.
 See [actual results and limitations](REAL-RUN-20261028.md) and the
 [complete public replay packet](validation/real-run-20261028/README.md).
 Full A/A is inconclusive overall: fluidity, minimum-decode p99 and TTFT p90
 report no difference; TTFT p50 remains inconclusive. No measured power,
 configuration speedup or organizer grade is claimed.
+
+The original recorder's filtered lag summary cannot rule out stalls crossing
+measurement-window boundaries because raw lag intervals were not retained.
+Later source fixes and CPU checks do not retroactively certify that missing
+evidence. A separately dated 19:35 quality/calibration reanalysis reproduces all
+original metrics and verdicts; original archives/reports remain unchanged.
+Current recorder 1.1.1 and source `331c467` are CPU-tested for future captures.
 
 [EXECUTION.md](EXECUTION.md) describes the self-contained candidate recorder,
 calibration/freeze, bounded capture, export and cleanup. The organizer's future
@@ -281,6 +290,15 @@ detection so that outcome is interpretable.
 
 ## 5. Measured compute cost
 
+The original October 28 capture/export completed after 126.203 minutes from
+the preparation start. Independent resource absence completed after 139.470
+minutes, below the 180-minute execution ceiling. The shared allocation's
+16:21:22–18:30:02.437658 UTC interval gives a $9.66 upper base estimate at
+$4.50/GPU-hour; the provider invoice is pending and the allocation also served
+Task 2. See the [resource receipt](validation/real-run-20261028/resource-closure.json).
+Later source QA and 19:35 reanalysis are separate CPU-only work, outside the
+original execution clock. The arithmetic below remains historical planning.
+
 Quick-mode cap note: the plan's `planned_wall_minutes_max` for quick (45 min) is *planned +
 margin by construction* — it was raised from 40 when the per-cell request floor added 52
 requests (round-2 review F7). The binding constraint is the organizer's 180-minute suite
@@ -359,9 +377,11 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
 3. **Calibration coverage is limited.** The frozen real fit covers approximate prompt
    lengths 44–4117 and the scoring plan's 44–4081 range. It is an observed upper
    residual envelope, not a prediction interval or proof of tokenization parity.
-4. **Single client host**: event-loop lag is monitored and bounded, but network jitter
-   between client and engine is not separated from server behaviour; the plan assumes the
-   organizer's harness runs the client on the same host or a dedicated link.
+4. **Single client host and historical lag coverage**: network jitter is not separated
+   from server behaviour. The original full run reports filtered maximum lag 8.51089 ms,
+   but lacks raw lag intervals/global maxima, so omitted boundary-crossing stalls cannot
+   be excluded. Recorder 1.1.1 fixes overlap accounting for future captures; later replay
+   cannot recover this historical evidence. No perfect host isolation is claimed.
 5. **Mock realism**: faults are stylised (fixed 1.5 s stalls, 8-token bursts, 3× usage).
    Real regressions are gentler; the decision rule's minimum effects and the sample sizes
    were chosen for plausibly detectable effects, not for the mock.
@@ -404,8 +424,9 @@ baseline are byte-identical to the starter commit (`validation/integrity.txt`).
   resource ledger; they are not erased or charged again here.
 * CPU use: fixture generation and validation on one VM (`validation/timing.md`).
 * October 28 calibration, quick and full completed; capture/export completion was
-  126.203 minutes from the original preparation start. Transfer and cloud deletion
-  require separate controller evidence; no provider invoice is inferred here.
+  126.203 minutes from the original preparation start. The separate cleanup receipt
+  confirms GPU absence after 139.470 minutes. The shared base-allocation upper estimate
+  is $9.66, not Task 1 exclusive spend; the provider invoice remains pending.
 * Cuts and limits: no configuration A/B speedup, measured power, model-judged quality,
   multi-turn or prefix-cache-hit cells. Historical mocks retain placeholder prefill
   deadlines; October 28 real scoring uses its own prior frozen fit. A brief CPU-only

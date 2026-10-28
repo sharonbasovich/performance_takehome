@@ -29,7 +29,17 @@ capture owner label, name and immutable image, removes that exact container,
 and confirms absence before exiting. Stopping the attached Docker client alone
 can leave the daemon-managed engine serving, which invalidates a subsequent
 cold start. Cleanup failure remains an error; it never becomes a warm startup
-measurement. The engine arguments, request population and evaluator are unchanged.
+measurement. The lifecycle supervisor preserves engine arguments and request population.
+
+Recorder 1.1.1 also handles capture cancellation through the runner's cleanup
+path, waits for the owned supervisor to finish, and counts lag intervals that
+overlap measurement boundaries. Current source additionally enforces complete
+calibration scheduling and rejects nonempty commentary/fences in number-only
+outputs while retaining generic whitespace tolerance. These later fixes have
+native CPU validation; they were not used for the original GPU captures. The
+original filtered lag summary lacks raw intervals, so later replay cannot
+retroactively certify boundary coverage. See the dated reanalysis and current
+validation receipts in the public packet.
 
 ## Layout
 

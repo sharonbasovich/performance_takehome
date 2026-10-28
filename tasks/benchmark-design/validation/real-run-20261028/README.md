@@ -6,8 +6,9 @@ captures, not a synthetic replacement. Start with
 [results.json](results.json) summarizes populations and A/A diagnostics;
 [provenance.json](provenance.json) distinguishes the actual capture source
 `7d6fd18`, external full-run lifecycle adapter, and separately tested canonical
-code `ea97cb8`. The evaluator and independent-audit canonical bytes are identical
-at those commits. No organizer runner, unreleased harness, API key, model weights
+code `ea97cb8`. Their evaluator and independent-audit bytes matched the capture
+source. Current combined source is `331c467`, with the later fixes and validation
+described below. No organizer runner, unreleased harness, API key, model weights
 or GPU is needed to replay the evidence.
 
 The three `.tar.gz` files are the original inner exports, with no edits or
@@ -35,11 +36,36 @@ the completed full run. The first full attempt had no measured requests.
 The two `.py.txt` files preserve the exact external lifecycle adapters used for
 the completed full capture, including their original bytes. They are evidence,
 not the current implementation. Current `suite/owned_docker.py` separately fixes
-cancellation during late container creation. The canonical implementation's
-[native validation receipt](native-validation.json) covers exact `ea97cb8`:
-201 candidate tests passed, one original held-out-key check skipped, 40 protected
-root tests passed, locked Ruff 0.16.10 and integrity passed. Documentation-only
-publication does not retroactively change either source attribution.
+cancellation during late creation; recorder 1.1.1 also handles cancellation
+through runner cleanup and measurement-boundary lag intervals. Its
+[current native receipt](native-validation-331c467.json) covers exact `331c467`:
+214 candidate tests passed, one original held-out-key check skipped, 40 root tests
+passed, locked Ruff 0.16.10 and protected integrity passed. Both cached tokenizer
+snapshots were verified. The [earlier receipt](native-validation.json) covers
+`ea97cb8` and remains historical evidence.
+
+## Later review and reanalysis
+
+Current code rejects nonempty prose/fences in number-only outputs, checks all
+planned calibration units, and retains failed-start diagnostics. Blank lines,
+surrounding line whitespace and decimal leading zeros remain generically
+normalized; there are no exceptions for historical request IDs. Lifecycle and
+lag fixes are CPU-tested without a new GPU capture.
+
+Source `556e7b8` reanalyzed the unchanged captures at **19:34:42–19:35:31 UTC**
+with the pinned runtime. The [dated derived receipt](post-review/receipt.json)
+and three derived reports retain that later identity. All metrics, populations
+and verdicts match originals except local paths, and there are no additional
+numeric-format failures. The calibration fit and frozen plan reproduce byte for
+byte. Original reports, archives and their hashes remain unchanged. The later
+reanalysis and source QA are not part of the original timed GPU execution.
+
+**Historical lag limit:** the original full record has filtered maximum lag
+8.51089 ms but no raw lag intervals or unfiltered global maximum. It cannot rule
+out omitted boundary-crossing stalls. Current recorder 1.1.1 fixes the observation
+rule for future captures. A derived report's `valid` status describes checks on
+stored evidence; it cannot recreate missing historical lag evidence or certify
+that capture against the repaired boundary gate.
 
 ## Verify and replay
 
@@ -99,9 +125,15 @@ Full capture completion records 7,572.170621909687 seconds from original T0
 `2026-10-28T16:10:34.243406+00:00`. This includes prior preparation,
 calibration, quick, failed-full-attempt time, full scoring, exact container
 cleanup and export. It is below 10,800 seconds, without resetting the clock.
-Offhost hash verification happened later. Cloud-allocation absence, billed time
-and invoice are not asserted by the capture receipt; those require the separate
-resource controller's final evidence.
+The separate [resource closure receipt](resource-closure.json) confirms an
+identity-verified DELETE (204), independent GET (404), and canonical GPU absence
+at **18:30:02.437658 UTC**: 8,368.194252 seconds (2h19m28.194252s) from the same
+original T0. Its offhost verification at 18:30:35.405337 UTC is also within the
+three-hour ceiling. Later source QA/reanalysis does not redefine this clock.
+
+The allocation was shared with Task 2 from 16:21:22 UTC until confirmed absence.
+At the stated $4.50/GPU-hour base ceiling, its upper elapsed-time estimate is
+$9.66; the provider invoice is pending. This is not Task 1 exclusive spend.
 
 A brief CPU-only metadata build overlapped full capture at
 `2026-10-28T17:57:56.621956+00:00`–

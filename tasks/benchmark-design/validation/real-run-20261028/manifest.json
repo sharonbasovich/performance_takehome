@@ -86,6 +86,10 @@
       "bytes": 245,
       "sha256": "a5fdd3b643faf52ef80fdeb44059ab095fa929e80d484ea3d5bf9677a8ae365e"
     },
+    "native-validation-331c467.json": {
+      "bytes": 2615,
+      "sha256": "1663ff00d50bc1920edd468eef36b01afbed7e9c84be19a67fde9904f566a524"
+    },
     "native-validation.json": {
       "bytes": 2862,
       "sha256": "14bea172829c9a2d44f68697fc897ae50217e9ba0db71f46415bd6aecab7627d"
@@ -93,6 +97,26 @@
     "owned_docker_supervisor.py.txt": {
       "bytes": 2440,
       "sha256": "cb1c544c5bacd0eab986ccd4ae50f0ce00c0dc38437fe6ce8ad4d685377dfbfd"
+    },
+    "post-review/calibration-direct-1.derived-report.json": {
+      "bytes": 10096,
+      "sha256": "e6f20223069b879bed912846038c10418b7ab891d897d8921005ad4e89cd5ffc"
+    },
+    "post-review/full-direct-2.derived-report.json": {
+      "bytes": 75658,
+      "sha256": "b4cc533dff79d1d75cc824b3064c4447e7e461c3ac778e50a7798f5067599cf0"
+    },
+    "post-review/publication-checks.json": {
+      "bytes": 821,
+      "sha256": "331f5c9c5c57ce1c8b77ed19b6db1eab3ebd7fac80c395ffabcab4c936fe2dfc"
+    },
+    "post-review/quick-direct-1.derived-report.json": {
+      "bytes": 40457,
+      "sha256": "85862bcdfe19e7f34e00b1ed928251325779ce744602845314f116208d4a98b6"
+    },
+    "post-review/receipt.json": {
+      "bytes": 6048,
+      "sha256": "d3b99e09c352988cb676f2658df828cce9fe85eaf8aa3552431fe83878be9ec7"
     },
     "provenance.json": {
       "bytes": 3351,
@@ -135,8 +159,12 @@
       "sha256": "bbae33fcbd6176eac64e9e250fc05d36eeda07a0b8a6c64f855f85bde85a5443"
     },
     "README.md": {
-      "bytes": 6237,
-      "sha256": "07180622679b94fa762282cba065f1efe5f6a854014e6f6f8a0a02c3853fd6b6"
+      "bytes": 8267,
+      "sha256": "654df362225a0c7737dbf62d78981ec8183a410decd55d1ae1c2dc1a40352fb5"
+    },
+    "resource-closure.json": {
+      "bytes": 1731,
+      "sha256": "0f80e8d60adf91421561745ac58190da222d49a23e6c90007bc465fbe5e8397b"
     },
     "results.json": {
       "bytes": 11621,
@@ -302,5 +330,12 @@
     }
   },
   "raw_archive_member_hash_verification": "PASS; streamed original archived members before publication; raw requests not re-extracted",
-  "no_private_keys_ledgers_or_puzzle_answers_added": true
+  "no_private_keys_ledgers_or_puzzle_answers_added": true,
+  "current_validation": {
+    "combined_source": "331c4678af81627a7a6fa2a99e1e63d1b7214b12",
+    "native_receipt": "native-validation-331c467.json",
+    "post_review_reanalysis": "post-review/receipt.json",
+    "resource_closure": "resource-closure.json",
+    "historical_raw_boundary_lag_coverage_retroactively_certified": false
+  }
 }
