@@ -49,7 +49,7 @@ final answer. They were not official Astra runs, and no equivalence is claimed.
 | 1 | 00:35:02.051448 | 00:55:02.051448 | 00:55:09.572 | Exact identity invalid; parent record is 7.520552 seconds late. |
 | 2 | 01:03:05.848606 | 01:23:05.848606 | 01:21:28.700 | Incomplete certificate; exact identity invalid; final recorded 97.148606 seconds before deadline. |
 | 3 | 10:32:24 | 10:52:24 | 10:52:05 | Exact identity invalid; important near-complete numerical partial; 1,181 seconds elapsed and 19 seconds before deadline. |
-| 4 (28 October) | 08:20:31.183947 | 08:40:31.183947 | 08:39:56.589236 | Incomplete positivity identity; exact non-SOS component valid; 1,165.405 seconds conservative elapsed upper bound. |
+| 4 (28 October) | 08:20:31.183947 | 08:40:31.183947 | 08:39:56.589236 | Incomplete positivity identity; exact non-SOS component valid; 1,165.406 seconds conservative elapsed upper bound. |
 
 Trial 1's own metadata places its file write before the deadline, but the parent
 log first records the final afterward. It is not presented as a confirmed on-time
@@ -96,14 +96,15 @@ Six further fresh development candidates were authored and tested on 28 October
 bundle before its original deadline. Post-author independent checks confirmed a
 valid answer and alternative answers; those later checks are not timed authorship.
 Each blind solver received only its candidate's statement, data and answer format,
-under the same development profile described above.
+under the same development profile described above. Fractional elapsed upper bounds
+are rounded upward to the next millisecond; original timestamp records are unchanged.
 
 | Candidate | Blind dispatch (UTC) | Original deadline (UTC) | First parent-recorded final (UTC) | Conservative elapsed upper bound | Exact grade |
 | --- | --- | --- | --- | --- | --- |
 | 43 | 06:24:00.5886355 | 06:44:00.5886355 | 06:27:03.6932392 | 183.105 seconds | Valid complete answer |
 | 44 | 06:44:25.5786942 | 07:04:25.5786942 | 06:48:12.6992388 | 227.121 seconds | Valid complete answer |
-| 45 | 07:32:20.9162628 | 07:52:20.9162628 | 07:35:12.4517193 | 171.535 seconds | Valid complete answer |
-| 46 | 08:04:14.4316651 | 08:24:14.4316651 | 08:12:28.6221248 | 494.190 seconds | Valid complete answer |
+| 45 | 07:32:20.9162628 | 07:52:20.9162628 | 07:35:12.4517193 | 171.536 seconds | Valid complete answer |
+| 46 | 08:04:14.4316651 | 08:24:14.4316651 | 08:12:28.6221248 | 494.191 seconds | Valid complete answer |
 | 47 | 08:40:07.481241 | 09:00:07.481241 | 08:43:09.114070 | 181.633 seconds | Valid complete answer |
 | 48 | 09:01:37.298182 | 09:21:37.298182 | 09:04:25.623783 | 168.326 seconds | Valid complete answer |
 
