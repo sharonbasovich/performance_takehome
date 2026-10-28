@@ -20,11 +20,13 @@ an environment-variable `apiKey` reference, and explicit positive input/output/
 cache prices in USD per million tokens. Forward only that named client key with
 `--api-key-env`; a gateway's upstream provider secret must stay outside Pi.
 
-In the genuine 28 October external proposal run, the successful continuation matched
-Pi's `maxTokens: 16384` with the gateway's 16384 output ceiling and used
-`contextWindow: 65536`. An earlier 4096 gateway ceiling ended with `stopReason=length`
+In the genuine 28 October external proposal run, the successful continuation set
+Pi's `maxTokens: 16384`, the outer gateway configuration to 16384, and
+`contextWindow: 65536`. A later source audit found that its inner request validator
+still clamped output to 8192; the client/configuration values do not establish a
+16384 wire limit. An earlier 4096 outer ceiling ended with `stopReason=length`
 before files were written. These were deployment settings; the canonical proposer
-does not impose 4096. Match provider, Pi and gateway limits, leave room for tools and
+does not impose 4096. Verify the actual outgoing cap, leave room for tools and
 context, and reserve their full possible cost. A larger output ceiling does not
 guarantee a usable answer. The documented provider may have different current limits.
 
@@ -53,7 +55,7 @@ zero billing. Do not retry or clear such a hold without separate reconciliation 
 an explicit reviewed policy that continues covering its full liability.
 
 For future canonical LLMD runs, explicitly select
-`--benchmark tasks/harness-design/harness/development-benchmark.llmd.json` and
+`--development-benchmark tasks/harness-design/harness/development-benchmark.llmd.json` and
 `--delivery-policy llmd-config-v1`; the generic CLI benchmark default differs.
 Pi edits `tasks/harness-design/Dockerfile` in its scratch context, one knob only,
 and writes proposal metadata. It should write files early and keep reasoning
