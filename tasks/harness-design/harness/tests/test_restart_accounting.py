@@ -18,7 +18,7 @@ from abstract_harness.proposers import (
     ProposerError,
     ScriptedProposer,
 )
-from abstract_harness.state import InProgress, backup_path, load_state
+from abstract_harness.state import InProgress, backup_path, load_state, save_state
 
 from .test_recovery import make_harness
 
@@ -129,6 +129,78 @@ class PendingPaidCallTest(unittest.TestCase):
 
 
 class BaselineRetryTest(unittest.TestCase):
+    def test_actual_run_retries_failed_baseline_without_resetting_state(self):
+        for legacy_finished_flag in (False, True):
+            with (
+                self.subTest(legacy_finished_flag=legacy_finished_flag),
+                tempfile.TemporaryDirectory() as tmp,
+            ):
+                root = Path(tmp)
+                context = root / "source"
+                context.mkdir()
+                (context / "Dockerfile").write_text("FROM scratch\n", encoding="utf-8")
+                engine = SimpleNamespace(
+                    name="standin", spec=SimpleNamespace(build_context=context)
+                )
+                harness = make_harness(root)
+                harness.engine = engine
+                harness.config.max_attempts = 0
+
+                def failed_build(_context, _tag, log_path):
+                    log_path.parent.mkdir(parents=True, exist_ok=True)
+                    log_path.write_bytes(b"transient baseline build failure")
+                    raise RuntimeError("temporary Docker service failure")
+
+                with (
+                    mock.patch.object(harness, "install_signal_handlers"),
+                    mock.patch.object(harness, "cleanup"),
+                    mock.patch.object(harness, "build", side_effect=failed_build),
+                    mock.patch("abstract_harness.manifest.write_manifest", return_value={}),
+                ):
+                    self.assertEqual(harness.run(), 2)
+                failed_report = next((root / "reports").glob("*.json"))
+                original_report = failed_report.read_bytes()
+                failed_log = root / "state/logs/000-baseline.build.log"
+                original_log = failed_log.read_bytes()
+                if legacy_finished_flag:
+                    # Reproduce the checkpoint written by the previous release.
+                    state = load_state(harness.state_path)
+                    state.finished = True
+                    save_state(harness.state_path, state)
+                restarted = make_harness(root)
+                restarted.engine = engine
+                restarted.config.max_attempts = 0
+                build = BuildResult(
+                    "candidate:baseline",
+                    True,
+                    False,
+                    0.1,
+                    "sha256:" + "b" * 64,
+                    "sha256:" + "b" * 64,
+                    root / "build.log",
+                )
+                measurement = measure.Measurement("model", 1.0, 3, [], [], [], [], True)
+                with (
+                    mock.patch.object(restarted, "install_signal_handlers"),
+                    mock.patch.object(restarted, "cleanup"),
+                    mock.patch.object(restarted, "build", return_value=build) as rebuilt,
+                    mock.patch.object(restarted, "measure_image", return_value=(measurement, {})),
+                    mock.patch.object(loop.docker, "retag"),
+                    mock.patch("abstract_harness.manifest.write_manifest", return_value={}),
+                ):
+                    self.assertEqual(restarted.run(), 0)
+                rebuilt.assert_called_once()
+                state = load_state(restarted.state_path)
+                self.assertIsNotNone(state.last_good)
+                self.assertFalse(state.finished)
+                self.assertEqual(state.lease_start_ts, 0.0)
+                self.assertEqual(state.api_usd_cumulative, 0.0)
+                rows = results.validate_file(root / "results.tsv")
+                self.assertEqual([row.outcome for row in rows], ["error", "baseline"])
+                self.assertEqual(len({row.experiment for row in rows}), 2)
+                self.assertEqual(failed_report.read_bytes(), original_report)
+                self.assertEqual(failed_log.read_bytes(), original_log)
+
     def successful_retry(self, harness, root):
         context = root / "source"
         context.mkdir()

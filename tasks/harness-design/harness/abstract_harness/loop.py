@@ -716,7 +716,9 @@ class Harness:
                 patch_path="",
             )
             self.state.in_progress = None
-            self.state.finished = True
+            # A transient build/startup/gate error ends this invocation, not the
+            # saved run. A later invocation may retry under the original lease.
+            self.state.attempt_index += 1
             self.state.finish_reason = "baseline failed"
             self._save()
             raise
@@ -1113,6 +1115,26 @@ class Harness:
                     "API accounting unresolved; reconcile provider billing before resuming"
                 )
                 return 2
+            if (
+                self.state.finished
+                and self.state.last_good is None
+                and self.state.in_progress is None
+                and self.state.history
+                and all(
+                    row.get("outcome") in {"error", "interrupted"}
+                    and (
+                        row.get("experiment") == "baseline"
+                        or re.fullmatch(r"\d+-baseline", row.get("experiment", ""))
+                    )
+                    for row in self.state.history
+                )
+            ):
+                # Previous releases persisted a terminal flag on baseline
+                # failure. Recover only that unambiguous checkpoint shape;
+                # keep its evidence, costs and original lease unchanged.
+                self.log("[harness] retrying previously failed baseline")
+                self.state.finished = False
+                self._save()
             if self.state.finished:
                 self.log(
                     f"[harness] state marked finished ({self.state.finish_reason}); "
