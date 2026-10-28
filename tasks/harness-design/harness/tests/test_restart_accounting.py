@@ -166,6 +166,7 @@ class BaselineRetryTest(unittest.TestCase):
                     # Reproduce the checkpoint written by the previous release.
                     state = load_state(harness.state_path)
                     state.finished = True
+                    state.attempt_index = 0
                     save_state(harness.state_path, state)
                 restarted = make_harness(root)
                 restarted.engine = engine
