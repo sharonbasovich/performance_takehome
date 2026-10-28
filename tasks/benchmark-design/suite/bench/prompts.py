@@ -226,12 +226,16 @@ def check_expected(text: str, expected: dict[str, Any]) -> list[str]:
 
 
 def _sequence_ok(text: str, end: int) -> bool:
-    numbers = []
-    for line in text.splitlines():
-        token = line.strip()
-        if token.isdigit():
-            numbers.append(int(token))
-    return numbers == list(range(1, end + 1))
+    # Keep the existing whitespace normalization: surrounding line whitespace
+    # and blank lines are ignored. Every nonempty line must be an ASCII decimal
+    # integer; prose and fences cannot disappear just because all numbers exist.
+    # Normalize leading zeros without int(), avoiding huge conversions and the
+    # disagreement between Unicode isdigit() and Python's integer parser.
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return end > 0 and len(lines) == end and all(
+        line.isascii() and line.isdecimal() and line.lstrip("0") == str(index)
+        for index, line in enumerate(lines, start=1)
+    )
 
 
 def _looks_garbled(text: str) -> bool:

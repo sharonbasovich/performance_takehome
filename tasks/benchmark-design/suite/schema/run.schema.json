@@ -101,7 +101,7 @@
           "readiness_at": {"type": ["number", "null"]},
           "first_valid_generation_at": {"type": ["number", "null"]},
           "first_valid_request_id": {"type": ["string", "null"]},
-          "status": {"enum": ["valid", "timeout", "skipped", "aborted"]}
+          "status": {"enum": ["valid", "timeout", "skipped", "aborted", "in_progress", "preexisting_server", "process_exited"]}
         }
       }
     },

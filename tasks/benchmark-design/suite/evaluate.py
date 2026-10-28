@@ -74,12 +74,13 @@ class Evaluator:
         self.verdicts: dict[str, Verdict] = {}
         self.by_id = {str(r.raw.get("request_id")): r for r in evidence.requests}
         self.records = {r.request_id: r.raw for r in evidence.requests}
-        # Compact fixtures deliberately exercise partial cell sets. Hardware quick/full
-        # runs must cover the actual plan, rather than trust a runner's reduced totals.
+        # Only explicit fixture mode deliberately exercises partial cell sets.
+        # Every other known mode, including calibration, must cover the actual
+        # plan rather than trust a runner's omitted units or reduced totals.
         mode = evidence.run.mode
         self.expected_units = (
             {u.unit_id: u for u in resolve_mode(plan, mode)}
-            if mode in ("quick", "full") and mode in plan["modes"]
+            if mode != "fixture" and mode in plan["modes"]
             else {}
         )
 
