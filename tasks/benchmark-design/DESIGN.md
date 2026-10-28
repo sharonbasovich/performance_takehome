@@ -82,6 +82,10 @@ stream completes; the metric therefore includes the probe's full decode and depe
 probe's `max_tokens` (32 in the shipped plan). Readiness (`/v1/models` 200) is reported
 separately as `first_ready_probe_s`; the gap is `readiness_lead_s`. The per-launch `status`
 field copied from `run.json` is informational only — the evaluator never trusts it.
+The aggregate startup sample contains only cold launches with a verified completed
+generation. Warm-attach timings and failed launches remain visible per launch; they
+cannot replace a planned cold-generation observation. Fewer verified cold generations
+than the planned startup count makes the run inconclusive.
 
 ### Deadlines (Etalon, arXiv 2407.07000 §4)
 

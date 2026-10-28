@@ -6,7 +6,7 @@
     "repository": "https://github.com/sharonbasovich/performance_takehome",
     "branch": "submission/benchmark-design",
     "tested_code_commit": "0174ca423cc583f4b8356284a79fdf4cbfb19a24",
-    "qualification": "The real calibration remains attributed to tested_code_commit0174ca4. The separately identified post-calibration CPU revision below changes evaluator identity checks and descriptive diagnostics only; no historical evidence is rescored or rebound."
+    "qualification": "The real calibration remains attributed to tested_code_commit0174ca4. Later CPU software revisions are identified separately below; no historical raw evidence or real-source attribution is rewritten."
   },
   "suite": {
     "entrypoint": "tasks/benchmark-design/suite/evaluate.py",
@@ -33,13 +33,24 @@
       "cpu_validation": "tests/test_model_tokens.py verifies both protected model tokenizer snapshots without weights or GPU"
     },
     "latest_validation": {
-      "tests_run": 192,
-      "passed": 191,
+      "tests_run": 197,
+      "passed": 196,
       "skipped": 1,
-      "skip_reason": "historical opaque heldout fixture key unavailable, not regenerated",
-      "source_commit": "4a730b0cd8ceffe9253c7a5b7a1173ab87ea9a76",
-      "qualification": "Post-calibration CPU/mock software suite on canonical LF inputs with both cached protected tokenizers; no real full/quick comparison or measured power."
-    }
+      "skip_reason": "held-out key not available on this machine (kept outside the tree)",
+      "source_base_commit": "f3aa892863742bf6cd96ea49567da871cfa9096d",
+      "verification": "tasks/benchmark-design/validation/startup-sufficiency-20261028/verification.json",
+      "qualification": "Exact source-file hashes in the verification identify the tested canonical-base plus working-tree overlay. CPU/mock checks only; no new real full/quick capture, runtime or power result."
+    },
+    "validation_history": [
+      {
+        "tests_run": 192,
+        "passed": 191,
+        "skipped": 1,
+        "skip_reason": "historical opaque heldout fixture key unavailable, not regenerated",
+        "source_commit": "4a730b0cd8ceffe9253c7a5b7a1173ab87ea9a76",
+        "qualification": "Post-calibration CPU/mock software suite on canonical LF inputs with both cached protected tokenizers; no real full/quick comparison or measured power."
+      }
+    ]
   },
   "fixed_environment": {
     "baseline_lock": "baseline/lock.json",
@@ -363,6 +374,22 @@
     "corrigendum": "tasks/benchmark-design/suite/INFERENCE-CORRIGENDUM.md",
     "historical_real_source_unchanged": true,
     "real_full_or_quick_complete": false,
+    "measured_power_established": false,
+    "official_result": false
+  },
+  "startup_sufficiency_revision": {
+    "status": "CPU_VALIDATED_NO_NEW_REAL_CAPTURE",
+    "source_base_commit": "f3aa892863742bf6cd96ea49567da871cfa9096d",
+    "source_files_canonical_lf_sha256": {
+      "tasks/benchmark-design/suite/evaluate.py": "79349a6505db1659ab296c6c6d618940ba6008ee09fff4b10bf72b69ea026e5a",
+      "tasks/benchmark-design/suite/tests/test_startup_sufficiency.py": "167a18c0743492bc71c46146ebaa94fa6b829bf466146ac1ce63254fb428a301",
+      "tasks/benchmark-design/DESIGN.md": "c3ac59ad84b421dd4881da38c78e96143e30021f440b00fc914bbc2e95ba3a38"
+    },
+    "verification": "tasks/benchmark-design/validation/startup-sufficiency-20261028/verification.json",
+    "verification_sha256": "61e99f302081f56ac37b39d6b7031b9e11069db06803819bfd63801a4b4138a1",
+    "historical_real_source_unchanged": true,
+    "frozen_deployment_packet_changed": false,
+    "full_or_quick_completed": false,
     "measured_power_established": false,
     "official_result": false
   }

@@ -566,7 +566,8 @@ class Evaluator:
         valid = [
             launch["startup_to_first_valid_generation_s"]
             for launch in launches
-            if launch["startup_to_first_valid_generation_s"] is not None
+            if launch["cold"]
+            and launch["startup_to_first_valid_generation_s"] is not None
         ]
         planned = self.ev.run.raw.get("planned_startup_launches")
         if self.ev.run.mode in ("quick", "full", "calibration"):
@@ -579,15 +580,19 @@ class Evaluator:
                 f"startup: {len(launches)} launches recorded < {planned} planned"
             )
         cold = [launch for launch in launches if launch["cold"]]
+        if planned is not None and len(valid) < planned:
+            self.inconclusive.append(
+                f"startup: {len(valid)} valid cold generations < {planned} planned"
+            )
         if not launches:
             self.inconclusive.append("startup: no launch recorded")
-        elif not valid:
-            self.inconclusive.append("startup: no launch reached a valid completed generation")
         elif not cold:
             self.inconclusive.append(
                 "startup: runner attached to an already running server (no cold launch); "
                 "clock measures attach-to-first-valid only"
             )
+        elif not valid:
+            self.inconclusive.append("startup: no cold launch reached a valid completed generation")
         return {
             "launches": launches,
             "planned_launches": planned,
