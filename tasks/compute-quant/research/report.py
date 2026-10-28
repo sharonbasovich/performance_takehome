@@ -600,8 +600,13 @@ def render_report(results: dict[str, Any]) -> str:
         add(
             f"Observed market mids: {obs_text}. Full-cost breakeven is "
             f"{_p(cost['breakeven_usd_per_gpu_hour'])} at declared "
-            f"{cost['utilization']:.0%} utilization; the cheap-compute anchor is "
-            f"{_p(curve['scenario_anchor_levels']['cheap_compute'])}.\n"
+            f"{cost['utilization']:.0%} utilization"
+            + (
+                f"; the cheap-compute anchor is "
+                f"{_p(curve['scenario_anchor_levels']['cheap_compute'])}.\n"
+                if "cheap_compute" in curve["scenario_anchor_levels"]
+                else ".\n"
+            )
         )
         if len(ordered) >= 2:
             change = ordered[-1]["usd_per_gpu_hour_mid"] - ordered[0]["usd_per_gpu_hour_mid"]

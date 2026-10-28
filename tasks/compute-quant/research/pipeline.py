@@ -403,8 +403,7 @@ def run_pipeline(
     exclusions = [
         {
             "id": row["id"],
-            "reason": row["excluded_reason"]
-            or "; ".join(x for x in row["reasons"] if not x.startswith("observed on/before")),
+            "reason": quote_exclusion_reason(row),
         }
         for row in quote_table
         if not row["curve_eligible"]
@@ -754,6 +753,15 @@ def build_manifest(
     }
 
 
+def quote_exclusion_reason(row: dict) -> str:
+    """Use the same complete rejection explanation in capped JSON and uncapped CSV."""
+    if row["curve_eligible"]:
+        return ""
+    return row["excluded_reason"] or "; ".join(
+        reason for reason in row["reasons"] if not reason.startswith("observed on/before")
+    )
+
+
 def render_normalization_csv(results: dict[str, object]) -> str:
     """One row per quote with the normalization outcome (the full, uncapped table)."""
     buf = io.StringIO()
@@ -805,7 +813,7 @@ def render_normalization_csv(results: dict[str, object]) -> str:
                 ""
                 if row["single_gpu_equivalent_usd_per_gpu_hour"] is None
                 else row["single_gpu_equivalent_usd_per_gpu_hour"],
-                row["excluded_reason"] or "",
+                quote_exclusion_reason(row),
                 " | ".join(f"{s['step']}: {s['before']} -> {s['after']}" for s in row["steps"]),
             ]
         )

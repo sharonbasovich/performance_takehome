@@ -496,8 +496,8 @@ def _anchor_level(
 ) -> tuple[float | None, str]:
     kind = spec["kind"]
     if kind == "supply_cost_breakeven":
-        util = None if spec.get("utilization") == "case" else float(spec["utilization"])
-        fin = None if spec.get("financing") == "case" else float(spec["financing"])
+        util = None if spec.get("utilization", "case") == "case" else float(spec["utilization"])
+        fin = None if spec.get("financing", "case") == "case" else float(spec["financing"])
         cost = breakeven(case.economics, util, fin)
         return cost.breakeven_usd_per_gpu_hour, (
             f"supply-cost breakeven at utilization {cost.utilization:.2f} and financing "
