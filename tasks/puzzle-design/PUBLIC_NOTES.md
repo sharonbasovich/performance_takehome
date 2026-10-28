@@ -90,6 +90,26 @@ a legal long integer in an ignored field is rejected, while an invalid non-finit
 constant in an ignored field is accepted. No timed artifact was repaired afterward.
 These limitations remain separate from the accepted mathematical answers.
 
+Two further fresh development candidates were authored and tested on 28 October
+2026. Each author received a new 20-minute window and delivered a complete frozen
+bundle before its original deadline. Post-author independent checks confirmed a
+valid answer and alternative answers; those later checks are not timed authorship.
+Each blind solver received only its candidate's statement, data and answer format,
+under the same development profile described above.
+
+| Candidate | Blind dispatch (UTC) | Original deadline (UTC) | First parent-recorded final (UTC) | Conservative elapsed upper bound | Exact grade |
+| --- | --- | --- | --- | --- | --- |
+| 43 | 06:24:00.5886355 | 06:44:00.5886355 | 06:27:03.6932392 | 183.105 seconds | Valid complete answer |
+| 44 | 06:44:25.5786942 | 07:04:25.5786942 | 06:48:12.6992388 | 227.121 seconds | Valid complete answer |
+
+Both original finals passed their frozen verifiers and separate exact constraint
+checks. Neither trial received correctness feedback or revised its final. The
+elapsed bounds include dispatch and parent recording; they are not an assertion
+of exact generation or network time. Both candidates were solved on time and earn
+no resistance credit in these proxy trials. Candidate 11 V2 remains the strongest
+supported local lead. Their private construction, proofs, verifiers and trial
+workspaces remain outside public Git; no official Astra result is claimed.
+
 ## Packaging and protocol limits
 
 The immutable timed author ZIP and its manifests are separate from the later
