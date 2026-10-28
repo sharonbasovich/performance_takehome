@@ -575,14 +575,16 @@ class Evaluator:
             if planned != expected:
                 self.reasons.append("startup: planned launch count differs from workload plan")
             planned = expected
-        if planned is not None and len(launches) < planned:
+        if planned is not None and len(launches) != planned:
+            relation = "<" if len(launches) < planned else ">"
             self.inconclusive.append(
-                f"startup: {len(launches)} launches recorded < {planned} planned"
+                f"startup: {len(launches)} launches recorded {relation} {planned} planned"
             )
         cold = [launch for launch in launches if launch["cold"]]
-        if planned is not None and len(valid) < planned:
+        if planned is not None and len(valid) != planned:
+            relation = "<" if len(valid) < planned else ">"
             self.inconclusive.append(
-                f"startup: {len(valid)} valid cold generations < {planned} planned"
+                f"startup: {len(valid)} valid cold generations {relation} {planned} planned"
             )
         if not launches:
             self.inconclusive.append("startup: no launch recorded")

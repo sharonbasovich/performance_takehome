@@ -84,8 +84,10 @@ separately as `first_ready_probe_s`; the gap is `readiness_lead_s`. The per-laun
 field copied from `run.json` is informational only — the evaluator never trusts it.
 The aggregate startup sample contains only cold launches with a verified completed
 generation. Warm-attach timings and failed launches remain visible per launch; they
-cannot replace a planned cold-generation observation. Fewer verified cold generations
-than the planned startup count makes the run inconclusive.
+cannot replace a planned cold-generation observation. Both the recorded launch count
+and the verified cold-generation count must equal the planned startup count; missing
+observations or extra retries make the run inconclusive. All observed launch timings
+remain in the diagnostic report, including retries, without changing that fixed cohort.
 
 ### Deadlines (Etalon, arXiv 2407.07000 §4)
 

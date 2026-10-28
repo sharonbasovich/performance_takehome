@@ -108,6 +108,33 @@ class ColdStartupSufficiencyTests(unittest.TestCase):
         self.assertEqual(report["startup"]["startup_to_first_valid_generation_s"]["n"], 1)
         self.assertEqual(report["startup"]["launches"][1]["status"], "timeout")
 
+    def test_extra_cold_retry_cannot_replace_a_failed_planned_launch(self):
+        report = self.capture([(True, False), (True, True), (True, True)])
+        self.assertEqual(report["status"], "inconclusive")
+        self.assertEqual(report["startup"]["startup_to_first_valid_generation_s"]["n"], 2)
+        self.assertEqual(report["startup"]["launches"][0]["status"], "timeout")
+        self.assertIn(
+            "3 launches recorded > 2 planned", " ".join(report["inconclusive_reasons"])
+        )
+
+    def test_extra_successful_cold_launch_is_not_a_declared_population(self):
+        report = self.capture([(True, True), (True, True), (True, True)])
+        self.assertEqual(report["status"], "inconclusive")
+        self.assertEqual(report["startup"]["startup_to_first_valid_generation_s"]["n"], 3)
+        self.assertIn(
+            "3 valid cold generations > 2 planned", " ".join(report["inconclusive_reasons"])
+        )
+
+    def test_extra_warm_attach_does_not_preserve_a_valid_planned_population(self):
+        report = self.capture([(True, True), (True, True), (False, True)])
+        self.assertEqual(report["status"], "inconclusive")
+        self.assertEqual(report["startup"]["startup_to_first_valid_generation_s"]["n"], 2)
+        self.assertEqual(len(report["startup"]["launches"]), 3)
+        self.assertFalse(report["startup"]["launches"][2]["cold"])
+        self.assertIn(
+            "3 launches recorded > 2 planned", " ".join(report["inconclusive_reasons"])
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

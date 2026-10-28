@@ -33,13 +33,13 @@
       "cpu_validation": "tests/test_model_tokens.py verifies both protected model tokenizer snapshots without weights or GPU"
     },
     "latest_validation": {
-      "tests_run": 197,
-      "passed": 196,
+      "tests_run": 200,
+      "passed": 199,
       "skipped": 1,
       "skip_reason": "held-out key not available on this machine (kept outside the tree)",
-      "source_base_commit": "f3aa892863742bf6cd96ea49567da871cfa9096d",
-      "verification": "tasks/benchmark-design/validation/startup-sufficiency-20261028/verification.json",
-      "qualification": "Exact source-file hashes in the verification identify the tested canonical-base plus working-tree overlay. CPU/mock checks only; no new real full/quick capture, runtime or power result."
+      "source_base_commit": "bc22c65ba44fd03d093f733d3097d95a1e999379",
+      "verification": "tasks/benchmark-design/validation/exact-startup-cohort-20261028/verification.json",
+      "qualification": "Canonical bc22 Git archive plus three declared working-tree LF overlays; immutable per-file hashes identify tested code, not a future commit. CPU/mock software only; no real quick/full capture or power result."
     },
     "validation_history": [
       {
@@ -49,6 +49,15 @@
         "skip_reason": "historical opaque heldout fixture key unavailable, not regenerated",
         "source_commit": "4a730b0cd8ceffe9253c7a5b7a1173ab87ea9a76",
         "qualification": "Post-calibration CPU/mock software suite on canonical LF inputs with both cached protected tokenizers; no real full/quick comparison or measured power."
+      },
+      {
+        "tests_run": 197,
+        "passed": 196,
+        "skipped": 1,
+        "skip_reason": "held-out key not available on this machine (kept outside the tree)",
+        "source_base_commit": "f3aa892863742bf6cd96ea49567da871cfa9096d",
+        "verification": "tasks/benchmark-design/validation/startup-sufficiency-20261028/verification.json",
+        "qualification": "Exact source-file hashes in the verification identify the tested canonical-base plus working-tree overlay. CPU/mock checks only; no new real full/quick capture, runtime or power result."
       }
     ]
   },
@@ -386,7 +395,25 @@
       "tasks/benchmark-design/DESIGN.md": "c3ac59ad84b421dd4881da38c78e96143e30021f440b00fc914bbc2e95ba3a38"
     },
     "verification": "tasks/benchmark-design/validation/startup-sufficiency-20261028/verification.json",
-    "verification_sha256": "61e99f302081f56ac37b39d6b7031b9e11069db06803819bfd63801a4b4138a1",
+    "verification_sha256": "583e1f247f162a6e3dfbd51fc0f5092b2de447584e75daced1e2a1e3f35c16ae",
+    "historical_real_source_unchanged": true,
+    "frozen_deployment_packet_changed": false,
+    "full_or_quick_completed": false,
+    "measured_power_established": false,
+    "official_result": false,
+    "verification_digest_scope": "Exact committed canonical LF Git bytes; prior working-CRLF digest corrected without rewriting the receipt."
+  },
+  "startup_cohort_revision": {
+    "status": "CPU_VALIDATED_NO_NEW_REAL_CAPTURE",
+    "source_base_commit": "bc22c65ba44fd03d093f733d3097d95a1e999379",
+    "source_files_canonical_lf_sha256": {
+      "tasks/benchmark-design/DESIGN.md": "b75dd1d1aa27f76a54361e40e390dc20c362335715f90c6a4363dca04f88317f",
+      "tasks/benchmark-design/suite/evaluate.py": "60d45641509360aaf4ce4084f1e2aa99c026e1a698650ac6b7e244a8bbbfb648",
+      "tasks/benchmark-design/suite/tests/test_startup_sufficiency.py": "a8104de6a184f23bb9aa8e8ff2191a99aacea3c9b5e6c511181940509d184457"
+    },
+    "verification": "tasks/benchmark-design/validation/exact-startup-cohort-20261028/verification.json",
+    "verification_sha256": "a73accba197f6303bde8e5a3a72478f93574f98a8ba19a26d33aee61e441a9dd",
+    "verification_digest_scope": "Exact canonical LF bytes stored in Git",
     "historical_real_source_unchanged": true,
     "frozen_deployment_packet_changed": false,
     "full_or_quick_completed": false,
