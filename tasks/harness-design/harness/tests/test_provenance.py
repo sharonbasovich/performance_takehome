@@ -170,13 +170,15 @@ class ProvenanceTest(unittest.TestCase):
         linked = _paths.REPO_ROOT / sub["agent_harness"]["provenance_path"]
         self.assertEqual(json.loads(linked.read_text())["pi_integrity"], pins["artifact_integrity"])
 
-    def test_live_manifest_binds_actual_baseline_bytes_source_and_image(self) -> None:
+    def test_historical_live_manifest_binds_actual_baseline_bytes_source_and_image(self) -> None:
         import csv
         import hashlib
         import json
 
         task_dir = _paths.HARNESS_DIR.parent
-        current = json.loads((task_dir / "submission.json").read_text(encoding="utf-8"))
+        current = json.loads(
+            (task_dir / "submission.live-mi355x-20261026.json").read_text(encoding="utf-8")
+        )
         evidence = current["evidence"]
         report_path = _paths.REPO_ROOT / evidence["baseline_report"]
         report_bytes = report_path.read_bytes()

@@ -6,6 +6,14 @@ or prebuilt optimizer is supplied. The main output is an image digest, not a ben
 runs offline after submission; it is not an input to your harness. `run.py` is intentionally
 not a solved optimizer in this starter repository. All paths below are repository-root-relative.
 
+The [28 October public packet](reports/live-mi355x-20261028/README.md) records a genuine
+stock Pi proposal, an exact single-knob build, candidate startup failure, and fresh
+30-request validation of the selected public baseline. Its stages used external
+orchestration with the canonical guard/measure/decision functions. It is not an execution
+of the canonical unattended loop and claims no speedup. The original main `results.tsv`
+remains historical CPU stand-in evidence with invalid FTGR/keep metrics; current results
+and the preserved history are distinguished in [NOTES.md](../NOTES.md).
+
 Example candidate-defined Pi invocation (requires the coding-provider key in
 `ANTHROPIC_API_KEY` and the installed Pi executable; see the provider setup below):
 
@@ -105,7 +113,7 @@ next to it:
 | --- | --- |
 | `run.py` | CLI: `run`, `validate-results`, `fetch-standin-model`, `retag-last-good` |
 | `abstract_harness/engines.py` | `Engine` abstraction: `LlmdEngine` (pinned `baseline/lock.json` image, same device/mount/security flags as `tools.baseline.start_command`, internal no-egress network instead of `--publish`) and `StandinEngine` (candidate-built llama.cpp CPU server, `../standin/`) |
-| `abstract_harness/proposers.py` | `PiProposer` (pinned Pi 1.0.0, print mode, stock tools, isolation flags, key by env-var name only) and `ScriptedProposer` (deterministic queue; used for all evidence here because no coding-model key was available) |
+| `abstract_harness/proposers.py` | `PiProposer` (pinned Pi 1.0.0, print mode, stock tools, isolation flags, key by env-var name only) and `ScriptedProposer` (deterministic queue; used for the historical main CPU ledger). The current genuine Pi proposal used the external orchestration documented above. |
 | `abstract_harness/measure.py` | development benchmark runner: TTFT, Etalon FTGR via protected `benchmarks.metrics`, startup-to-first-valid-generation, correctness gates |
 | `abstract_harness/decision.py` | prompt-stratified bootstrap decision rule (`improved` / `regressed` / `no_change` / `gate_failed`) |
 | `abstract_harness/loop.py` | the unattended loop: build -> start -> gate -> A/B measure -> decide -> keep/revert; checkpoints, SIGTERM/SIGINT handling, resume from `state.json` |
