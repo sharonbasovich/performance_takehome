@@ -61,8 +61,10 @@ rejected candidate is not tagged or described as the winner.
 
 A later Pi proposal completed at `2026-10-28T19:38:16.133592Z`, changing only
 `--page-chunk-size=16` to `64`. It is retained under `later-unmeasured-pi2/` as an
-**unmeasured proposal**, with no build, GPU measurement, selected-image status,
-or gain attributed to it in this packet. Its later gateway supports an effective
+**unmeasured proposal snapshot from that completion time**, with no GPU
+measurement, selected-image status, or gain attributed to it in this packet.
+Later CPU-only build/help work is outside this snapshot and establishes no GPU
+performance result. Its later gateway supports an effective
 16,384 output-token cap; that does not change the earlier continuation's cap.
 Any future experiment needs its own receipts and must preserve this rejected
 candidate and baseline result.
@@ -92,3 +94,9 @@ rewritten. The new [four-phase TSV](harness/reports/live-mi355x-20261028/results
 has a separately declared schema and no candidate metric for the startup failure.
 The old bot-authored [PR 3](https://github.com/sharonbasovich/performance_takehome/pull/3)
 remains review history. No official organizer run or score is available.
+
+The exact public packet at `b1a4b11946d2adc2095b2e5890b5c61db8be7fd7` passed
+**282/282** Harness tests, **40/40** protected-root tests, cached Ruff 0.16.10,
+and protected-file integrity in a clean native Linux CPython 3.14.4 checkout.
+See [the software receipt](harness/reports/live-mi355x-20261028/software-validation.json).
+The receipt and this later wording clarification add no new GPU or provider result.

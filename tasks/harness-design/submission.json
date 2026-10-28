@@ -101,7 +101,8 @@
     "historical_live_manifest_sha256": "c8d39e3d6ef4afa017e18e45456ea9338a616e08082b193db840a282412bd07e",
     "historical_cpu_manifest": "tasks/harness-design/submission.cpu-standin-legacy.json",
     "historical_git_manifest": "tasks/harness-design/submission.live-mi355x-20261026.git.json",
-    "historical_git_manifest_sha256": "0fe246c21b0d88026cb0fa34d304090aaeda7991cf8e48718da5f600b8e41d2a"
+    "historical_git_manifest_sha256": "0fe246c21b0d88026cb0fa34d304090aaeda7991cf8e48718da5f600b8e41d2a",
+    "software_validation": "tasks/harness-design/harness/reports/live-mi355x-20261028/software-validation.json"
   },
   "delivery": {
     "kind": "public-ghcr-immutable-image",

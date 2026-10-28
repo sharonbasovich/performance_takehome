@@ -219,6 +219,11 @@
       "bytes": 8088,
       "sha256": "ca9ccec835dfc8f5ad68dca775cf0ffcd78e497c3c474848e8d4fc9c459d1123",
       "format": "derived metadata only; no text, argument content, tool output or secret values"
+    },
+    "software-validation.json": {
+      "bytes": 1071,
+      "sha256": "1a8ba540ec618cb4436a947dedc5395f146937d7eb1a9704f25677fbf4eb03c1",
+      "format": "derived sanitized native software receipt"
     }
   }
 }
