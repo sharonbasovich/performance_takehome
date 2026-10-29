@@ -2,7 +2,7 @@
   "schema_version": 1,
   "task": "puzzle-design",
   "candidate": "candidate-11-v2",
-  "selection_scope": "Strongest supported existing development candidate; no clean on-time wrong-answer trial or official resistance result is claimed.",
+  "selection_scope": "Strongest supported existing development candidate. One fixed twenty-minute native-artifact-profile Astra attempt ended without an accepted answer; two earlier chat-final trials had late first observations. No official resistance grade is claimed.",
   "manifest_scope": "Only unchanged original statement with Git LF normalization and non-solution-bearing notes; no circular manifest self hash.",
   "public_artifacts": [
     {
@@ -13,9 +13,9 @@
     },
     {
       "path": "tasks/puzzle-design/PUBLIC_NOTES.md",
-      "git_lf_bytes": 6347,
-      "git_lf_sha256": "b3ba14acf7f344ff0b66a34923c2a6ebc88db5e370f52107b9b5dc52d01fa6af",
-      "git_blob_sha1": "fede733d01163243681c2abe5b0b6457d1a90675"
+      "git_lf_bytes": 8388,
+      "git_lf_sha256": "0eff7b5514524c5fef7d6b6023e5e8780345261790139ac777dbafcef0a81b40",
+      "git_blob_sha1": "eb49ab10edfc7c6a21a10ea433b3dfce1bcfc1ac"
     }
   ],
   "original_frozen_statement": {
@@ -58,6 +58,30 @@
       "complete_positivity_identity": false,
       "exact_nonSOS_component_valid": true,
       "clean_on_time_wrong_answer_trial": false
+    },
+    {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "ultra",
+      "fork_turns": "none",
+      "submission_profile": "prospectively declared native first-final artifact, version1",
+      "original_start_utc": "2026-10-29T03:18:44.497813+00:00",
+      "deadline_utc": "2026-10-29T03:38:44.497813+00:00",
+      "fixed_wall_seconds": 1200,
+      "native_status": "NO_TIMELY_FINAL_ARTIFACT",
+      "final_artifact_present_at_cutoff": false,
+      "accepted_answer_count": 0,
+      "original_checker_invoked": false,
+      "scratch_promoted_or_repaired": false,
+      "first_direct_parent_clock_observation_utc": "2026-10-29T03:39:18Z",
+      "parent_clock_display_precision_seconds": 1,
+      "parent_chat_final_is_separate": true,
+      "collector_maximum_poll_gap_ms": 69.9867,
+      "collector_finish_after_cutoff_monotonic_ms": 0.679,
+      "clock_before_statement_exposure": true,
+      "gate_publication_after_start_ms": 11.6752,
+      "deadline_extended_or_reset": false,
+      "correctness_feedback_given": false,
+      "official_result": false
     }
   ],
   "original_C53_Astra_model_result": {
@@ -78,5 +102,32 @@
   "official_astra_result": null,
   "organizer_upload_receipt": null,
   "private_material_included": false,
-  "new_mathematical_authoring": false
+  "new_mathematical_authoring": false,
+  "native_artifact_profile": {
+    "version": 1,
+    "requested_model": "gpt-6-astra",
+    "reasoning_effort": "ultra",
+    "fork_turns": "none",
+    "duration_seconds": 1200,
+    "start_rule": "independent native T0 before unchanged statement/data exposure, after neutral no-puzzle readiness tool",
+    "submission_rule": "first complete atomic FINAL artifact must finish collector read by fixed monotonic cutoff; parent chat final separately observed",
+    "tools": {
+      "Python": "3.13.3",
+      "numpy": "2.2.6",
+      "scipy": "1.15.3",
+      "sympy": "1.13.3"
+    },
+    "network_install_delegation_other_model_private_grader_feedback": "forbidden by instruction",
+    "filesystem_scope": "public input and own scratch; instruction-level, no OS sandbox attestation",
+    "backend_revision_seed_token_CPU_memory_limits": "not attested as organizer profile",
+    "exact_model_service_delivery_UTC_attested": false,
+    "profile_sha256": "ea61f00a6038f3f64e72080c81a7b2e11430ec163d6d53d83b997495365468b5",
+    "collector_sha256": "934917e3e149cab727dd6660ba04cf39f466bd5da0eb906bafad74eb19c27266",
+    "protocol_sha256": "34bf83f301a96477b8531f8c6edb31469779c25adfbf10fb5136d699e5d8f350",
+    "launch_sha256": "1afeceaf30e2480ac9eaa484936721f07d53211e9eaab11f42e648a91cb31c2b",
+    "native_start_receipt_sha256": "db11f56130b7131d95eb16cc456c9ce14c983f14d4a4f165d7900d416b106e24",
+    "native_result_receipt_sha256": "3cf4aaf3fa829a50b7c2c04ba05c5c722048f9200ed9aa10afddce6e1e2eab66",
+    "independent_closure_sha256": "271b63018e227c54d2928d601ca43a49ae4243a2a7e32440fd323f19758912f5",
+    "native_result_is_not_an_official_grade": true
+  }
 }

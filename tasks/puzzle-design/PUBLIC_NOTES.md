@@ -26,16 +26,17 @@ new authoring credit.
 
 ## Fresh Astra-model development evidence
 
-The fresh confirmation uses gpt-6-astra / ultra, a fresh context, the unchanged
+The attempts use gpt-6-astra / ultra, fresh contexts, the unchanged
 statement and polynomial, and local computations. Network, installations,
 delegation, private grader material and correctness feedback are forbidden.
 These are instruction-level boundaries, not a claim of OS sandbox attestation
 or the unreleased organizer profile.
 
-| Run | Original start UTC | Fixed deadline UTC | First parent receipt | Outcome |
+| Run | Original start UTC | Fixed deadline UTC | Submission / parent observation | Outcome |
 | --- | --- | --- | --- | --- |
 | Earlier boundary trial | 28 Oct 23:08:43.799098 | 23:28:43.799098 | First persisted observation 23:28:46.083663 | Original checker rejected; boundary timing not clean |
 | Fresh confirmation | 28 Oct 23:33:21 | 23:53:21 | First direct clock observation 23:53:52 | Original checker rejected; first final observed after cutoff |
+| Native artifact profile | 29 Oct 03:18:44.497813 | 03:38:44.497813 | No artifact at cutoff; parent final observed 03:39:18 | Fixed twenty-minute artifact window ended without an accepted answer |
 
 The earlier boundary trial's first final supplied a valid non-SOS moment
 certificate but no positivity blocks or squares. The original checker rejected
@@ -53,12 +54,41 @@ immediate direct clock observation was 23:53:52, with one-second display precisi
 No complete final was recorded within the original window. Exact underlying
 event-delivery UTC is not exposed, and no clean on-time receipt is claimed.
 
-**Two fresh Astra-model development attempts produced incomplete certificates.
+**The two earlier Astra-model development attempts produced incomplete certificates.
 First observed finals were after the twenty-minute cutoff; neither is a clean
 on-time wrong-answer trial.** No deadline was extended, no answer was repaired,
-and the two runs remain separate. These observations support C11 V2 as the
-strongest supported existing development candidate; they do not establish a
-clean timed resistance result, an official harness grade or universal resistance.
+and the two runs remain separate. Those chat-only observations do not establish
+a clean timed resistance result. The later native artifact trial below uses a
+prospectively declared submission channel and cannot change their timing.
+
+### Native artifact deadline trial
+
+One additional fresh gpt-6-astra / ultra development attempt used a fixed
+twenty-minute native artifact profile. A neutral first tool exposed no puzzle;
+the independent collector recorded T0 and its hard cutoff before revealing the
+unchanged statement and data. A final counted only if the collector completely
+read the first atomic final artifact by that cutoff. Parent polling could not
+extend the window. No final artifact was recorded, and the solver's eventual
+parent final stated that it had not recovered an exact decomposition and had
+submitted no artifact. There was no final answer to grade; numerical scratch
+work was neither repaired nor promoted to a submission.
+
+The collector's maximum polling gap was **69.9867 ms** and it ended **0.679 ms**
+after the cutoff on its monotonic clock. Statement-gate publication completed
+11.6752 ms after T0; subsequent input/tool delivery consumed time from the same
+window. The parent final was first directly observed at **03:39:18 UTC** with
+one-second clock display precision, separately from the artifact record.
+
+Allowed computation was Python 3.13.3 with preinstalled NumPy 2.2.6, SciPy 1.15.3
+and SymPy 1.13.3, confined by instruction to the public input and the solver's
+own scratch. No network, installation, other model, private verifier, proof,
+known answer or correctness feedback was supplied. The native host clock and
+instruction-level boundary do not attest an OS sandbox, backend revision/seed,
+token/CPU/memory limits, exact model-service delivery time or organizer-profile
+equivalence. This records **one fixed-window artifact-profile attempt without
+an accepted answer**, not an official harness grade or a universal resistance
+claim. The original authoring record, both earlier late trials and solved C53
+history remain unchanged.
 
 ## C53 and other retained results
 
