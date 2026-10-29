@@ -19,6 +19,33 @@ from abstract_harness import measure
 
 
 class RequestJournalTest(unittest.TestCase):
+    def test_startup_completion_precedes_slow_persistence_callback(self):
+        clock = [10.0]
+        persisted = []
+        trace = measure.RequestTrace("startup-probe", True, finish_reason="stop")
+
+        def stream(*_args, **_kwargs):
+            clock[0] = 12.0
+            return trace
+
+        def journal(value):
+            persisted.append(value)
+            clock[0] += 100.0
+
+        benchmark = {"startup_probe": {"prompt": "hello", "max_tokens": 4}, "request_timeout_s": 30}
+        with (
+            mock.patch.object(measure.time, "monotonic", side_effect=lambda: clock[0]),
+            mock.patch.object(measure, "wait_for_model_id", return_value="fixture"),
+            mock.patch.object(measure, "stream_chat_completion", side_effect=stream),
+        ):
+            startup, model = measure.wait_for_first_valid_generation(
+                "http://unused", 0.0, benchmark, timeout_s=60, on_probe=journal
+            )
+        self.assertEqual(persisted, [trace])
+        self.assertEqual(clock[0], 112.0)
+        self.assertEqual(startup, 12.0)
+        self.assertEqual(model, "fixture")
+
     def test_callback_does_not_change_measurement_or_gates(self):
         benchmark = {
             "repetitions": 2,

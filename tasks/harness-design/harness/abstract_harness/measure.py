@@ -405,11 +405,12 @@ def wait_for_first_valid_generation(
             extra_fields=benchmark.get("extra_request_fields"),
             request_profile=request_profile,
         )
+        completed_at = time.monotonic()
         attempts += 1
         if on_probe is not None:
             on_probe(trace)
         if trace.ok and trace.finish_reason in {"stop", "length"}:
-            return time.monotonic() - started_at, model_id
+            return completed_at - started_at, model_id
         last_error = trace.error or f"finish_reason={trace.finish_reason!r}"
         if attempts < max_probe_attempts and remaining() > 0:
             time.sleep(min(0.5, max(0.0, remaining())))
