@@ -563,6 +563,7 @@ def run_benchmark(
     startup_s: float | None,
     repetitions: int | None = None,
     is_alive: Any = None,
+    on_trace: Callable[[RequestTrace], None] | None = None,
 ) -> Measurement:
     """Run every prompt ``repetitions`` times sequentially and collect per-request samples.
 
@@ -599,6 +600,8 @@ def run_benchmark(
                 request_profile=request_profile,
             )
             rep_traces.append(trace)
+            if on_trace is not None:
+                on_trace(trace)
         traces.extend(rep_traces)
         for trace in rep_traces:
             if trace.ok and trace.ttft_s is not None:
