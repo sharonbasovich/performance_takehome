@@ -9,6 +9,12 @@ belong to the harness; you never run Docker or servers.
 
 ## Scope and contract
 
+The draft task allows engine, build, packaging and configuration changes. This
+pilot's self-contained LLMD delivery path is restricted to configuration changes
+because LLMD source/build access was not supplied. That is a practical restriction
+of this implementation, not an original task requirement or evidence that all
+other optimizations are exhausted.
+
 For `engine=llmd`, the scratch build context is the repository root. Edit **only
 `tasks/harness-design/Dockerfile`**, one knob per attempt (one flag or one ENV variable).
 Preserve the current file's other bytes. The pinned image has no shell; no `RUN` steps.
@@ -63,15 +69,32 @@ side: more than 1.5× last-good startup is a hard regression gate. Startup impro
 alone is `no_change`. A kept candidate becomes the baseline for the next attempt.
 Read error/regression history before selecting a neighboring change.
 
-## Unmeasured mechanisms to consider
+## Measured history and remaining hypotheses
 
 Choose against this workload and history, one knob only. These are hypotheses, not
 performance evidence or instructions to copy a prepared patch.
 
-* KV page size (`--page-chunk-size`) may change decode page-table overhead, with
-  fragmentation/startup risk. A native drafter (`--speculative-drafter-model=native`)
-  may help only when target verification preserves bit-identical greedy output.
-  Adding a drafter and changing `--speculative-draft-count` are two separate attempts.
+* The genuine native-drafter candidate built but failed during DFlash repository
+  resolution before any measured request. Required assets were unavailable within
+  the current no-download/no-egress scope. No native-drafter gain was measured.
+* Pi's page chunk16-to64 and prefill chunk256-to1024 candidates each completed
+  control30, candidate30 and fresh selected-final30 with all six gates passing.
+  Both canonical comparisons returned `no_change`; the baseline remained selected.
+  Actual input usage was14–27 tokens, below the original256 prefill threshold,
+  disproving the latter proposal's possible two-chunk hypothesis for these inputs.
+  The exact original proposals and results remain in the public evidence packet.
+* Pi4 genuinely chose batch size16-to1, but its raw file also corrupted the base
+  pin and was rejected before build. The controller restored only that immutable
+  line, preserving the chosen knob/value. The corrected intent passed all90
+  control/candidate/final requests and six gates; its serial development comparison
+  improved TTFT1.0929 and FTGR1.2688, with startup about25% slower within the1.5×
+  limit. A supplemental six-request burst check regressed wall time about1.6× and
+  median TTFT about5×. Controller-derived4/8 neighbors were then fixed before
+  measurement; both passed the separate mixed rule, whose point-score selected4.
+  A new exact-image final30 after that choice passed all six gates. No general gain
+  is inferred. This is explicitly a controller-repaired experiment, not unaltered
+  Pi output or unattended recovery. Controller-derived neighbors are separate
+  tuning attempts, not new stock-Pi choices.
 * Cache/GPU memory fractions may affect allocation overhead; changing either risks
   startup failure or OOM. No benefit has been measured here.
 * Larger prefill/token batches or more admitted requests have no demonstrated
@@ -90,12 +113,17 @@ Dockerfile. Verified help names include `--batch-size`, `--token-batch-size`,
 Keep backend `auto` unless your own supported alternative has a defensible mechanism;
 do not add CUDA/TPU options. Help availability is not performance evidence.
 
-The real baseline was measured at `09f52c25af380a0daefdea3a183fe45a6ec75730`.
-The genuine Pi attempt failed at a 120-second upstream cap before producing a patch;
-no Pi optimization cycle or measured gain exists. Older CPU stand-in keeps were
-invalidated by an interval-adapter bug and are not LLMD improvement evidence. The
-missing historical fresh-revalidation report/traces and provider body cannot be
-recreated by new results.
+Historical26October state: the baseline was measured at
+`09f52c25af380a0daefdea3a183fe45a6ec75730`, and that day's genuine Pi attempt
+failed at a120-second upstream cap before producing a patch. The old statement
+that no Pi optimization cycle existed described that date. On28October genuine
+Pi proposals were built and measured through external stage orchestration calling
+canonical guard/measure/decision functions, with fresh selected-final measurements;
+the canonical unattended loop was software-tested separately. The corrected Pi4
+intent demonstrated a local serial development gain as described above; no official
+or general-workload gain is inferred. Older CPU stand-in keeps were invalidated by an interval
+adapter bug and are not LLMD improvement evidence. The missing historical fresh
+revalidation report/traces and provider body cannot be recreated by new results.
 
 ## CPU stand-in
 

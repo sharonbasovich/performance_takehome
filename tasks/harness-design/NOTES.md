@@ -1,114 +1,114 @@
-# Task 2 — Actual Pi proposal, rejected candidate, selected baseline
+# Task 2 — Measured batch size 4 selection, publication pending
 
-The selected image is the already published LLMD baseline:
+The final measured selection is controller-derived batch size 4:
 
-`ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d`
+`ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:84d13e8e4f6777ec4522d701d86e16181c0b170602a7e81db17dab7df525cabb`
 
-The latest measured feedback cycle tested Pi's later `--page-chunk-size=64`
-proposal on a fresh cohort. Control, candidate and fresh selected-final each
-passed all six gates over 30 requests. The canonical decision was **no_change**:
-TTFT speedup 1.0178 with 90% CI [0.9937, 1.0530], FTGR speedup 0.9972 with
-90% CI [0.9922, 1.0486]. The baseline remained selected. See the
-[complete Pi2 result](harness/reports/live-mi355x-20261028/pi2-measured/README.md).
-Across the two retained cycles there are 180 measured requests; no gain is claimed.
+The exact image/config/source and passing final 30 are retained. **Registry
+publication, complete anonymous graph verification and anonymous Docker pull/help
+are pending for this new image.** The separately verified public baseline 7db
+remains historical delivery evidence; its proof is not substituted for 84d.
 
-On 28 October, a genuine stock Pi 1.0.0 proposal changed one Docker CMD knob to
-`--speculative-drafter-model=native`. The candidate passed the canonical
-`llmd-config-v1` source guard and built successfully, preserving the baseline's
-23 layers and entrypoint. It then failed at startup while resolving the DFlash
-model repository (`FileNotFound`), before any measured request. It was rejected.
-The baseline was selected again and a **fresh final 30-request run passed all
-six development correctness gates**. No optimized image or speedup is claimed.
-
-| First cycle phase | Measured requests | Result |
+| Frozen serial development comparison | Speedup | 90% bootstrap interval |
 |---|---:|---|
-| Initial baseline | 30 | All six gates passed; establishes the six golden outputs |
-| Same-attempt control | 30 | All six gates passed against those golden outputs |
-| Native-drafter candidate | 0 | Startup failure; no performance report or metric invented |
-| Fresh selected final | 30 | All six gates passed on the selected baseline |
+| TTFT | 1.0778347527 | [1.0673637364, 1.1084559661] |
+| Etalon FTGR | 1.2654431344 | [1.2535909610, 1.2718943604] |
 
-Every successful phase retains its full report and 31 durable request records,
-including the startup probe. The candidate retains its empty trace file, error
-receipt, and container logs. The complete small evidence, exact candidate config
-and manifest, build logs, actual orchestration sources, frozen benchmark, and
-reproduction instructions are in [the 28 October packet](harness/reports/live-mi355x-20261028/README.md).
-The [current manifest](submission.json) binds these files and the selected image.
-The development workload is six greedy prompts, five repetitions each, using
-`llmd_closed_thinking_v1`; it is not the organizer's private benchmark or grade.
+Control and candidate each completed 30 requests and all six correctness gates.
+Startup was 24.881 s control and 32.486 s candidate, about 31% slower, within the
+1.5× hard regression limit. One startup observation per side does not establish
+a startup confidence interval. After the mixed-workload selection, a **new final
+30-request run of exact 84d passed all six gates**, with startup 22.819 s.
 
-## What actually ran
+The development profile remains `llmd_closed_thinking_v1`: six fixed greedy prompts,
+five repetitions each. This is local proxy evidence, not an organizer grade or a
+claim of improvement on all unseen workloads.
 
-This evidence is a genuine Pi proposal followed by the canonical source guard,
-measurement functions, decision function, and a fresh selected-image final
-measurement, **through external stage orchestration**. The actual helper source
-is retained verbatim. It is not an execution of the canonical unattended
-`Harness.run()` loop. That loop has separate software tests; software tests do
-not change the attribution of this real run.
+## How the selection was made
 
-The successful Pi continuation is distinct from an earlier HTTP 529 session and
-a retry that ended at the output-length limit. Its metadata-only transcript has
-ten tool starts and ten tool ends, final stop reason `stop`, and artifact hashes.
-No assistant reasoning, tool output, argument content, environment values, or
-private provider journal is published. The cached stock Pi distribution was
-verified across 1,243 files with Node 22.19.0. The continuation requested a 16,384
-output-token configuration, but its historical gateway wire cap was **8,192**.
-The later provider source/documentation fixes (`4960306`, `419a0bd`) reject
-truncated proposals before artifact recovery and correct the flag/wire-cap
-history; they do not retroactively change that session.
+| Proposal or tuning step | Attribution | Actual result |
+|---|---|---|
+| Native DFlash drafter | Stock Pi | Built; startup repository-resolution failure; zero measured traces |
+| Page chunk 16→64 | Stock Pi | All 90 control/candidate/final requests passed; `no_change` |
+| Prefill chunk 256→1024 | Stock Pi | All 90 passed; `no_change`; actual 14–27 input tokens never bound the old threshold |
+| Batch size 16→1 | Stock Pi intent, controller base-pin repair | Raw pin typo rejected before build; corrected intent improved serial performance but substantially regressed six-request bursts |
+| Batch sizes 4 and 8 | Deterministic controller neighbors | Both passed the separately frozen mixed rule; 4 ranked higher under its declared point-score rule |
 
-## Delivery and later work
+Pi genuinely chose the batch-size family at value 1. It did **not** choose 4 or 8.
+Its raw Dockerfile also corrupted the immutable base pin. The controller restored
+only that original line, preserving Pi's knob/value; raw rejection and corrected
+source remain separate. The batch 1 serial keep remains unchanged as historical
+evidence. Its six-request burst wall times were about 1.6× worse and median TTFT
+about 5× worse, so it is not presented as an overall workload winner.
 
-The selected platform manifest above and config
-`sha256:0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f`
-are the baseline already published through [delivery PR 5](https://github.com/sharonbasovich/performance_takehome/pull/5).
-The complete anonymous graph check verified 25 objects / 5,923,167,710 bytes;
-anonymous Docker pull, image inspection, and isolated CPU help execution also
-passed. These establish baseline delivery, not candidate performance. No image
-layers or model weights are included in this small evidence packet, and the
-rejected candidate is not tagged or described as the winner.
+Before measuring either controller neighbor, the policy fixed the 4/8 grid and
+selection rule at `2026-10-28T23:59:36.180698Z`, SHA
+`1b46842f8f05d41a521115aac6952137843c7d2902fcd71089e86cef040ea45d`.
+It requires canonical serial keep/correctness/startup plus candidate/baseline
+ratios ≤1.10 for median TTFT and wall time in each of two six-request bursts, and
+median TTFT for two 2,086-input-token long requests. Both qualified. Batch 4's
+declared score 1.16788 exceeded batch 8's 1.13848; this is a ranking rule, not a
+statistical claim that 4 is superior to 8.
 
-A later Pi proposal completed at `2026-10-28T19:38:16.133592Z`, changing only
-`--page-chunk-size=16` to `64`. Its original unmeasured completion snapshot remains
-unchanged under `later-unmeasured-pi2/`. The subsequently measured cycle finished
-at 23:14:09Z and is retained separately under `pi2-measured/`: all 90 requests
-passed, the canonical decision was no_change, and the fresh final baseline passed.
-The actual GPU candidate was manifest `047fca293b9b...`; the earlier CPU-only
-build `ed4b4477876e...` is not substituted for that measured image. Identical
-Dockerfile bytes do not imply a bit-reproducible build. Its later gateway supports
-an effective 16,384 output-token cap, which does not change Pi1's historical cap.
-Further genuine feedback work is separate and pending a later packet; no result,
-build, keep or gain from it is claimed here.
+Batch 4's burst median-TTFT ratios were 0.97656/0.94091 and wall ratios
+0.84852/0.84309; its long-input TTFT ratio was 0.96885. All supplemental gates
+passed. These small supplemental samples are descriptive. The neighborhood was
+chosen after observing batch 1's tradeoff, so this is exploratory selection, not
+independent confirmatory evidence.
 
-Reported newly settled model API cost through the Pi2 proposal is
-**$0.3664702**. Earlier unresolved holds remain fully reserved; errors and missing
-usage are not assumed free. This figure is not a private billing reconciliation.
-No financial ledger, account information, card data, provider key, or SSH material
-is published. See [PI-PROVIDER.md](harness/PI-PROVIDER.md) for the corrected provider
-setup and [DELIVERY-POLICY.md](harness/DELIVERY-POLICY.md) for source-only eligibility.
+## Software and real-run attribution
 
-## Preserved history and limits
+The real runs used **external stage orchestration** calling canonical source
+guard, measurement and decision functions. The first cycle used source 99c006d;
+later cycles used 419a0bd. They were not execution of the canonical unattended
+`Harness.run()` loop. Its separate software tests do not change that attribution.
+The final controller overlay and ScriptedProposer-compatible replay queue are
+portable and retained; their availability does not retroactively make the run
+unattended. See the [controller overlay](harness/reports/live-mi355x-20261028/controller-neighbors/README.md).
 
-The former live manifest is preserved byte-for-byte as
-[submission.live-mi355x-20261026.json](submission.live-mi355x-20261026.json),
-including its original local CRLF bytes. The exact prior Git blob is also retained
-as [submission.live-mi355x-20261026.git.json](submission.live-mi355x-20261026.git.json).
-The former notes are [archived separately](NOTES.history-through-20261026.md).
-Their statements describe that earlier state, including the failed GLM/Pi
-provider attempt and the missing full 26 October revalidation records; the new
-28 October reports do not reconstruct those missing records.
+The task permits engine, build, packaging and configuration work. This pilot's
+self-contained configuration-only delivery scope is a practical restriction
+because LLMD source/build access was not supplied, not an original task rule or
+evidence that other optimizations are exhausted.
 
-The main `harness/results.tsv` still has its original 14 CPU stand-in rows.
-Their historical FTGR calculation and keep decisions remain invalid performance
-evidence. No historical rows, raw reports, or failed-provider history were
-rewritten. The new [four-phase TSV](harness/reports/live-mi355x-20261028/results.tsv)
-has a separately declared schema and no candidate metric for the startup failure.
-The old bot-authored [PR 3](https://github.com/sharonbasovich/performance_takehome/pull/3)
-remains review history. No official organizer run or score is available.
+The packet retains **570 primary measured requests and 100 supplemental requests**,
+complete reports, durable traces, golden outputs, original built Dockerfiles,
+build/metadata receipts and actual source. The first native-drafter candidate has
+an empty trace file and no invented performance report. The final build source is
+SHA `e0c0683f7c82d63b637827038384ec2e130d0fbf91aaa94db58df1c006a4720a`;
+raw config is `1a19b238c6ce1448fed276005ff14e3425e845db266141deb5391c6a84159586`.
+All 23 inherited layer descriptors/diffIDs and the entrypoint are preserved.
 
-The exact public packet at `b1a4b11946d2adc2095b2e5890b5c61db8be7fd7` passed
-**282/282** Harness tests, **40/40** protected-root tests, cached Ruff 0.16.10,
-and protected-file integrity in a clean native Linux CPython 3.14.4 checkout.
-See [the software receipt](harness/reports/live-mi355x-20261028/software-validation.json).
-The receipt and this later wording clarification add no new GPU or provider result.
-The subsequent Pi2 packet records the separately observed GPU cycle above; it does
-not replace that software-validation receipt or earlier failed evidence.
+Stock Pi 1.0.0/Node 22.19.0 verification covered 1,243 package files. Public Pi
+metadata contains only event/call IDs, sequence, permitted filenames, argument
+sizes/hashes, stop reasons and runtime/artifact hashes. Assistant reasoning,
+argument contents, tool output, credentials and provider WAL remain private.
+Pi1's continuation is distinct from the earlier HTTP 529 and length-ended sessions.
+Its requested 16,384 output cap was historically 8,192 on the wire; later sessions
+used the corrected 16,384 cap. This history is not backdated.
+
+## Delivery, cost and preserved history
+
+Publication uses the exact retained config/platform metadata and the 23 already
+public inherited blobs; missing blobs must fail rather than trigger layer copying.
+No model weights or multi-gigabyte image archive is copied into this repository.
+Real anonymous whole-body and Docker proof receipts are required before delivery
+verification flags become true. No bit-reproducible-build claim is made.
+
+The GPU was independently observed deleted after complete offhost export. Newly
+settled model API cost through Pi4 is reported as **$0.5676140**. Earlier unresolved
+full holds remain accounted for; missing usage is not assumed free. This is not a
+billing reconciliation, and no private ledger, account/card data, provider key or
+SSH material is published.
+
+The old manifests remain byte-exact under
+[submission.live-mi355x-20261026.json](submission.live-mi355x-20261026.json), its
+[original Git blob](submission.live-mi355x-20261026.git.json), and the separately
+preserved Pi1/Pi2 snapshots. Former notes remain in
+[NOTES.history-through-20261026.md](NOTES.history-through-20261026.md). New evidence
+does not reconstruct missing 26 October fresh-revalidation traces/provider bodies.
+The original 14-row CPU `harness/results.tsv` is unchanged; its old FTGR/keep history
+remains invalid performance evidence.
+
+See the [current manifest](submission.json), [complete evidence/reproduction packet](harness/reports/live-mi355x-20261028/README.md),
+[provider instructions](harness/PI-PROVIDER.md) and [delivery policy](harness/DELIVERY-POLICY.md).

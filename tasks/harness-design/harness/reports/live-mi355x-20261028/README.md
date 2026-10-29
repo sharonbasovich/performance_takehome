@@ -1,16 +1,23 @@
 # 28 October Task 2 public evidence
 
-This packet supports a genuine stock Pi proposal, an exact one-knob candidate
-build, a failed candidate startup, reversion to the baseline, and a fresh final
-baseline measurement. It claims no speedup and no official grade.
+This packet preserves four genuine stock Pi proposal intents and two explicitly
+attributed controller neighbors. The final mixed-workload selection is batch size4,
+with a passing fresh final30 after selection. Its local serial comparison improved
+TTFT1.0778 and FTGR1.2654; supplemental checks are descriptive and no official or
+unseen-workload grade is claimed. Registry publication and anonymous Docker proof
+for the new image remain pending in this snapshot.
 
 The later [measured Pi2 feedback cycle](pi2-measured/README.md) adds 90 actual
 control/candidate/final requests, all passing, with a no_change decision. The
-baseline remains selected. The first cycle and its failed candidate are preserved.
+baseline remained selected after that cycle. The first cycle and its failed candidate are preserved.
 
-The selected immutable reference is
-`ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d`.
-The rejected candidate is platform manifest
+The current measured selected immutable reference is
+`ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:84d13e8e4f6777ec4522d701d86e16181c0b170602a7e81db17dab7df525cabb`.
+Its complete [controller selection and overlay](controller-neighbors/README.md)
+retains the frozen rule, both actual neighbors, supplemental probes and post-choice
+final30. Across all stages there are570 primary measured requests plus100
+supplemental requests. The earlier baseline7db remains separately verified history.
+The first cycle's rejected native-drafter candidate is platform manifest
 `sha256:ab62d880b43412b895dbc1abc25a7eb092f954df40b0f72c896e5ea5bbbee5dd`
 with config `sha256:ed53dd105fa9bc76c1db8ad8261f8cfc435de4e03684b08931025261ff5670de`.
 The two identities are kept separate; the candidate was not published as a winner.
@@ -70,11 +77,14 @@ golden outputs, and verifies that the failed candidate has zero traces and no
 invented report. Historical provenance assertions continue to use the preserved
 26 October manifest with their original expectations.
 
-`inventory.json` excludes itself and explanatory docs to avoid circular hashes.
+`inventory.json` excludes itself to avoid circular hashes. It binds the raw
+evidence, actual source and selected derived metadata; explanatory documents
+are included only where explicitly inventoried.
 Verbatim raw evidence is marked `-text` in the task's `.gitattributes`; line-ending
-normalization must not change its hashes. The selected image is already publicly
-available: [PR 5](https://github.com/sharonbasovich/performance_takehome/pull/5)
-contains complete anonymous-graph and Docker-pull/help verification. This packet
+normalization must not change its hashes. The historical baseline is already public:
+[PR 5](https://github.com/sharonbasovich/performance_takehome/pull/5)
+contains its complete anonymous-graph and Docker-pull/help verification. New84d
+publication/anonymous proof remains pending until actual receipts exist. This packet
 does not download the 6 GB image or include any model weights.
 
 Re-running GPU measurements or paid Pi proposals is a separate authorized action.
@@ -98,3 +108,19 @@ The candidate row records zero, `PARTIAL_FAILURE`, blank gate/timing values,
 it is not the canonical loop's experiment ledger or a performance comparison.
 The original main 14-row CPU ledger remains unchanged and its old FTGR/keep
 decisions remain invalid performance evidence.
+
+## Pi3 follow-up
+
+The genuine [Pi3 prefill-chunk proposal](pi3-measured/README.md) also completed
+90 actual requests with all six gates and returned `no_change`. The selected
+baseline passed another fresh final30. The three retained cycles contain270
+measured requests in total. All input traces report14–27 tokens, below the
+original256 prefill threshold; this contradicts the proposal's possible
+two-chunk hypothesis. Its original proposal remains retained as written.
+The Pi3 packet includes original built Dockerfile, exact build and selected
+metadata, full reports/samples/traces, actual source and metadata-only Pi events.
+The unchanged raw first/Pi2 packets and prior manifest snapshots remain available.
+Pi4's [raw rejection, controller pin repair, serial improvement and burst regression](pi4-measured/README.md)
+are retained separately. It seeded the family but did not choose the controller's
+4/8 values. The final batch4 selection and post-choice30 live under
+`controller-neighbors/`; no canonical unattended execution is inferred.
