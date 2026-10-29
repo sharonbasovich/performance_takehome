@@ -515,6 +515,62 @@ class CurrentDeliveryManifestTests(unittest.TestCase):
         self.assertEqual(CURRENT["evidence"]["primary_measured_requests"], 360 + primary_total + 30)
         self.assertEqual(CURRENT["evidence"]["supplemental_measured_requests"], 100)
 
+    def test_public_replay_preparation_recreates_queue_and_both_start_states(self):
+        import runpy
+        import tempfile
+        from pathlib import Path
+
+        from abstract_harness.configuration_delivery import validate_patch_context
+        from abstract_harness.proposers import (
+            ProposerContext,
+            ProposerError,
+            ScriptedProposer,
+            apply_patch,
+        )
+
+        folder = EVIDENCE / "controller-neighbors"
+        frozen = folder / "frozen-before-measurements"
+        helper = runpy.run_path(str(folder / "portable-overlay/prepare_neighbor_replay_v2.py.txt"))
+        baseline = (EVIDENCE / "pi4-measured/actual-source/baseline.Dockerfile").read_bytes()
+        target = Path("tasks/harness-design/Dockerfile")
+        before = {p.name: p.read_bytes() for p in frozen.iterdir() if p.is_file()}
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            helper["prepare"](frozen, root / "queue", _paths.REPO_ROOT)
+            generated = root / "queue/scripted-neighbor-queue-v2.json"
+            published = folder / "portable-overlay/scripted-neighbor-queue-v2.json"
+            self.assertEqual(
+                generated.read_bytes(), published.read_bytes(),
+            )
+            original = root / "original"
+            (original / target).parent.mkdir(parents=True)
+            (original / target).write_bytes(baseline)
+            for start in (1, 16):
+                tree = root / f"start{start}"
+                (tree / target).parent.mkdir(parents=True)
+                (tree / target).write_bytes(
+                    baseline.replace(b"--batch-size=16", f"--batch-size={start}".encode())
+                )
+                context = ProposerContext("", {}, [], tree, root, "llmd")
+                if start == 1:
+                    old = ScriptedProposer.from_file(frozen / "scripted-neighbor-queue.json")
+                    with self.assertRaises(ProposerError):
+                        old.propose(context)
+                queue = ScriptedProposer.from_file(generated)
+                for value in (4, 8):
+                    proposal = queue.propose(context)
+                    ok, reason = apply_patch(proposal.patch, tree)
+                    self.assertTrue(ok, reason)
+                    self.assertEqual(
+                        (tree / target).read_bytes(),
+                        (frozen / f"batch{value}.Dockerfile").read_bytes(),
+                    )
+                    self.assertEqual(
+                        validate_patch_context(original, tree)["changed_knobs"], ["--batch-size"]
+                    )
+                self.assertIsNone(queue.propose(context))
+        self.assertEqual({p.name: p.read_bytes() for p in frozen.iterdir() if p.is_file()}, before)
+
 
 if __name__ == "__main__":
     unittest.main()

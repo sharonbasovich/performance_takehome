@@ -1374,8 +1374,8 @@
       "sha256": "b9b130067917921455fba454fc667e6c7abfa6d6799667ce79ef8ee89cde41e9"
     },
     "controller-neighbors/README.md": {
-      "bytes": 5739,
-      "sha256": "2fd6e05976f3b433d655c1564dc559d32bd1f861edf65065f01d5a6c4655a598",
+      "bytes": 5950,
+      "sha256": "c931913c450f55229f604318f907b4efc3d4e139b023232f159156721478cc2c",
       "format": "derived current evidence documentation"
     },
     "software-validation-final.json": {
@@ -1667,6 +1667,11 @@
       "bytes": 2151,
       "sha256": "8c009a8c5a6056902b43fef00c676109e3d8e8a7a30d68fd3dba10c14f662b04",
       "format": "derived actual hosted publication proof summary"
+    },
+    "controller-neighbors/frozen-before-measurements/PREPARED.json": {
+      "bytes": 3307,
+      "sha256": "be67cb80262ba534104d3c479e460ad7a6857b86b5994183e0675f1376b92e75",
+      "format": "original frozen preparation metadata, required historical replay input"
     }
   }
 }

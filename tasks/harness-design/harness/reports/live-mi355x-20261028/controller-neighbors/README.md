@@ -11,6 +11,9 @@ pre-measurement proposal receipts, portable deterministic generator/selector and
 ScriptedProposer-compatible replay queue. The generator derives each candidate
 independently from the exact baseline and changes only the batch-size flag.
 The queue's availability does not claim an actual canonical unattended run.
+The original `PREPARED.json` is included byte-for-byte (SHA
+`be67cb80262ba534104d3c479e460ad7a6857b86b5994183e0675f1376b92e75`),
+so the retained historical v2 preparation script has every pinned input it reads.
 
 The policy was frozen at `2026-10-28T23:59:36.180698Z`, SHA-256
 `1b46842f8f05d41a521115aac6952137843c7d2902fcd71089e86cef040ea45d`.
