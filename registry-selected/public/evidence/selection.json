@@ -1,0 +1,49 @@
+{
+  "destination": {
+    "by_digest": "ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:84d13e8e4f6777ec4522d701d86e16181c0b170602a7e81db17dab7df525cabb",
+    "mutable_tag": "runc-84d13e8e4f67",
+    "registry": "ghcr.io/sharonbasovich/performance_takehome-task2-llmd"
+  },
+  "fixture": false,
+  "fresh_revalidation": {
+    "after_mixed_selection": true,
+    "official_grade": false,
+    "raw_report_retained": true,
+    "report_sha256": "0bf6d9235339e64b8be6c571adc9d86f1121c03c05e09ced72f5a19f71cd3210",
+    "requests": 30,
+    "started_utc": "2026-10-29T00:10:30.995774+00:00",
+    "traces_retained": true,
+    "traces_sha256": "483fd14081d5881d85cfe1468fbfec404b857a094f38e5f617cde1446bc997c3"
+  },
+  "image": {
+    "config": "sha256:1a19b238c6ce1448fed276005ff14e3425e845db266141deb5391c6a84159586",
+    "platform_manifest": "sha256:84d13e8e4f6777ec4522d701d86e16181c0b170602a7e81db17dab7df525cabb"
+  },
+  "kind": "ACTUAL_SELECTED_PLATFORM_PUBLICATION_HANDOFF",
+  "optimized_gain_claimed": false,
+  "publication_state": "NOT_EXECUTED_BY_GENERATOR",
+  "schema_version": 1,
+  "source": {
+    "actual_build_receipt_sha256": "6ed037ebeda3f6bfb32fc993fd7b4a5c7edf3b4f52b28cb2779d8e929e6cd299",
+    "controller_tuning": {
+      "Pi_selected_value": 1,
+      "attribution": "CONTROLLER_GENERATED_BATCH4_NEIGHBOR_OF_GENUINE_PI4_BATCH1_HYPOTHESIS",
+      "canonical_unattended_run_claimed": false,
+      "controller_fixed_values_before_results": [
+        4,
+        8
+      ],
+      "frozen_policy_sha256": "1b46842f8f05d41a521115aac6952137843c7d2902fcd71089e86cef040ea45d",
+      "independent_replay_sha256": "b9b130067917921455fba454fc667e6c7abfa6d6799667ce79ef8ee89cde41e9",
+      "root_selection_sha256": "d80a9701071a3f96de43b5cd57ce1ef712cea9c1b9a34bab3d69e1265aab4232",
+      "selected_value": 4
+    },
+    "dockerfile_sha256": "e0c0683f7c82d63b637827038384ec2e130d0fbf91aaa94db58df1c006a4720a",
+    "execution_scope": "external_stage_orchestration",
+    "harness_commit": "419a0bd07c598dcbaea80b757e74c938c75d8599",
+    "original_selected_context_file": true,
+    "reconstructed": false
+  },
+  "status": "MEASURED_SETTLED_LAST_GOOD_PENDING_PUBLICATION",
+  "weights_in_image": false
+}

@@ -1,0 +1,115 @@
+# INACTIVE DRAFT: no approval marker or actual selected image is supplied.
+# Root must install exact generated public graph/source/selection + reviewed
+# executable layout, pin every byte in an explicit marker, and review before push.
+name: execute-selected-task2
+'on':
+  push:
+    branches: ['codex/task2-registry-publish-approved']
+    paths: ['registry-selected/**', '.github/workflows/execute-selected-task2.yml']
+permissions: {}
+concurrency:
+  group: exact-selected-task2-registry-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'sharonbasovich/performance_takehome' && github.event.repository.private == false && github.ref == 'refs/heads/codex/task2-registry-publish-approved'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify exact root marker and actual generated inputs before login
+        run: python3 -I -S -B registry-selected/src/publish_selected.py --root registry-selected --check-only
+      - name: Initialize private empty client configuration
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/selected-regctl" "$RUNNER_TEMP/selected-empty-docker"
+          printf '{}\n' > "$RUNNER_TEMP/selected-regctl/config.json"
+          printf 'REGCTL_CONFIG=%s\nDOCKER_CONFIG=%s\n' "$RUNNER_TEMP/selected-regctl/config.json" "$RUNNER_TEMP/selected-empty-docker" >> "$GITHUB_ENV"
+      - name: Fetch exact existing publication client
+        run: |
+          set -euo pipefail
+          curl --fail --location --proto '=https' --proto-redir '=https' --retry 0 --max-time 120 \
+            https://github.com/regclient/regclient/releases/download/v0.11.7/regctl-linux-amd64 --output regctl
+          printf '%s  %s\n' 3737fbbdd791e04e7a831640b681f3397a376498e80e2ad9b1b2d27296f239bc regctl | sha256sum --check --strict -
+          chmod 700 regctl
+      - name: Publish exact selected platform with durable attempt before client/login
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 -I -S -B registry-selected/src/publish_selected.py --root registry-selected \
+            --out receipt-selected-publish.json --regctl "$PWD/regctl" --publish
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selected-publication-receipt
+          path: |
+            receipt-selected-publish.json
+            receipt-selected-publish.json.attempt.jsonl
+  anonymous:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify exact deployed bytes without credentials or login
+        run: python3 -I -S -B registry-selected/src/publish_selected.py --root registry-selected --check-only
+      - name: Fetch exact anonymous client
+        run: |
+          set -euo pipefail
+          curl --fail --location --proto '=https' --proto-redir '=https' --retry 0 --max-time 120 \
+            https://github.com/regclient/regclient/releases/download/v0.11.7/regctl-linux-amd64 --output regctl
+          printf '%s  %s\n' 3737fbbdd791e04e7a831640b681f3397a376498e80e2ad9b1b2d27296f239bc regctl | sha256sum --check --strict -
+          chmod 700 regctl
+      - name: Independently download and hash every complete object anonymously
+        run: |
+          set -euo pipefail
+          python3 -I -S -B registry-selected/src/verify_selected_anonymous.py --root registry-selected \
+            --out "$PWD/anonymous-selected" --regctl "$PWD/regctl" --execute-read-only
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selected-anonymous-graph-proof
+          path: anonymous-selected/
+  docker:
+    needs: anonymous
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: selected-anonymous-graph-proof
+          path: anonymous-selected
+      - name: Verify exact deployed bytes before Docker proof
+        run: python3 -I -S -B registry-selected/src/publish_selected.py --root registry-selected --check-only
+      - name: Prepare dedicated hosted-runner disk for exact anonymous Docker proof
+        run: python3 -I -S -B registry-selected/src/prepare_ephemeral_docker_space.py --out "$PWD/docker-capacity.json" --execute-cleanup
+      - name: Pull immutable selected image anonymously and verify owned CPU help
+        run: |
+          set -euo pipefail
+          receipt_sha="$(sha256sum anonymous-selected/receipt.json | cut -d ' ' -f 1)"
+          python3 -I -S -B registry-selected/src/verify_selected_docker.py --root registry-selected \
+            --out "$PWD/docker-selected" --anonymous-receipt "$PWD/anonymous-selected/receipt.json" \
+            --anonymous-receipt-sha256 "$receipt_sha" --execute-read-only
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selected-docker-pull-help-proof
+          path: |
+            docker-selected/
+            docker-capacity.json

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "kind": "ROOT_REVIEWED_ACTUAL_SELECTED_TASK2_PUBLICATION",
+  "decision": "APPROVED_ONE_EXACT_PUBLICATION_AND_ANONYMOUS_PROOF",
+  "existing_human_authorization_sha256": "0dd09f93651f373fccb10aa4a46b8d532459350b365474097a138be8221b7211",
+  "generation_receipt_sha256": "254b31de1b862ae9bdadc5c55d166199cf7a6ea802da9a7af60f830d3cade694",
+  "immutable_reference": "ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:84d13e8e4f6777ec4522d701d86e16181c0b170602a7e81db17dab7df525cabb",
+  "files": {
+    "operations.json": "a15bc9551586a251e025ab5b6027b4f547b351ababce0fb43247aa77c26fdb95",
+    "src/baseline-config.json": "0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f",
+    "src/generation_semantics.py": "5ef0db8491b912a25ebea9a3af174939d8af0d2c27af121db7d754b38de66c9a",
+    "src/prepare_ephemeral_docker_space.py": "55798b0b65ad78a7d8548696fd48c62c3a5698901ad3913244b79deda3b9efe5",
+    "src/preserved_primitives.py": "3853995b1490789579b532df3b0e237d42c4102d0c4503b100d124f9e4b9a531",
+    "src/publish_selected.py": "ff2b86c801141c083721740259d16ff3ffea51a77409b6c84f63178c8c7b4267",
+    "src/verify_selected_anonymous.py": "1e058b67801d54250249a7d339dd70de77be5395d476195743ba921643e18e78",
+    "src/verify_selected_docker.py": "426a86c25e4fc6157f0612b16b3221f6425a89c2fd447ec0efb3b47ff3f69dd6",
+    "workflow/execute-selected-task2.yml": "8fe5f7563c302fc39665478d4f33aa6d7577b1ab591a28dcb176455f6cb7cc2d",
+    "public/delivery/base-manifest.json": "0a2cd01a2e53c78934a8cfef66f8668da7666be4954a5d18b72df089c54ea34f",
+    "public/delivery/selected.Dockerfile": "e0c0683f7c82d63b637827038384ec2e130d0fbf91aaa94db58df1c006a4720a",
+    "public/evidence/selection.json": "3be388a70b7ce07c6fcf012ef29d721d72854183b7195fe1538e1bcdf441c488",
+    "public/delivery/metadata/blobs/sha256/1a19b238c6ce1448fed276005ff14e3425e845db266141deb5391c6a84159586": "1a19b238c6ce1448fed276005ff14e3425e845db266141deb5391c6a84159586",
+    "public/delivery/metadata/blobs/sha256/84d13e8e4f6777ec4522d701d86e16181c0b170602a7e81db17dab7df525cabb": "84d13e8e4f6777ec4522d701d86e16181c0b170602a7e81db17dab7df525cabb"
+  }
+}
