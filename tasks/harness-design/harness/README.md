@@ -6,13 +6,17 @@ or prebuilt optimizer is supplied. The main output is an image digest, not a ben
 runs offline after submission; it is not an input to your harness. `run.py` is intentionally
 not a solved optimizer in this starter repository. All paths below are repository-root-relative.
 
-The [28 October public packet](reports/live-mi355x-20261028/README.md) records a genuine
-stock Pi proposal, an exact single-knob build, candidate startup failure, and fresh
-30-request validation of the selected public baseline. Its stages used external
-orchestration with the canonical guard/measure/decision functions. It is not an execution
-of the canonical unattended loop and claims no speedup. The original main `results.tsv`
-remains historical CPU stand-in evidence with invalid FTGR/keep metrics; current results
-and the preserved history are distinguished in [NOTES.md](../NOTES.md).
+The [28–29 October public packet](reports/live-mi355x-20261028/README.md) retains
+genuine stock Pi proposals, failures, two no-change results, Pi's batch-size1 intent
+and explicit controller pin repair, then controller-derived4/8 neighbors under a
+policy fixed before their results. Batch4 was selected, passed a new final30 and
+is published with anonymous complete-graph/Docker pull/CPU-help proof. Its serial
+development comparison improved TTFT1.0778 and FTGR1.2654; supplemental checks
+remain descriptive, not an official/unseen-workload grade. Actual stages used
+external orchestration calling canonical guard/measure/decision, not the unattended
+loop. The original main `results.tsv` remains invalid historical CPU stand-in
+FTGR/keep evidence. [NOTES.md](../NOTES.md) explains the selected image, attribution
+and retained history; the portable hybrid overlay lives in the packet.
 
 Example candidate-defined Pi invocation (requires the coding-provider key in
 `ANTHROPIC_API_KEY` and the installed Pi executable; see the provider setup below):

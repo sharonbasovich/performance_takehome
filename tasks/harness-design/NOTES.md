@@ -1,13 +1,16 @@
-# Task 2 — Measured batch size 4 selection, publication pending
+# Task 2 — Measured batch size 4, verified public image
 
 The final measured selection is controller-derived batch size 4:
 
 `ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:84d13e8e4f6777ec4522d701d86e16181c0b170602a7e81db17dab7df525cabb`
 
-The exact image/config/source and passing final 30 are retained. **Registry
-publication, complete anonymous graph verification and anonymous Docker pull/help
-are pending for this new image.** The separately verified public baseline 7db
-remains historical delivery evidence; its proof is not substituted for 84d.
+The exact image/config/source and passing final 30 are retained. **Publication,
+all 25 complete anonymous objects and a separate anonymous Docker pull/inspect/
+isolated CPU-help run passed** in [actual hosted CI](https://github.com/sharonbasovich/performance_takehome/actions/runs/40794303749).
+The current [receipts](harness/reports/live-mi355x-20261028/publication/VERIFIED.json)
+bind selected platform 84d and config 1a19. Historical baseline 7db proof remains
+separate. The complete bodies were streamed and hashed on the pinned hosted
+checker; they were not retained or rehashed on this local computer.
 
 | Frozen serial development comparison | Speedup | 90% bootstrap interval |
 |---|---:|---|
@@ -92,8 +95,10 @@ used the corrected 16,384 cap. This history is not backdated.
 Publication uses the exact retained config/platform metadata and the 23 already
 public inherited blobs; missing blobs must fail rather than trigger layer copying.
 No model weights or multi-gigabyte image archive is copied into this repository.
-Real anonymous whole-body and Docker proof receipts are required before delivery
-verification flags become true. No bit-reproducible-build claim is made.
+The actual anonymous whole-body and Docker receipts now support all delivery
+verification flags. CPU help used an empty Docker configuration, no network,
+no GPU/model mounts and a fresh labelled container subsequently confirmed absent.
+No bit-reproducible-build claim is made.
 
 The GPU was independently observed deleted after complete offhost export. Newly
 settled model API cost through Pi4 is reported as **$0.5676140**. Earlier unresolved

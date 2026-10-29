@@ -4,8 +4,9 @@ This packet preserves four genuine stock Pi proposal intents and two explicitly
 attributed controller neighbors. The final mixed-workload selection is batch size4,
 with a passing fresh final30 after selection. Its local serial comparison improved
 TTFT1.0778 and FTGR1.2654; supplemental checks are descriptive and no official or
-unseen-workload grade is claimed. Registry publication and anonymous Docker proof
-for the new image remain pending in this snapshot.
+unseen-workload grade is claimed. Actual publication, complete anonymous graph and
+separate anonymous Docker pull/inspect/CPU-help proof all passed; see
+[`publication/VERIFIED.json`](publication/VERIFIED.json).
 
 The later [measured Pi2 feedback cycle](pi2-measured/README.md) adds 90 actual
 control/candidate/final requests, all passing, with a no_change decision. The
@@ -83,8 +84,10 @@ are included only where explicitly inventoried.
 Verbatim raw evidence is marked `-text` in the task's `.gitattributes`; line-ending
 normalization must not change its hashes. The historical baseline is already public:
 [PR 5](https://github.com/sharonbasovich/performance_takehome/pull/5)
-contains its complete anonymous-graph and Docker-pull/help verification. New84d
-publication/anonymous proof remains pending until actual receipts exist. This packet
+contains its complete anonymous-graph and Docker-pull/help verification. New84d's
+separate actual [hosted run](https://github.com/sharonbasovich/performance_takehome/actions/runs/40794303749)
+and receipts are retained under `publication/`. The hosted checker streamed and
+hashed all25 complete objects; bodies were not retained/rehashed locally. This packet
 does not download the 6 GB image or include any model weights.
 
 Re-running GPU measurements or paid Pi proposals is a separate authorized action.

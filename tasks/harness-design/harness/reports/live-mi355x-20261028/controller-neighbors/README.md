@@ -52,7 +52,11 @@ Its actual Dockerfile SHA is
 and raw config is `1a19b238c6ce1448fed276005ff14e3425e845db266141deb5391c6a84159586`.
 The delivery archive is 403,850 bytes, SHA
 `5167b01c7bbd8d3347cfa585aec1a24673b0210470810c90303e45aa79fc8f1d`.
-Publication and anonymous registry/Docker proofs remain pending in this snapshot.
+The exact selected image was published and all25 complete anonymous objects were
+streamed/hash-verified on the pinned hosted checker. A separate anonymous Docker
+pull/inspect/isolated CPU-help run passed, with owned help-container absence
+confirmed. See [`../publication/VERIFIED.json`](../publication/VERIFIED.json).
+The large bodies/image were not downloaded or rehashed on this local computer.
 
 ## Portable hybrid overlay
 

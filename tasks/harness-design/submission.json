@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "task": "harness-design",
-  "status": "FINAL_CONTROLLER_BATCH4_SELECTED_FRESH30_PASS_PUBLICATION_PENDING",
+  "status": "FINAL_CONTROLLER_BATCH4_SELECTED_FRESH30_PASS_VERIFIED_PUBLIC_IMAGE",
   "image": "ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:84d13e8e4f6777ec4522d701d86e16181c0b170602a7e81db17dab7df525cabb",
   "image_digest": "sha256:84d13e8e4f6777ec4522d701d86e16181c0b170602a7e81db17dab7df525cabb",
   "image_identity_kind": "linux-amd64-platform-manifest-digest",
@@ -104,7 +104,7 @@
     "historical_cpu_manifest": "tasks/harness-design/submission.cpu-standin-legacy.json",
     "historical_git_manifest": "tasks/harness-design/submission.live-mi355x-20261026.git.json",
     "historical_git_manifest_sha256": "0fe246c21b0d88026cb0fa34d304090aaeda7991cf8e48718da5f600b8e41d2a",
-    "software_validation": "tasks/harness-design/harness/reports/live-mi355x-20261028/software-validation.json",
+    "software_validation": "tasks/harness-design/harness/reports/live-mi355x-20261028/software-validation-final.json",
     "latest_selected_final_report": "tasks/harness-design/harness/reports/live-mi355x-20261028/controller-neighbors/final-after-mixed/selected-final-after-mixed/full-report.json",
     "combined_actual_measured_requests": 570,
     "prior_pi1_public_manifest": "tasks/harness-design/submission.pi1-live-20261028.json",
@@ -115,14 +115,19 @@
     "supplemental_measured_requests": 100
   },
   "delivery": {
-    "kind": "selected-ghcr-immutable-reference-publication-pending",
+    "kind": "public-ghcr-immutable-image",
     "platform_manifest": "sha256:84d13e8e4f6777ec4522d701d86e16181c0b170602a7e81db17dab7df525cabb",
     "config": "sha256:1a19b238c6ce1448fed276005ff14e3425e845db266141deb5391c6a84159586",
-    "registry_publication_verified": false,
-    "anonymous_complete_graph_verified": false,
-    "anonymous_docker_pull_and_help_verified": false,
-    "verification_scope": "Actual selected84d/config1a19 graph retained and independently validated; real registry publication and anonymous whole-body/Docker proofs are pending. Prior verified7db delivery remains separate history.",
-    "existing_destination": "ghcr.io/sharonbasovich/performance_takehome-task2-llmd"
+    "registry_publication_verified": true,
+    "anonymous_complete_graph_verified": true,
+    "anonymous_docker_pull_and_help_verified": true,
+    "verification_scope": "Exact pinned hosted checker streamed/hash-verified every complete object, followed by a separate actual anonymous Docker pull/inspect/CPU-help. Independent local review binds retained receipts/progress/log hashes and raw graph. The 5.9GB streamed bodies/image were not retained or rehashed on this local computer.",
+    "existing_destination": "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+    "workflow_run": "https://github.com/sharonbasovich/performance_takehome/actions/runs/40794303749",
+    "workflow_commit": "54b356b2ff21740da992a4b976b3e4d466902d9f",
+    "anonymous_graph_objects": 25,
+    "anonymous_graph_bytes": 5923168772,
+    "proof": "tasks/harness-design/harness/reports/live-mi355x-20261028/publication/VERIFIED.json"
   },
   "cost": {
     "reported_settled_api_usd": 0.567614,
@@ -331,7 +336,7 @@
       "supplemental_tradeoff": "Six-request bursts regressed strongly; retained supplemental40 requests. The original serial keep is unchanged; final delivery uses separately attributed controller batch4."
     }
   ],
-  "future_feedback_scope": "All model proposal/candidate/GPU measurement work is closed. GPU independently observed deleted404 after complete offhost export. Registry publication/anonymous proof remains free-host pending work; no further model/candidate action is requested.",
+  "future_feedback_scope": "All model/candidate/GPU work is closed; GPU independently observed deleted404 after complete offhost export. Exact selected image published and anonymous complete graph/Docker pull/inspect/isolated CPU help verified on hosted CI. No further paid work or registry action is requested.",
   "controller_neighbors": {
     "status": "MIXED_POLICY_SELECTED_BATCH4_FRESH_POST_SELECTION30_PASS",
     "directory": "tasks/harness-design/harness/reports/live-mi355x-20261028/controller-neighbors",
