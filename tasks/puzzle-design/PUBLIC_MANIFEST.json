@@ -1,39 +1,82 @@
 {
   "schema_version": 1,
   "task": "puzzle-design",
-  "candidate": "candidate-53",
-  "manifest_scope": "Only original statement with Git LF normalization and non-solution-bearing notes; no circular manifest self hash.",
+  "candidate": "candidate-11-v2",
+  "selection_scope": "Strongest supported existing development candidate; no clean on-time wrong-answer trial or official resistance result is claimed.",
+  "manifest_scope": "Only unchanged original statement with Git LF normalization and non-solution-bearing notes; no circular manifest self hash.",
   "public_artifacts": [
     {
       "path": "tasks/puzzle-design/puzzle.md",
-      "git_lf_bytes": 3787,
-      "git_lf_sha256": "d23ee7a5580df110cad2e1a7b382681272afdd14b143989943a394c0719f9224",
-      "git_blob_sha1": "4016277961461c8c68ce13560fbc0979686be893"
+      "git_lf_bytes": 3990,
+      "git_lf_sha256": "3f7d97d9b103863cbe9caeef5b831fb0234fd51ed49910dea54f609a573279ef",
+      "git_blob_sha1": "f5c640439e53f8cc439f01eba108702d0fbdfaeb"
     },
     {
       "path": "tasks/puzzle-design/PUBLIC_NOTES.md",
-      "git_lf_bytes": 7752,
-      "git_lf_sha256": "a85d5f052d9de06a1ff730ebc6bc81bdb23aea45180bc1cda392437b972f0734",
-      "git_blob_sha1": "2ae9fc098f20713f027789fe8794aadd93c4d431"
+      "git_lf_bytes": 6347,
+      "git_lf_sha256": "b3ba14acf7f344ff0b66a34923c2a6ebc88db5e370f52107b9b5dc52d01fa6af",
+      "git_blob_sha1": "fede733d01163243681c2abe5b0b6457d1a90675"
     }
   ],
   "original_frozen_statement": {
-    "bytes": 3886,
-    "sha256": "68f4ef8f41bcbb29033c4b2c0b129a4052a78b679f924f3fb29d9498008e016b",
-    "newlines": "CRLF",
+    "bytes": 4062,
+    "sha256": "01259572426d6ad71f22ca1528a2b8975543cf77b28acde346e99453f016dca6",
     "git_lf_text_equivalent": true
   },
+  "original_author_interval": {
+    "start_utc": "2026-10-26T00:02:04Z",
+    "deadline_utc": "2026-10-26T00:22:04Z",
+    "V2_seal_utc": "2026-10-26T00:19:01.406784Z",
+    "V2_freeze_utc": "2026-10-26T00:20:00Z",
+    "author_model_credit": "gpt-6.1-sol ultra development proxy; no organizer-profile equivalence"
+  },
   "original_private_frozen_archive": {
-    "bytes": 35728,
-    "sha256": "adf2c5792f7a341ba4fcd55c9cfb996e6757bd5b72f9b2cc096df509df7fdc95",
+    "bytes": 27994,
+    "sha256": "306c85ced76cf63ae1e3277082fa48f7bf2bc924ab9b6a3ade2b37111f0cf1c7",
     "included": false
+  },
+  "recent_Astra_model_attempts": [
+    {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "ultra",
+      "original_start_utc": "2026-10-28T23:08:43.799098+00:00",
+      "deadline_utc": "2026-10-28T23:28:43.799098+00:00",
+      "first_persisted_parent_observation_utc": "2026-10-28T23:28:46.083663+00:00",
+      "original_checker_accepted": false,
+      "complete_positivity_identity": false,
+      "exact_nonSOS_component_valid": true,
+      "clean_on_time_wrong_answer_trial": false
+    },
+    {
+      "model": "gpt-6-astra",
+      "reasoning_effort": "ultra",
+      "original_start_utc": "2026-10-28T23:33:21Z",
+      "deadline_utc": "2026-10-28T23:53:21.000Z",
+      "first_direct_parent_clock_observation_utc": "2026-10-28T23:53:52+00:00",
+      "clock_display_precision_seconds": 1,
+      "original_checker_accepted": false,
+      "complete_positivity_identity": false,
+      "exact_nonSOS_component_valid": true,
+      "clean_on_time_wrong_answer_trial": false
+    }
+  ],
+  "original_C53_Astra_model_result": {
+    "original_start_utc": "2026-10-28T16:57:30Z",
+    "deadline_utc": "2026-10-28T17:17:30Z",
+    "first_parent_record_utc": "2026-10-28T17:08:59Z",
+    "timely": true,
+    "original_checker_accepted": true,
+    "official_result": false,
+    "preserved_public_head": "2b63ccd3361eb177aba9997c617e2e63c41e3ce6"
   },
   "protected_starter_commit": "81aead87d78ed468c4c374fb42921471b44c3f80",
   "prior_public_C11_head": "c8c873f002d8ba24f9c66a6e4913c8e323d8544a",
-  "prior_public_C11_statement_permalink": "https://github.com/sharonbasovich/performance_takehome/blob/c8c873f002d8ba24f9c66a6e4913c8e323d8544a/tasks/puzzle-design/puzzle.md",
+  "prior_public_C53_head": "2b63ccd3361eb177aba9997c617e2e63c41e3ce6",
+  "original_native_checker_interface": "File argument; 65536-byte answer cap; 48-bit reduced rational-height bound",
+  "official_interface_conformance_claimed": false,
   "official_astra_profile_sha256": null,
   "official_astra_result": null,
   "organizer_upload_receipt": null,
   "private_material_included": false,
-  "later_administrative_adapter_included": false
+  "new_mathematical_authoring": false
 }
