@@ -20,6 +20,11 @@ official performance score. Existing failed attempts remain separate evidence.
 
 ## Sealing
 
+The separate [one-response no-tools overlay](PI-ONE-RESPONSE.md) supports a declared
+model-authored JSON response with controller-written files. The four-tool sealer
+below keeps its original actual-tool-write requirements; the two execution policies
+are not interchangeable.
+
 `seal_completed_pi_proposal(proposal, *, proposal_context, context_dir, compatibility, provenance_files,
 provider_receipt_paths, journal_path, request_scope, output_dir, purpose="optimization")`
 performs CPU-only verification and writes a new private artifact. It starts no model,

@@ -43,6 +43,16 @@ COMPATIBILITY_KEYS = {
     "baseline_lock_sha256",
     "model_runtime_sha256",
 }
+ONE_RESPONSE_POLICY = {
+    "mode": "one-response-no-tools-v1",
+    "stock_Pi": "1.0.0",
+    "tools": [],
+    "max_remote_calls": 1,
+    "output_cap": 2048,
+    "response_seconds": 60,
+    "model_authored": "final-text-JSON",
+    "controller_written_files": True,
+}
 
 
 class ArtifactError(ValueError):
@@ -453,6 +463,41 @@ def seal_completed_pi_proposal(
             unified_diff_for_dirs(context_dir, attempt / "context") == proposal.patch,
             "recovered diff differs from actual stock edit",
         )
+    return _seal_verified_proposal(
+        proposal,
+        proposal_context=proposal_context,
+        context_dir=context_dir,
+        compatibility=compatibility,
+        provenance_files=provenance_files,
+        provider_receipt_paths=provider_receipt_paths,
+        journal_path=journal_path,
+        request_scope=request_scope,
+        output_dir=output_dir,
+        purpose=purpose,
+        messages=messages,
+        prompt=prompt,
+    )
+
+
+def _seal_verified_proposal(
+    proposal: Proposal,
+    *,
+    proposal_context: ProposerContext,
+    context_dir: Path,
+    compatibility: dict[str, str],
+    provenance_files: dict[str, Path],
+    provider_receipt_paths: list[Path],
+    journal_path: Path,
+    request_scope: dict[str, Any],
+    output_dir: Path,
+    purpose: str,
+    messages: list[dict[str, Any]],
+    prompt: bytes,
+    execution_policy: dict[str, Any] | None = None,
+    extra_files: tuple[str, ...] = (),
+) -> str:
+    """Common immutable output after a mode-specific completed-exchange verifier."""
+    attempt = Path(proposal.transcript_path).parent
     financial = _settlements(provider_receipt_paths, journal_path, request_scope, messages)
     profile = json.loads(regular(provenance_files["profile"]))
     if "profiles" in profile:
@@ -483,6 +528,8 @@ def seal_completed_pi_proposal(
         "original context changed",
     )
     for name in ("attempt-status.json", "pi-events.jsonl", "proposal.json", "prompt.md"):
+        _write(output_dir / "attempt" / name, regular(attempt / name))
+    for name in extra_files:
         _write(output_dir / "attempt" / name, regular(attempt / name))
     for path in sorted((attempt / "sessions").rglob("*")):
         if path.is_file():
@@ -548,6 +595,8 @@ def seal_completed_pi_proposal(
         "eligibility": eligibility,
         "files": files,
     }
+    if execution_policy is not None:
+        manifest["execution_policy"] = execution_policy
     raw = canonical(manifest) + b"\n"
     _write(output_dir / "manifest.json", raw)
     return digest(raw)
@@ -559,6 +608,8 @@ def verify_pi_artifact(root: Path, manifest_sha256: str, expected_compatibility:
     need(digest(raw) == manifest_sha256, "artifact seal differs")
     manifest = json.loads(raw)
     need(manifest.get("schema") == "completed-stock-pi-artifact-v1", "unknown artifact schema")
+    if "execution_policy" in manifest:
+        need(manifest["execution_policy"] == ONE_RESPONSE_POLICY, "unknown execution overlay")
     _compatibility(expected_compatibility)
     need(
         manifest["compatibility"] == expected_compatibility, "artifact replay compatibility differs"
@@ -621,6 +672,8 @@ class VerifiedCompletedPiProposal(Proposer):
     def _offer(self, context: ProposerContext) -> Proposal:
         manifest = verify_pi_artifact(self.root, self.pin, self.expected)
         need(manifest.get("purpose") == "optimization", "test-only artifact cannot enter GPU loop")
+        if manifest.get("execution_policy") == ONE_RESPONSE_POLICY:
+            self.name = "verified-completed-stock-pi-one-response-no-tools-deferred"
         need(
             tree_digest(context.context_dir) == self.expected["protected_context_sha256"],
             "current context differs",
