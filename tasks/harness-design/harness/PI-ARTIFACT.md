@@ -20,7 +20,7 @@ official performance score. Existing failed attempts remain separate evidence.
 
 ## Sealing
 
-`seal_completed_pi_proposal(proposal, *, context_dir, compatibility, provenance_files,
+`seal_completed_pi_proposal(proposal, *, proposal_context, context_dir, compatibility, provenance_files,
 provider_receipt_paths, journal_path, request_scope, output_dir, purpose="optimization")`
 performs CPU-only verification and writes a new private artifact. It starts no model,
 provider or Docker service. Its ordinary patch-application subprocess runs only during
@@ -29,6 +29,11 @@ sealing; replay starts no subprocess.
 The sealer requires a normally completed production proposal, successful final assistant
 response and agent completion, reconciled SDK usage, and an actual stock-tool write of
 valid metadata. It preserves the returned model patch, experiment, hypothesis and notes.
+A saved `prompt_sha256` must match the retained prompt bytes. The complete prompt is
+then reproduced by the production renderer from the original `proposal_context`,
+including the actual program, profile, history, read-only inputs and budget description.
+An older proposal cannot be sealed with newer instructions. The original context and
+prompt stay private; fresh GPU history and host-local paths are not compared to them.
 A recovered patch must equal the actual scratch edit; an explicitly written patch must
 have stock-tool provenance. The patch must apply and pass the existing single-knob
 delivery guard on a separate context. The original source must remain unchanged.
@@ -129,6 +134,12 @@ proposal is returned. A second or uncertain consumer fails closed. Reconcile the
 consumer's state/results before any explicit new experiment; do not delete the claim to
 silently repeat an uncertain launch. This local claim is not a distributed lock across
 uncoordinated copies on different machines.
+
+The supported `Proposer.exhausted()` contract defaults to false for existing sources.
+This single-proposal adapter reports exhaustion after either its offer or one refusal,
+so an uncapped `Harness.run` finishes without repeatedly writing error rows. Another
+consumer still encounters the durable claim and receives one explicit known-zero-cost
+refusal. Existing Pi and scripted proposal behavior is unchanged.
 
 No lease is rewritten. The previous `Harness` recovery rules still log interrupted
 non-promoted attempts rather than resume their build stages. A future complete

@@ -14,7 +14,7 @@ import re
 import shutil
 import struct
 from collections import Counter
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -387,6 +387,7 @@ def _write(path: Path, raw: bytes) -> None:
 def seal_completed_pi_proposal(
     proposal: Proposal,
     *,
+    proposal_context: ProposerContext,
     context_dir: Path,
     compatibility: dict[str, str],
     provenance_files: dict[str, Path],
@@ -429,6 +430,24 @@ def seal_completed_pi_proposal(
     )
     attempt = Path(proposal.transcript_path).parent
     messages, completed = _completed(attempt, proposal)
+    need(proposal_context.context_dir.resolve() == context_dir.resolve(), "proposal source differs")
+    need(
+        digest(proposal_context.program_md.encode()) == compatibility["program_sha256"],
+        "actual proposal program differs",
+    )
+    need(
+        digest(canonical(proposal_context.profile)) == compatibility["profile_sha256"],
+        "actual proposal profile differs",
+    )
+    prompt = regular(attempt / "prompt.md")
+    need(digest(prompt) == completed["status"].get("prompt_sha256"), "saved prompt hash differs")
+    rendered = PiProposer.render_prompt(
+        None,
+        replace(proposal_context, context_dir=attempt / "context"),
+        attempt / "proposal.patch",
+        attempt / "proposal.json",
+    ).encode()
+    need(prompt == rendered, "actual rendered Pi instructions/context differ")
     if not completed["patch_written_by_stock"]:
         need(
             unified_diff_for_dirs(context_dir, attempt / "context") == proposal.patch,
@@ -476,6 +495,22 @@ def seal_completed_pi_proposal(
     _write(output_dir / "candidate.Dockerfile", candidate)
     _write(output_dir / "journal.jsonl", regular(journal_path))
     _write(output_dir / "CPU-SCOPE.json", regular(Path(request_scope["value"]["path"])))
+    _write(
+        output_dir / "proposal-context.json",
+        canonical(
+            {
+                "program_md": proposal_context.program_md,
+                "profile": dict(proposal_context.profile),
+                "history": list(proposal_context.history),
+                "engine": proposal_context.engine,
+                "budget_summary": proposal_context.budget_summary,
+                "readonly_inputs": dict(proposal_context.readonly_inputs),
+                "original_context_dir": str(proposal_context.context_dir),
+                "prompt_sha256": digest(prompt),
+            }
+        )
+        + b"\n",
+    )
     for name, path in provenance_files.items():
         need(bool(re.fullmatch(r"[a-z][a-z_]{0,63}", name)), "unsafe provenance name")
         _write(output_dir / "inputs" / name, regular(path))
@@ -567,6 +602,7 @@ class VerifiedCompletedPiProposal(Proposer):
         )
         self.root, self.pin, self.expected = root, manifest_sha256, expected_compatibility
         self.claim, self.consumer = claim_path, consumer_id
+        self._exhausted = False
         need(
             not claim_path.resolve().is_relative_to(root.resolve()),
             "claim must be outside sealed artifact",
@@ -576,7 +612,11 @@ class VerifiedCompletedPiProposal(Proposer):
         try:
             return self._offer(context)
         except (ArtifactError, OSError, ValueError, KeyError, TypeError) as exc:
+            self._exhausted = True
             raise ReplayArtifactError(f"deferred Pi artifact refused: {exc}") from exc
+
+    def exhausted(self) -> bool:
+        return self._exhausted
 
     def _offer(self, context: ProposerContext) -> Proposal:
         manifest = verify_pi_artifact(self.root, self.pin, self.expected)
@@ -614,4 +654,5 @@ class VerifiedCompletedPiProposal(Proposer):
         # No gateway reservation, request or Journal mutation occurs on replay.
         fields["api_usd"] = float(manifest["financial"]["undiscounted_upper_USD"])
         fields["transcript_path"] = str(self.root / "attempt/pi-events.jsonl")
+        self._exhausted = True
         return Proposal(**fields)

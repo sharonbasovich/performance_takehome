@@ -1158,6 +1158,9 @@ class Harness:
             attempts = 0
             while True:
                 self._checkpoint()
+                if getattr(self.proposer, "exhausted", lambda: False)() is True:
+                    self.finalize("proposer exhausted")
+                    return 0
                 if self.config.max_attempts is not None and attempts >= self.config.max_attempts:
                     self.finalize("attempt cap reached")
                     return 0

@@ -101,6 +101,10 @@ class Proposer:
 
     name = "base"
 
+    def exhausted(self) -> bool:
+        """Whether this source has definitively finished; no further call is needed."""
+        return False
+
     def propose(self, context: ProposerContext) -> Proposal | None:
         """Return the next proposal or ``None`` when the proposer has nothing left."""
         raise NotImplementedError

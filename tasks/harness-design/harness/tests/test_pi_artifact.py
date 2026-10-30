@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 from abstract_harness import pi_artifact as artifact
-from abstract_harness.proposers import Proposal, ProposerContext
+from abstract_harness.proposers import PiProposer, Proposal, ProposerContext
 from abstract_harness.state import ImageRef
 
 from . import _paths
@@ -93,7 +93,13 @@ class CompletedArtifactTest(unittest.TestCase):
         metadata = json.dumps(self.meta)
         (self.attempt / "proposal.json").write_text(metadata)
         (self.attempt / "proposal.patch").write_text(self.patch)
-        (self.attempt / "prompt.md").write_text(self.program)
+        prompt = PiProposer.render_prompt(
+            None,
+            replace(self.context_value(), context_dir=self.attempt / "context"),
+            self.attempt / "proposal.patch",
+            self.attempt / "proposal.json",
+        )
+        (self.attempt / "prompt.md").write_text(prompt)
         (self.attempt / "sessions").mkdir()
         events = []
         for index, (name, content) in enumerate(
@@ -144,6 +150,7 @@ class CompletedArtifactTest(unittest.TestCase):
             "timed_out": False,
             "aborted": False,
             "timeout_s": 300,
+            "prompt_sha256": artifact.digest(prompt.encode()),
         }
         (self.attempt / "attempt-status.json").write_text(json.dumps(self.status))
         self.proposal = Proposal(
@@ -225,6 +232,7 @@ class CompletedArtifactTest(unittest.TestCase):
     def seal(self, **kwargs):
         return artifact.seal_completed_pi_proposal(
             self.proposal,
+            proposal_context=self.context_value(),
             context_dir=self.context,
             compatibility=self.binding,
             provenance_files=self.provenance,
@@ -278,7 +286,7 @@ class CompletedArtifactTest(unittest.TestCase):
         pin = self.seal()
         harness = make_harness(self.root / "harness")
         harness.config.budget = replace(harness.config.budget, api_usd_limit=1)
-        harness.config.max_attempts = 1
+        harness.config.max_attempts = None
         harness.proposer = self.adapter(pin)
         harness.state.last_good = ImageRef("fixture-control", "sha256:" + "e" * 64)
         try:
@@ -286,7 +294,7 @@ class CompletedArtifactTest(unittest.TestCase):
                 mock.patch.object(harness, "establish_baseline"),
                 mock.patch.object(harness, "_proposer_context", return_value=self.context_value()),
                 mock.patch.object(harness, "attempt", return_value="no_change") as attempt,
-                mock.patch.object(harness, "finalize"),
+                mock.patch.object(harness, "finalize") as finalize,
                 mock.patch.object(harness, "cleanup"),
             ):
                 self.assertEqual(harness.run(), 0)
@@ -294,6 +302,8 @@ class CompletedArtifactTest(unittest.TestCase):
             self.assertEqual(harness.state.api_accounting_unresolved, "")
             self.assertTrue(attempt.call_args.kwargs["api_cost_accounted"])
             self.assertEqual(attempt.call_args.args[0].patch, self.patch)
+            attempt.assert_called_once()
+            finalize.assert_called_once_with("proposer exhausted")
         finally:
             harness._release_locks()
 
@@ -357,6 +367,80 @@ class CompletedArtifactTest(unittest.TestCase):
         with self.assertRaisesRegex(artifact.ArtifactError, "metadata write"):
             self.seal()
         self.assertFalse(self.output.exists())
+
+    def test_old_proposal_cannot_be_sealed_as_new_program_or_profile(self):
+        for key in ("program", "profile"):
+            with self.subTest(key=key):
+                old_binding = dict(self.binding)
+                if key == "program":
+                    original = self.program
+                    self.program = "New instructions Pi never received"
+                    self.binding["program_sha256"] = artifact.digest(self.program.encode())
+                    self.provenance[key].write_text(self.program)
+                else:
+                    original = self.profile
+                    self.profile = {"different": "profile Pi never received"}
+                    self.binding["profile_sha256"] = artifact.digest(
+                        artifact.canonical(self.profile)
+                    )
+                    self.provenance[key].write_bytes(artifact.canonical(self.profile))
+                with self.assertRaisesRegex(artifact.ArtifactError, "rendered Pi instructions"):
+                    self.seal()
+                if key == "program":
+                    self.program = original
+                    self.provenance[key].write_text(original)
+                else:
+                    self.profile = original
+                    self.provenance[key].write_bytes(artifact.canonical(original))
+                self.binding = old_binding
+        self.assertFalse(self.output.exists())
+
+    def test_modified_prompt_and_changed_historical_render_inputs_are_rejected(self):
+        prompt = self.attempt / "prompt.md"
+        original = prompt.read_bytes()
+        prompt.write_bytes(original + b"tampered")
+        with self.assertRaisesRegex(artifact.ArtifactError, "saved prompt hash"):
+            self.seal()
+        prompt.write_bytes(original)
+        context = self.context_value()
+        context.history = [{"experiment": "different actual input"}]
+        with self.assertRaisesRegex(artifact.ArtifactError, "rendered Pi instructions"):
+            artifact.seal_completed_pi_proposal(
+                self.proposal,
+                proposal_context=context,
+                context_dir=self.context,
+                compatibility=self.binding,
+                provenance_files=self.provenance,
+                provider_receipt_paths=self.receipts,
+                journal_path=self.journal,
+                request_scope=self.scope,
+                output_dir=self.output,
+            )
+
+    def test_uncapped_new_consumer_refusal_is_recorded_once_then_finishes(self):
+        pin = self.seal()
+        self.adapter(pin).propose(self.context_value())
+        harness = make_harness(self.root / "harness")
+        harness.config.budget = replace(harness.config.budget, api_usd_limit=1)
+        harness.config.max_attempts = None
+        harness.proposer = self.adapter(pin)
+        harness.state.last_good = ImageRef("fixture-control", "sha256:" + "e" * 64)
+        try:
+            with (
+                mock.patch.object(harness, "establish_baseline"),
+                mock.patch.object(harness, "_proposer_context", return_value=self.context_value()),
+                mock.patch.object(harness, "attempt") as attempt,
+                mock.patch.object(harness, "finalize") as finalize,
+                mock.patch.object(harness, "cleanup"),
+            ):
+                self.assertEqual(harness.run(), 0)
+            attempt.assert_not_called()
+            self.assertEqual(harness.state.api_usd_cumulative, 0)
+            self.assertEqual(harness.state.api_accounting_unresolved, "")
+            self.assertEqual(len(harness.state.history), 1)
+            finalize.assert_called_once_with("proposer exhausted")
+        finally:
+            harness._release_locks()
 
     def test_test_only_fixture_cannot_enter_GPU_loop_and_refusal_cost_is_known_zero(self):
         pin = self.seal(purpose="test-only-compatibility-fixture")
