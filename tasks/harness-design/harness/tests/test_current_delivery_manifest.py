@@ -1,4 +1,4 @@
-"""Current public manifest must bind real measurements without inventing a gain."""
+"""Preserved batch4 delivery binds its historical measurements and image."""
 
 from __future__ import annotations
 
@@ -12,7 +12,9 @@ from collections import Counter
 from . import _paths
 
 TASK = _paths.HARNESS_DIR.parent
-CURRENT = json.loads((TASK / "submission.json").read_text(encoding="utf-8"))
+CURRENT = json.loads(
+    (TASK / "submission.controller-batch4-live-20261029.json").read_text(encoding="utf-8")
+)
 EVIDENCE = _paths.REPO_ROOT / CURRENT["evidence"]["directory"]
 BASELINE = "sha256:7db01160c57479b9d608b7c2e6fc4e6b5d438e53eb4d44dc9f3ab0441d1bb20d"
 SELECTED = "sha256:84d13e8e4f6777ec4522d701d86e16181c0b170602a7e81db17dab7df525cabb"

@@ -98,3 +98,7 @@ artifacts cannot enter the GPU loop. Deterministic loopback tests use the actual
 official CLI and capture its outgoing payload, but they perform no inference and
 establish no optimization result. Failed prior research/tool runs remain intact;
 this overlay does not turn them into successful proposals or official grades.
+
+## Completed real execution
+
+The [30 October evidence packet](reports/live-mi355x-20261030/README.md) records a genuine one-response CPU proposal, strict unchanged-patch seal and later canonical GPU baseline/build/pair/KEEP plus fresh final30. The provider gateway additionally requested JSON-object response format. Prior malformed-patch and prose responses remained failed. This completed execution is distinct from the loopback protocol tests above, and its serial FTGR result is local development evidence rather than an official grade. The separately recommended public batch4 image retains its own historical controller-selection attribution.

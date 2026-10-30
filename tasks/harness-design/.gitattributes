@@ -6,3 +6,6 @@ submission.pi2-live-20261028.json -text
 NOTES.history-through-20261026.md -text whitespace=cr-at-eol
 # Raw logs and TSV empty fields retain their original whitespace, too.
 harness/reports/live-mi355x-20261028/** -text -whitespace
+submission.controller-batch4-live-20261029.json -text
+NOTES.history-through-20261029.md -text
+harness/results.tsv -text -whitespace

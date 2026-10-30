@@ -6,20 +6,22 @@ or prebuilt optimizer is supplied. The main output is an image digest, not a ben
 runs offline after submission; it is not an input to your harness. `run.py` is intentionally
 not a solved optimizer in this starter repository. All paths below are repository-root-relative.
 
-The [28–29 October public packet](reports/live-mi355x-20261028/README.md) retains
-genuine stock Pi proposals, failures, two no-change results, Pi's batch-size1 intent
-and explicit controller pin repair, then controller-derived4/8 neighbors under a
-policy fixed before their results. Batch4 was selected, passed a new final30 and
-is published with anonymous complete-graph/Docker pull/CPU-help proof. Its serial
-development comparison improved TTFT1.0778 and FTGR1.2654; supplemental checks
-remain descriptive, not an official/unseen-workload grade. Actual stages used
-external orchestration calling canonical guard/measure/decision, not the unattended
-loop. [Deferred completed-Pi artifacts](PI-ARTIFACT.md) provide a separately labelled
-CPU/GPU phase boundary with strict private provenance and replay checks; this is a
-software capability, not a claim of a newly completed GPU optimization cycle.
-The original main `results.tsv` remains invalid historical CPU stand-in
-FTGR/keep evidence. [NOTES.md](../NOTES.md) explains the selected image, attribution
-and retained history; the portable hybrid overlay lives in the packet.
+The [30 October packet](reports/live-mi355x-20261030/README.md) records a completed
+genuine stock Pi CPU proposal → strict completed-artifact verification → canonical
+`Harness.run()` fresh GPU baseline/build/control/candidate/KEEP, followed by a
+separate fresh final 30. The declared one-response/no-tools overlay produced the
+unchanged model patch for batch 1; no model call ran on the GPU. FTGR improved1.259329
+in the serial development comparison; TTFT's interval crossed1. All 120 measured
+requests passed all six gates. This is a deferred CPU/GPU phase boundary, not a
+continuous Pi/GPU process or an official grade.
+
+The submitted recommendation remains the prior anonymously verified batch 4 image
+with [separate controller/mixed-selection provenance](reports/live-mi355x-20261028/README.md).
+The new model selected 1, not 4, and no new superiority comparison between them is
+claimed. [NOTES.md](../NOTES.md) and the current manifest separate both results.
+The main `results.tsv` now contains the genuine two-row canonical GPU log with only
+public path normalization; exact native bytes are retained in the new packet.
+The invalid original 14-row CPU stand-in FTGR/keep history is [archived byte-exact](reports/history-cpu-standin-20261024/README.md).
 
 Example candidate-defined Pi invocation (requires the coding-provider key in
 `ANTHROPIC_API_KEY` and the installed Pi executable; see the provider setup below):
@@ -120,7 +122,7 @@ next to it:
 | --- | --- |
 | `run.py` | CLI: `run`, `validate-results`, `fetch-standin-model`, `retag-last-good` |
 | `abstract_harness/engines.py` | `Engine` abstraction: `LlmdEngine` (pinned `baseline/lock.json` image, same device/mount/security flags as `tools.baseline.start_command`, internal no-egress network instead of `--publish`) and `StandinEngine` (candidate-built llama.cpp CPU server, `../standin/`) |
-| `abstract_harness/proposers.py` | `PiProposer` (pinned Pi 1.0.0, print mode, stock tools, isolation flags, key by env-var name only) and `ScriptedProposer` (deterministic queue; used for the historical main CPU ledger). The current genuine Pi proposal used the external orchestration documented above. |
+| `abstract_harness/proposers.py` | `PiProposer` (pinned Pi 1.0.0, print mode, stock tools, isolation flags, key by env-var name only) and `ScriptedProposer` (deterministic queue; used for the historical main CPU ledger). The current genuine CPU proposal uses the declared one-response overlay and completed-artifact adapter; older runs used external orchestration. |
 | `abstract_harness/measure.py` | development benchmark runner: TTFT, Etalon FTGR via protected `benchmarks.metrics`, startup-to-first-valid-generation, correctness gates |
 | `abstract_harness/decision.py` | prompt-stratified bootstrap decision rule (`improved` / `regressed` / `no_change` / `gate_failed`) |
 | `abstract_harness/loop.py` | the unattended loop: build -> start -> gate -> A/B measure -> decide -> keep/revert; checkpoints, SIGTERM/SIGINT handling, resume from `state.json` |
@@ -128,13 +130,13 @@ next to it:
 | `abstract_harness/docker_runtime.py`, `procs.py` | Docker/BuildKit wrappers, process-group aware timeouts |
 | `abstract_harness/results.py`, `state.py`, `manifest.py` | exact `results.tsv` schema + vocabulary, atomic on-disk state, final `--out` manifest + integrity report |
 | `development-benchmark.json` | the candidate development workload (prompts, repetitions, gates, thresholds) |
-| `experiments/standin-queue.json` | the deterministic experiment queue used to produce `results.tsv` (includes the fault-injection entries) |
+| `experiments/standin-queue.json` | the deterministic queue that produced the archived historical CPU log (includes fault injections) |
 | `patches/`, `reports/` | per-attempt unified diffs and development reports written by the loop |
 | `tests/` | task-local unittest suite |
 
 ## Run it
 
-Stand-in engine on CPU (what produced the committed `results.tsv`; needs Docker + ~2 GB disk,
+Stand-in engine on CPU (produced the archived historical log, not the current GPU result; needs Docker + ~2 GB disk,
 network only for the one-time model download and the first image build):
 
 ```sh
@@ -154,10 +156,9 @@ tasks/harness-design/harness/results.tsv --reports-dir tasks/harness-design/harn
 --overwrite-evidence` (and `--no-cache` for real builds). `--manifest-only` rewrites
 `submission.json` + `reports/build-provenance.json` + `reports/agent-provenance.json` from an
 existing state directory without running attempts, keeping the state's `source_commit` and
-`harness_tree_sha256` (that is how the committed manifest was regenerated after the Round-4
-metadata fixes; the rows were not touched).
+`harness_tree_sha256` (this was used for the historical CPU manifest after metadata fixes; it is not how the current real-run result was generated).
 
-Example canonical unattended invocation (distinct from the external measured packet above):
+Example continuous-provider canonical invocation (the completed packet above used the declared deferred adapter instead):
 
 ```sh
 export ANTHROPIC_API_KEY=...             # never passed on the command line, never logged
