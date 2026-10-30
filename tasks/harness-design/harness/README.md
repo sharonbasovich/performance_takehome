@@ -255,6 +255,10 @@ A passing live greeting or single tool-call fragment is insufficient: require
 `verification.json` status `PASS` before renting a GPU. A partial edited context,
 missing terminal usage or output-limit response remains a failed proposal.
 
+A [30 October real-provider CPU result](reports/cpu-stock-pi-preflight-20261030/README.md)
+records a completed stock-tool proposal exchange. It establishes compatibility
+and contains no new GPU performance claim.
+
 ## Validate the log
 
 Prospective Pi attempts retain `prompt.md`, `pi-events.jsonl` (stdout),
