@@ -12,8 +12,10 @@ import unittest
 from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
+from abstract_harness import manifest
 from abstract_harness import pi_artifact as artifact
 from abstract_harness import pi_one_response as one
 from abstract_harness.pi_preflight import stock_distribution
@@ -229,6 +231,99 @@ class OneResponseArtifactTest(unittest.TestCase):
                 self.assertEqual(failure.exception.api_usd, 0)
                 self.assertTrue(proposer.exhausted())
                 launch.assert_not_called()
+
+    def test_one_response_model_configuration_does_not_mutate_four_tool_configurations(self):
+        before = one.model_config("http://127.0.0.1:1/v1", "glm-5.2", "FIXTURE_KEY")
+        single = one.one_response_model_config("http://127.0.0.1:1/v1", "glm-5.2", "FIXTURE_KEY")
+        after = one.model_config("http://127.0.0.1:1/v1", "glm-5.2", "FIXTURE_KEY")
+
+        def get(config):
+            return config["providers"]["abstract-preflight"]["models"][0]
+
+        self.assertEqual(get(before)["samplingParams"]["tool_choice"], "auto")
+        self.assertEqual(get(after)["samplingParams"]["tool_choice"], "auto")
+        self.assertEqual(get(single)["samplingParams"]["tool_choice"], "none")
+        get(single)["samplingParams"]["thinking"]["type"] = "fixture-mutation"
+        self.assertEqual(get(before)["samplingParams"]["thinking"], {"type": "disabled"})
+        self.assertEqual(get(after)["maxTokens"], 8192)
+
+    def test_failed_one_response_receipt_and_mode_are_retained_by_manifest(self):
+        harness = artifact_tests.make_harness(self.b.root / "manifest-harness")
+        work = harness.config.state_dir / "proposer"
+        work.mkdir()
+        proposer = one.OneResponsePiProposer(
+            PiLaunchConfig(
+                pi_bin=Path("unused-official-cli"),
+                agent_dir=self.b.root,
+                api_key_env="FIXTURE_KEY",
+                timeout_s=300,
+            ),
+            profile=self.b.profile,
+        )
+        harness.proposer = proposer
+        harness.engine = SimpleNamespace(
+            name="llmd",
+            spec=SimpleNamespace(
+                platform="linux/amd64",
+                dockerfile=self.b.context / artifact.DOCKERFILE,
+                build_context=self.b.context,
+                model_args=[],
+                base_image="sha256:" + "d" * 64,
+            ),
+        )
+        context = self.b.context_value()
+        context.work_dir = work
+        context.program_md = "oversized" * 10000
+        try:
+            with mock.patch.dict(os.environ, {"FIXTURE_KEY": "local-only"}):
+                with self.assertRaises(ProposerError):
+                    proposer.propose(context)
+            statuses = list(work.glob("pi-attempt-*/attempt-status.json"))
+            self.assertEqual(len(statuses), 1)
+            with mock.patch.object(manifest, "run_integrity_check", return_value=(0, "fixture")):
+                saved = manifest.write_manifest(harness)
+            self.assertEqual(
+                saved["evidence"]["agent_attempt_statuses"], [harness.config.rel(statuses[0])]
+            )
+            provenance = json.loads(
+                (harness.config.reports_dir / "agent-provenance.json").read_bytes()
+            )
+            self.assertEqual(provenance["execution_policy"], artifact.ONE_RESPONSE_POLICY)
+            self.assertNotIn("ScriptedProposer", provenance["note"])
+            self.assertFalse(provenance["deferred_Pi_proposal"])
+        finally:
+            harness._release_locks()
+
+    def test_deferred_manifest_keeps_carried_cost_without_claiming_scripted_zero_or_live_Pi(self):
+        pin = self.f.seal()
+        adapter = self.b.adapter(pin)
+        proposal = adapter.propose(self.b.context_value())
+        harness = artifact_tests.make_harness(self.b.root / "deferred-manifest")
+        harness.proposer = adapter
+        harness.state.api_usd_cumulative = proposal.api_usd
+        harness.engine = SimpleNamespace(
+            name="llmd",
+            spec=SimpleNamespace(
+                platform="linux/amd64",
+                dockerfile=self.b.context / artifact.DOCKERFILE,
+                build_context=self.b.context,
+                model_args=[],
+                base_image="sha256:" + "d" * 64,
+            ),
+        )
+        try:
+            with mock.patch.object(manifest, "run_integrity_check", return_value=(0, "fixture")):
+                saved = manifest.write_manifest(harness)
+            provenance = json.loads(
+                (harness.config.reports_dir / "agent-provenance.json").read_bytes()
+            )
+            self.assertGreater(saved["evidence"]["api_usd_cumulative"], 0)
+            self.assertTrue(provenance["deferred_Pi_proposal"])
+            self.assertFalse(provenance["pi_used_for_these_rows"])
+            self.assertNotIn("ScriptedProposer", provenance["note"])
+            self.assertEqual(provenance["execution_policy"], artifact.ONE_RESPONSE_POLICY)
+        finally:
+            harness._release_locks()
 
 
 ASSETS = ("ABSTRACT_PI_SMOKE_NODE", "ABSTRACT_PI_SMOKE_CLI", "ABSTRACT_PI_SMOKE_PACKAGE")

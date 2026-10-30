@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from . import procs
+from .pi_artifact import VerifiedCompletedPiProposal
+from .proposers import PiProposer, ScriptedProposer
 
 if TYPE_CHECKING:
     from .loop import Harness
@@ -231,12 +233,17 @@ def write_manifest(harness: Harness) -> dict[str, Any]:
     agent = {
         "proposer": harness.proposer.name,
         **_pi_pins(cfg.repo_root),
-        "pi_used_for_these_rows": harness.proposer.name == "pi",
+        "pi_used_for_these_rows": isinstance(harness.proposer, PiProposer),
+        "deferred_Pi_proposal": isinstance(harness.proposer, VerifiedCompletedPiProposal),
+        "execution_policy": getattr(harness.proposer, "execution_policy", None),
         "api_usd_cumulative": round(state.api_usd_cumulative, 4),
         "api_accounting_unresolved": state.api_accounting_unresolved,
         "note": "ScriptedProposer rows involve no coding-model calls; "
         "API spend is 0 by construction."
-        if harness.proposer.name != "pi"
+        if isinstance(harness.proposer, ScriptedProposer)
+        else "Verified completed Pi proposal from a prior CPU phase; this adapter makes "
+        "no model call. Already incurred CPU provider costs are carried separately."
+        if isinstance(harness.proposer, VerifiedCompletedPiProposal)
         else "",
     }
     (cfg.reports_dir / "agent-provenance.json").write_text(

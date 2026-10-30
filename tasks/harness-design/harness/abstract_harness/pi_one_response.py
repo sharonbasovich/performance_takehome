@@ -42,7 +42,7 @@ from .proposers import (
 
 def one_response_model_config(url: str, model: str, key_env: str) -> dict[str, Any]:
     """Supported official SDK configuration; no tool-choice auto without tools."""
-    result = model_config(url, model, key_env)
+    result = copy.deepcopy(model_config(url, model, key_env))
     for provider in result["providers"].values():
         for selected in provider["models"]:
             selected["maxTokens"] = 2048
@@ -145,6 +145,7 @@ class OneResponsePiProposer(PiProposer):
     """One genuine model-selected proposal via unmodified Pi --no-tools."""
 
     name = "stock-pi-one-response-no-tools"
+    execution_policy = ONE_RESPONSE_POLICY
 
     def __init__(self, config: PiLaunchConfig, *, profile, node: Path | None = None):
         need(config.timeout_s == 300, "ordinary overall Pi completion deadline must be300seconds")
@@ -186,7 +187,7 @@ class OneResponsePiProposer(PiProposer):
         known = None
         launched = False
         try:
-            attempt = Path(tempfile.mkdtemp(prefix="pi-one-response-", dir=context.work_dir))
+            attempt = Path(tempfile.mkdtemp(prefix="pi-attempt-", dir=context.work_dir))
             (attempt / "sessions").mkdir()
             prompt = render_one_response_prompt(context)
             (attempt / "prompt.md").write_text(prompt, encoding="utf-8")

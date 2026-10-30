@@ -674,6 +674,7 @@ class VerifiedCompletedPiProposal(Proposer):
         need(manifest.get("purpose") == "optimization", "test-only artifact cannot enter GPU loop")
         if manifest.get("execution_policy") == ONE_RESPONSE_POLICY:
             self.name = "verified-completed-stock-pi-one-response-no-tools-deferred"
+            self.execution_policy = manifest["execution_policy"]
         need(
             tree_digest(context.context_dir) == self.expected["protected_context_sha256"],
             "current context differs",
