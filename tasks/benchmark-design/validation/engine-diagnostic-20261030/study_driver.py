@@ -16,6 +16,7 @@ import tarfile
 import threading
 import time
 import uuid
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -101,6 +102,32 @@ def summarize(source, out, tokenizer, launch_mono=None):
     }
     keep(out / "study-summary.json", result)
     return result
+
+
+def require_complete_study(result, summary, report, timing, plan):
+    """Refuse a success label for aborted, unchecked or partially offered studies."""
+    if (
+        result.get("runner_exit_code") != 0
+        or result.get("evaluate.py_exit_code") not in {0, 3}
+        or result.get("audit_timing.py_exit_code") != 0
+        or report.get("status") not in {"valid", "inconclusive"}
+        or timing.get("status") != "PASS"
+    ):
+        raise ValueError("runner or evidence checks did not complete successfully")
+    expected = dict(plan["arms_in_order"])
+    rows = [row for row in summary["all_request_verdicts"] if row["phase"] == "measure"]
+    totals = report["population"]["totals"]
+    if (
+        totals.get("planned") != sum(expected.values())
+        or totals.get("offered") != sum(expected.values())
+        or totals.get("not_offered") != 0
+        or totals.get("evidence_invalid") != 0
+        or Counter(row["cell_id"] for row in rows) != expected
+        or len({row["request_id"] for row in rows}) != len(rows)
+        or any(row["category"] not in {"completed", "failed", "unfinished"} for row in rows)
+        or not any(probe["status"] == "valid" for probe in summary["original_recorder_startup"])
+    ):
+        raise ValueError("planned study population or valid startup generation is missing")
 
 
 def export(out, destination):
@@ -365,9 +392,15 @@ def main():
                 env=env,
             )
         result["owned_engine_supervisor_alive_after_capture"] = engine.poll() is None
-        summarize(
+        summary = summarize(
             source, args.out, tokenizer,
             launch_mono if result["owned_engine_supervisor_alive_after_capture"] else None,
+        )
+        require_complete_study(
+            result, summary,
+            json.loads((args.out / "report.json").read_bytes()),
+            json.loads((args.out / "independent-timing.json").read_bytes()),
+            json.loads((args.out / "STUDY-PLAN.json").read_bytes()),
         )
         result["status"] = "CAPTURED_DIAGNOSTIC_NOT_OFFICIAL_GRADE"
     except BaseException as exc:

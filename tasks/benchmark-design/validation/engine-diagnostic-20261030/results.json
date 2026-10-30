@@ -199,5 +199,13 @@
     "no_Task1_exclusive_setup_cost_or_three_hour_revalidation_claim": true,
     "study_model_API_calls": 0,
     "study_new_model_downloads": 0
+  },
+  "study_helper_provenance": {
+    "capture_wrapper": "study_driver.capture.py.txt",
+    "capture_wrapper_sha256": "60cfdad3b79d881859939a6f63666675032fe2e61310e6f8e109d502e5022868",
+    "corrected_completion_helper": "study_driver.py",
+    "corrected_completion_helper_sha256": "968532dbcba68f3e0ee08fd66e6249e06084e2f1c444ca376419f879bbb142d2",
+    "later_CPU_regression_cases": 9,
+    "new_GPU_capture_for_completion_fix": false
   }
 }

@@ -63,10 +63,21 @@ receipts stay unchanged. This experiment never moves their clock.
 ## Reproduction
 
 [`STUDY-PLAN.json`](STUDY-PLAN.json) and [`workload.study.json`](workload.study.json)
-were frozen before capture. Exact [`study_driver.py`](study_driver.py) and
-[`fault_proxy.py`](fault_proxy.py) implement the study. [`SOURCE-PINS.json`](SOURCE-PINS.json)
-binds the exact recorder/evaluator/protected baseline bytes at
+were frozen before capture. [`study_driver.capture.py.txt`](study_driver.capture.py.txt)
+is the exact wrapper used for capture (SHA-256
+`60cfdad3b79d881859939a6f63666675032fe2e61310e6f8e109d502e5022868`);
+[`fault_proxy.py`](fault_proxy.py) is the unchanged fault transport.
+[`SOURCE-PINS.json`](SOURCE-PINS.json) binds the exact recorder/evaluator/protected baseline bytes at
 `96a9fa5a716d54a9700d14627fe184dec4e7dedc`. `manifest.json` binds this packet.
+
+The current [`study_driver.py`](study_driver.py) corrects completion labelling for
+future execution/replay: runner and timing checks must pass, evaluator exit 0 or
+3 is required, all planned arms must be offered exactly once per request ID, and
+a valid startup generation must exist. Aborted or incomplete studies retain
+partial evidence and exit unsuccessfully. Nine CPU regressions cover those
+failures and verify that this actual complete capture, including its intentional
+faults and inconclusive evaluator, remains acceptable. This later correction was
+not used during the GPU capture and changes none of its recorded bytes or values.
 
 Verify every archive member, without extraction (stdlib only):
 
