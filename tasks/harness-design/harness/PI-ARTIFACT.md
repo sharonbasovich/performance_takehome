@@ -67,7 +67,7 @@ compatibility_binding(
     context_dir=source_context,
     source_commit=reviewed_commit,
     harness_tree_sha256=reviewed_harness_hash,
-    base_image_digest=base_digest,
+    base_image_digest=locked_parent_image_digest,
     program_md=actual_program,
     profile=actual_harness_design_subprofile,
     benchmark=frozen_benchmark_bytes,
@@ -75,6 +75,13 @@ compatibility_binding(
     model_runtime=stable_model_contract,
 )
 ```
+
+`base_image_digest` is the immutable parent image selected by the protected baseline
+lock and Dockerfile `FROM` (for this LLMD baseline, `sha256:0a2cd01a2e53c78934a8cfef66f8668da7666be4954a5d18b72df089c54ea34f`).
+It is not a historical wrapper build's local image/config ID. Identical Dockerfile
+bytes can produce different wrapper IDs because build metadata varies; those actual
+historical IDs remain report provenance, and the new GPU independently builds and
+validates its fresh control. Do not normalize or relabel their original raw values.
 
 `stable_model_contract` has exactly `engine`, `model_repository`, `model_revision`,
 `model_inventory_sha256` and `model_args`. These describe the pinned model and container
