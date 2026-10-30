@@ -2,22 +2,22 @@
   "decision": "APPROVED_ONE_EXACT_PUBLICATION_AND_ANONYMOUS_PROOF",
   "existing_human_authorization_sha256": "0dd09f93651f373fccb10aa4a46b8d532459350b365474097a138be8221b7211",
   "files": {
-    "operations.json": "9ebf44e19daa311a30f624946e17b1d5b484c4a6976c5a1dd3fd0626a91ad02e",
+    "operations.json": "c113b2b80b0777a8f4b13f8d04f6af328c31b40d53e640ae61a5cd49093a9f33",
     "public/delivery/base-manifest.json": "0a2cd01a2e53c78934a8cfef66f8668da7666be4954a5d18b72df089c54ea34f",
     "public/delivery/metadata/blobs/sha256/93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9": "93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9",
     "public/delivery/metadata/blobs/sha256/baeb12d7ad78daa8ff91486696ae94056542576afbceff24bfcc75db7857a0e0": "baeb12d7ad78daa8ff91486696ae94056542576afbceff24bfcc75db7857a0e0",
     "public/delivery/selected.Dockerfile": "5a8216e4ffae627fec2804cddb7fa9c69b0fa95880893fe9cab2db86710cf0bc",
     "public/evidence/selection.json": "a33f11f66ae54204908897e7e1a4b8c7c4c84b66f9f47125695d49c56812c9fb",
     "src/baseline-config.json": "0c06ab372a7e347dd84145cdcdc6570c123e585f5740508d665987601e3fac6f",
-    "src/generation_semantics.py": "e91388e8c1e630ac84880a307a9bcecc8e8830b2c747b3aa63feb598073397d2",
+    "src/generation_semantics.py": "7c0590e0d114756455128df82fc8e3a578e16631e950748e38b91eeb8eb5447f",
     "src/prepare_ephemeral_docker_space.py": "55798b0b65ad78a7d8548696fd48c62c3a5698901ad3913244b79deda3b9efe5",
     "src/preserved_primitives.py": "3853995b1490789579b532df3b0e237d42c4102d0c4503b100d124f9e4b9a531",
-    "src/publish_selected.py": "76abd4bbdfcad0c90c364531223dd3f80ece5bf2162191cfe43b802f9c40a05b",
+    "src/publish_selected.py": "50b0f77e554b7863a5cc7c75cc868c4f921821e71b4e1209a39c4e014811cee8",
     "src/verify_selected_anonymous.py": "1e058b67801d54250249a7d339dd70de77be5395d476195743ba921643e18e78",
     "src/verify_selected_docker.py": "426a86c25e4fc6157f0612b16b3221f6425a89c2fd447ec0efb3b47ff3f69dd6",
-    "workflow/execute-selected-task2.yml": "aab59fba7842943e05adf90b4dfc9c2f0fbce81fc77f699f76d15dd757ddb481"
+    "workflow/execute-selected-task2.yml": "1e2e6c18f7888ff8e4fa936f72bcf1d287bc1db513d1b169f836c496964c5d58"
   },
-  "generation_receipt_sha256": "c321499d8150ffb6a151efd19a9d365387043509bcdd882992fdae5b73c459a7",
+  "generation_receipt_sha256": "84e1e962e3aa836e5a5494aab85cd73cacbaf8978af9d08507998a04fb3ebfaa",
   "immutable_reference": "ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9",
   "kind": "ROOT_REVIEWED_ACTUAL_SELECTED_TASK2_PUBLICATION",
   "version": 1

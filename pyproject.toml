@@ -20,6 +20,13 @@ packages = ["benchmarks", "tools"]
 
 [tool.ruff]
 line-length = 100
+# Preserve byte-pinned registry delivery snapshots. Their exact input/runtime
+# guards and negative checks provide functional coverage without reformatting.
+extend-exclude = [
+    "registry-verification",
+    "registry-selected",
+    "registry-experimental-batch-one",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

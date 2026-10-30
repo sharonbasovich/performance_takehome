@@ -1,5 +1,5 @@
 # Exact experimental batch-size-1 metadata publication.
-# Execution requires the reviewed approval marker and matching pinned inputs.
+# Publication is closed: only the original reviewed activation commit may run.
 # Existing selected batch-size-4 image and convenience tag remain unchanged.
 name: execute-experimental-task2-batch-one
 'on':
@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
-    if: github.repository == 'sharonbasovich/performance_takehome' && github.event.repository.private == false && github.ref == 'refs/heads/codex/task2-experimental-batch-one-publication'
+    if: github.repository == 'sharonbasovich/performance_takehome' && github.event.repository.private == false && github.ref == 'refs/heads/codex/task2-experimental-batch-one-publication' && github.sha == '41456da6d144abea96aada865703286a02b935f8'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:

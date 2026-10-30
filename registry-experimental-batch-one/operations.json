@@ -653,7 +653,7 @@
   ],
   "root_approval_supplied": false,
   "selection_sha256": "a33f11f66ae54204908897e7e1a4b8c7c4c84b66f9f47125695d49c56812c9fb",
-  "source_generator_sha256": "e91388e8c1e630ac84880a307a9bcecc8e8830b2c747b3aa63feb598073397d2",
+  "source_generator_sha256": "7c0590e0d114756455128df82fc8e3a578e16631e950748e38b91eeb8eb5447f",
   "tag_is_identity": false,
   "version": 1,
   "whole_publication_seconds_maximum": 1200
