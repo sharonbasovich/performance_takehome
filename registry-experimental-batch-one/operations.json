@@ -1,0 +1,660 @@
+{
+  "anonymous_verification": {
+    "body_rule": "every complete body SHA/size must match, with owned-client timeout and retained stderr/partial receipts",
+    "credentials": "new empty REGCTL_CONFIG and DOCKER_CONFIG, no login/account credentials",
+    "layers_expected": 23,
+    "no_body_download_performed_here": true,
+    "objects": [
+      {
+        "argv": [
+          "manifest",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9",
+          "--format",
+          "raw-body"
+        ],
+        "bytes": 4662,
+        "digest": "sha256:93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9",
+        "role": "manifest"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:baeb12d7ad78daa8ff91486696ae94056542576afbceff24bfcc75db7857a0e0"
+        ],
+        "bytes": 5403,
+        "digest": "sha256:baeb12d7ad78daa8ff91486696ae94056542576afbceff24bfcc75db7857a0e0",
+        "role": "config"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:1eed391ea893e6015bf4ce4ed366909975d2acdbe907670919236a8d18ea6b07"
+        ],
+        "bytes": 85857,
+        "digest": "sha256:1eed391ea893e6015bf4ce4ed366909975d2acdbe907670919236a8d18ea6b07",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:c172f21841dff4c8cf45cde46589c1c2616cefe7e819965e92e6d3475c428aa0"
+        ],
+        "bytes": 12675,
+        "digest": "sha256:c172f21841dff4c8cf45cde46589c1c2616cefe7e819965e92e6d3475c428aa0",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:99515e7b4d35e0652d3b0fde571b6ec269222ecacc506f026e1758d6261e9109"
+        ],
+        "bytes": 288536,
+        "digest": "sha256:99515e7b4d35e0652d3b0fde571b6ec269222ecacc506f026e1758d6261e9109",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:99ba982a9142213c751a1709dcf088e63d8601f03b3f211bae037be698fef270"
+        ],
+        "bytes": 254453,
+        "digest": "sha256:99ba982a9142213c751a1709dcf088e63d8601f03b3f211bae037be698fef270",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:d6b1b89eccacc15c2420b2776d72c1dae334a00805ed9af54bf2f71e4d536f28"
+        ],
+        "bytes": 32093,
+        "digest": "sha256:d6b1b89eccacc15c2420b2776d72c1dae334a00805ed9af54bf2f71e4d536f28",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:2780920e5dbfbe103d03a583ed75345306e572ec5a48cb10361f046767d9f29a"
+        ],
+        "bytes": 67,
+        "digest": "sha256:2780920e5dbfbe103d03a583ed75345306e572ec5a48cb10361f046767d9f29a",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:7c12895b777bcaa8ccae0605b4de635b68fc32d60fa08f421dc3818bf55ee212"
+        ],
+        "bytes": 188,
+        "digest": "sha256:7c12895b777bcaa8ccae0605b4de635b68fc32d60fa08f421dc3818bf55ee212",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:3214acf345c0cc6bbdb56b698a41ccdefc624a09d6beb0d38b5de0b2303ecaf4"
+        ],
+        "bytes": 123,
+        "digest": "sha256:3214acf345c0cc6bbdb56b698a41ccdefc624a09d6beb0d38b5de0b2303ecaf4",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:52630fc75a18675c530ed9eba5f55eca09b03e91bd5bc15307918bbc1a7e7296"
+        ],
+        "bytes": 162,
+        "digest": "sha256:52630fc75a18675c530ed9eba5f55eca09b03e91bd5bc15307918bbc1a7e7296",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:dd64bf2dd177757451a98fcdc999a339c35dee5d9872d8f4dc69c8f3c4dd0112"
+        ],
+        "bytes": 80,
+        "digest": "sha256:dd64bf2dd177757451a98fcdc999a339c35dee5d9872d8f4dc69c8f3c4dd0112",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:b839dfae01f66e15c6a8b63520557ed315bdfe036342fa7a0c537259f10d7a9a"
+        ],
+        "bytes": 351,
+        "digest": "sha256:b839dfae01f66e15c6a8b63520557ed315bdfe036342fa7a0c537259f10d7a9a",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:ebddc55facdc6b1f7e0f30816a5fc7cc62f38abdf76c0a8b0a0ce52085754795"
+        ],
+        "bytes": 311,
+        "digest": "sha256:ebddc55facdc6b1f7e0f30816a5fc7cc62f38abdf76c0a8b0a0ce52085754795",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:bdfd7f7e5bf6fc27e70b59101db21c3d8284d283884419dd5fe7020583bb79ca"
+        ],
+        "bytes": 136993,
+        "digest": "sha256:bdfd7f7e5bf6fc27e70b59101db21c3d8284d283884419dd5fe7020583bb79ca",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:2d4d7adf627254a81515173c3ba0fee593d821176ce30ea7d5eb2d956bdf8379"
+        ],
+        "bytes": 5077242,
+        "digest": "sha256:2d4d7adf627254a81515173c3ba0fee593d821176ce30ea7d5eb2d956bdf8379",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:cf397222899a3b6b98c35941fd44d79f8ff61303349b3bece21b49dacc1ac106"
+        ],
+        "bytes": 3068063,
+        "digest": "sha256:cf397222899a3b6b98c35941fd44d79f8ff61303349b3bece21b49dacc1ac106",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:bd8962e292918c50c90edebd9684c053bc386b9c5503acd8fec75d0c6f93a0b7"
+        ],
+        "bytes": 372772,
+        "digest": "sha256:bd8962e292918c50c90edebd9684c053bc386b9c5503acd8fec75d0c6f93a0b7",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:cac2ae0193cb073e7492050b05fc342a888651b4bbc966908c8793f889c299ba"
+        ],
+        "bytes": 96148,
+        "digest": "sha256:cac2ae0193cb073e7492050b05fc342a888651b4bbc966908c8793f889c299ba",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:dd0d9bfd3bee080ad25a464362ec4f37ec5ca625695a4d7179fe69d207dc068d"
+        ],
+        "bytes": 158447,
+        "digest": "sha256:dd0d9bfd3bee080ad25a464362ec4f37ec5ca625695a4d7179fe69d207dc068d",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:7cc70dfd88cf2327bb827123c9156f7cb95de95b2f98f3a7a931296aacec5786"
+        ],
+        "bytes": 901291,
+        "digest": "sha256:7cc70dfd88cf2327bb827123c9156f7cb95de95b2f98f3a7a931296aacec5786",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:8224d91da70b7992430d3b04040ea38ecdef4a7b719bee38397c89aaa886e198"
+        ],
+        "bytes": 84214,
+        "digest": "sha256:8224d91da70b7992430d3b04040ea38ecdef4a7b719bee38397c89aaa886e198",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:1a4be5562d92d659f95e0b44b245ea5208bf5317481b9a351b07fad7fe5265ec"
+        ],
+        "bytes": 51535,
+        "digest": "sha256:1a4be5562d92d659f95e0b44b245ea5208bf5317481b9a351b07fad7fe5265ec",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:0438950bd9e91eb2094eb6f8ef463ad2ab9cf131cabc144da9b148dfb34b7bf0"
+        ],
+        "bytes": 212060068,
+        "digest": "sha256:0438950bd9e91eb2094eb6f8ef463ad2ab9cf131cabc144da9b148dfb34b7bf0",
+        "role": "layer"
+      },
+      {
+        "argv": [
+          "blob",
+          "get",
+          "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+          "sha256:0deb9028a49b75d009a8b7c68f38ec44a0c0455f1be65f671cd031b42bdb9931"
+        ],
+        "bytes": 5700475974,
+        "digest": "sha256:0deb9028a49b75d009a8b7c68f38ec44a0c0455f1be65f671cd031b42bdb9931",
+        "role": "layer"
+      }
+    ],
+    "objects_expected": 25,
+    "whole_seconds_maximum": 1200
+  },
+  "client": {
+    "name": "regctl-linux-amd64",
+    "pin_attestation": "self-computed historical pin, not official signature",
+    "sha256": "3737fbbdd791e04e7a831640b681f3397a376498e80e2ad9b1b2d27296f239bc",
+    "version": "v0.11.7"
+  },
+  "compatibility_reason": "Old baseline09f/0c06/7db constants and BASELINE_FALLBACK/retention-gap selection are historical; do not relabel them for fresh results.",
+  "destination": "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+  "docker_proof": {
+    "empty_docker_config_required": true,
+    "immutable_reference": "ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9",
+    "operations": [
+      "bounded anonymous docker pull",
+      "actual inspect runtime/config/23diffIDs comparison",
+      "CPU --help in a fresh exact labelled owned container; no GPU/model mounts",
+      "exact owned-container removal/absence receipt"
+    ],
+    "physical_and_Docker_free_bytes_minimum": 27917287424,
+    "platform": "linux/amd64",
+    "proof_performed_here": false
+  },
+  "execute": false,
+  "fixture": false,
+  "immutable_reference": "ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9",
+  "kind": "UNAPPROVED_EXACT_SELECTED_PLATFORM_OPERATIONS",
+  "mutable_tag": "experimental-batch1-93f4b72539b0",
+  "old_baseline_publisher_compatible": false,
+  "publication_steps": [
+    {
+      "expected_bytes": 85857,
+      "expected_digest": "sha256:1eed391ea893e6015bf4ce4ed366909975d2acdbe907670919236a8d18ea6b07",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:1eed391ea893e6015bf4ce4ed366909975d2acdbe907670919236a8d18ea6b07"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 12675,
+      "expected_digest": "sha256:c172f21841dff4c8cf45cde46589c1c2616cefe7e819965e92e6d3475c428aa0",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:c172f21841dff4c8cf45cde46589c1c2616cefe7e819965e92e6d3475c428aa0"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 288536,
+      "expected_digest": "sha256:99515e7b4d35e0652d3b0fde571b6ec269222ecacc506f026e1758d6261e9109",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:99515e7b4d35e0652d3b0fde571b6ec269222ecacc506f026e1758d6261e9109"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 254453,
+      "expected_digest": "sha256:99ba982a9142213c751a1709dcf088e63d8601f03b3f211bae037be698fef270",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:99ba982a9142213c751a1709dcf088e63d8601f03b3f211bae037be698fef270"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 32093,
+      "expected_digest": "sha256:d6b1b89eccacc15c2420b2776d72c1dae334a00805ed9af54bf2f71e4d536f28",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:d6b1b89eccacc15c2420b2776d72c1dae334a00805ed9af54bf2f71e4d536f28"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 67,
+      "expected_digest": "sha256:2780920e5dbfbe103d03a583ed75345306e572ec5a48cb10361f046767d9f29a",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:2780920e5dbfbe103d03a583ed75345306e572ec5a48cb10361f046767d9f29a"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 188,
+      "expected_digest": "sha256:7c12895b777bcaa8ccae0605b4de635b68fc32d60fa08f421dc3818bf55ee212",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:7c12895b777bcaa8ccae0605b4de635b68fc32d60fa08f421dc3818bf55ee212"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 123,
+      "expected_digest": "sha256:3214acf345c0cc6bbdb56b698a41ccdefc624a09d6beb0d38b5de0b2303ecaf4",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:3214acf345c0cc6bbdb56b698a41ccdefc624a09d6beb0d38b5de0b2303ecaf4"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 162,
+      "expected_digest": "sha256:52630fc75a18675c530ed9eba5f55eca09b03e91bd5bc15307918bbc1a7e7296",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:52630fc75a18675c530ed9eba5f55eca09b03e91bd5bc15307918bbc1a7e7296"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 80,
+      "expected_digest": "sha256:dd64bf2dd177757451a98fcdc999a339c35dee5d9872d8f4dc69c8f3c4dd0112",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:dd64bf2dd177757451a98fcdc999a339c35dee5d9872d8f4dc69c8f3c4dd0112"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 351,
+      "expected_digest": "sha256:b839dfae01f66e15c6a8b63520557ed315bdfe036342fa7a0c537259f10d7a9a",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:b839dfae01f66e15c6a8b63520557ed315bdfe036342fa7a0c537259f10d7a9a"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 311,
+      "expected_digest": "sha256:ebddc55facdc6b1f7e0f30816a5fc7cc62f38abdf76c0a8b0a0ce52085754795",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:ebddc55facdc6b1f7e0f30816a5fc7cc62f38abdf76c0a8b0a0ce52085754795"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 136993,
+      "expected_digest": "sha256:bdfd7f7e5bf6fc27e70b59101db21c3d8284d283884419dd5fe7020583bb79ca",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:bdfd7f7e5bf6fc27e70b59101db21c3d8284d283884419dd5fe7020583bb79ca"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 5077242,
+      "expected_digest": "sha256:2d4d7adf627254a81515173c3ba0fee593d821176ce30ea7d5eb2d956bdf8379",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:2d4d7adf627254a81515173c3ba0fee593d821176ce30ea7d5eb2d956bdf8379"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 3068063,
+      "expected_digest": "sha256:cf397222899a3b6b98c35941fd44d79f8ff61303349b3bece21b49dacc1ac106",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:cf397222899a3b6b98c35941fd44d79f8ff61303349b3bece21b49dacc1ac106"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 372772,
+      "expected_digest": "sha256:bd8962e292918c50c90edebd9684c053bc386b9c5503acd8fec75d0c6f93a0b7",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:bd8962e292918c50c90edebd9684c053bc386b9c5503acd8fec75d0c6f93a0b7"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 96148,
+      "expected_digest": "sha256:cac2ae0193cb073e7492050b05fc342a888651b4bbc966908c8793f889c299ba",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:cac2ae0193cb073e7492050b05fc342a888651b4bbc966908c8793f889c299ba"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 158447,
+      "expected_digest": "sha256:dd0d9bfd3bee080ad25a464362ec4f37ec5ca625695a4d7179fe69d207dc068d",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:dd0d9bfd3bee080ad25a464362ec4f37ec5ca625695a4d7179fe69d207dc068d"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 901291,
+      "expected_digest": "sha256:7cc70dfd88cf2327bb827123c9156f7cb95de95b2f98f3a7a931296aacec5786",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:7cc70dfd88cf2327bb827123c9156f7cb95de95b2f98f3a7a931296aacec5786"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 84214,
+      "expected_digest": "sha256:8224d91da70b7992430d3b04040ea38ecdef4a7b719bee38397c89aaa886e198",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:8224d91da70b7992430d3b04040ea38ecdef4a7b719bee38397c89aaa886e198"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 51535,
+      "expected_digest": "sha256:1a4be5562d92d659f95e0b44b245ea5208bf5317481b9a351b07fad7fe5265ec",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:1a4be5562d92d659f95e0b44b245ea5208bf5317481b9a351b07fad7fe5265ec"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 212060068,
+      "expected_digest": "sha256:0438950bd9e91eb2094eb6f8ef463ad2ab9cf131cabc144da9b148dfb34b7bf0",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:0438950bd9e91eb2094eb6f8ef463ad2ab9cf131cabc144da9b148dfb34b7bf0"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "expected_bytes": 5700475974,
+      "expected_digest": "sha256:0deb9028a49b75d009a8b7c68f38ec44a0c0455f1be65f671cd031b42bdb9931",
+      "head_argv": [
+        "blob",
+        "head",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd",
+        "sha256:0deb9028a49b75d009a8b7c68f38ec44a0c0455f1be65f671cd031b42bdb9931"
+      ],
+      "if_missing": "FAIL_NO_LAYER_COPY_ALLOWED",
+      "kind": "ensure_existing_public_blob"
+    },
+    {
+      "argv": [
+        "blob",
+        "put",
+        "--digest",
+        "sha256:baeb12d7ad78daa8ff91486696ae94056542576afbceff24bfcc75db7857a0e0",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd"
+      ],
+      "kind": "put_actual_raw_config",
+      "stdin_file": "public/delivery/metadata/blobs/sha256/baeb12d7ad78daa8ff91486696ae94056542576afbceff24bfcc75db7857a0e0"
+    },
+    {
+      "argv": [
+        "manifest",
+        "put",
+        "--content-type",
+        "application/vnd.oci.image.manifest.v1+json",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9"
+      ],
+      "kind": "put_actual_raw_platform",
+      "stdin_file": "public/delivery/metadata/blobs/sha256/93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9"
+    },
+    {
+      "argv": [
+        "manifest",
+        "put",
+        "--content-type",
+        "application/vnd.oci.image.manifest.v1+json",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd:experimental-batch1-93f4b72539b0"
+      ],
+      "kind": "put_mutable_convenience_tag",
+      "stdin_file": "public/delivery/metadata/blobs/sha256/93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9"
+    },
+    {
+      "argv": [
+        "manifest",
+        "head",
+        "--format",
+        "{{.GetDescriptor.Digest}}",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd@sha256:93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9"
+      ],
+      "expected_stdout": "sha256:93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9",
+      "kind": "verify_authenticated_digest"
+    },
+    {
+      "argv": [
+        "manifest",
+        "head",
+        "--format",
+        "{{.GetDescriptor.Digest}}",
+        "ghcr.io/sharonbasovich/performance_takehome-task2-llmd:experimental-batch1-93f4b72539b0"
+      ],
+      "expected_stdout": "sha256:93f4b72539b0e9cec3a21ed9c2c0c1ec74e876791318456bebf36182a52ce2c9",
+      "kind": "verify_authenticated_tag"
+    }
+  ],
+  "requires_before_any_login_or_upload": [
+    "separately reviewed exact generated selection/operations/publisher/checker/workflow SHA marker",
+    "explicit approved deployment layout/job using existing ephemeral package-write token",
+    "exclusive receipt+append-only attempt journal before client construction",
+    "reconcile any uncertain prior attempt; never infer zero writes from missing final receipt"
+  ],
+  "root_approval_supplied": false,
+  "selection_sha256": "a33f11f66ae54204908897e7e1a4b8c7c4c84b66f9f47125695d49c56812c9fb",
+  "source_generator_sha256": "7c0590e0d114756455128df82fc8e3a578e16631e950748e38b91eeb8eb5447f",
+  "tag_is_identity": false,
+  "version": 1,
+  "whole_publication_seconds_maximum": 1200
+}
