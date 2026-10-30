@@ -11,6 +11,7 @@ import contextlib
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -39,6 +40,45 @@ class InactivePreflightTest(unittest.TestCase):
         fixture.assert_not_called()
         distribution.assert_not_called()
         run.assert_not_called()
+
+
+@unittest.skipUnless(sys.platform == "linux", "Linux process launcher contract")
+class LaunchFailureReceiptTest(unittest.TestCase):
+    def test_both_version_launch_failures_write_failed_receipts(self):
+        errors = (
+            subprocess.CalledProcessError(3, ["node", "cli", "--version"]),
+            subprocess.TimeoutExpired(["node", "--version"], 15),
+            OSError("executable unavailable"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            for index, error in enumerate(errors):
+                for command_index in (0, 1):
+                    with self.subTest(error=type(error).__name__, command=command_index):
+                        output = Path(temporary) / f"case-{index}-{command_index}"
+                        effects = (
+                            [subprocess.CompletedProcess([], 0, stdout="1.0.0\n")]
+                            if command_index
+                            else []
+                        ) + [error]
+                        with (
+                            mock.patch.object(
+                                pi_preflight, "stock_distribution", return_value=1243
+                            ),
+                            mock.patch.object(pi_preflight.subprocess, "run", side_effect=effects),
+                        ):
+                            result = pi_preflight.proposal_preflight(
+                                node=Path("/fixture-node"),
+                                cli=Path("/fixture-cli"),
+                                package=Path("/fixture-package"),
+                                work=output,
+                                source=_paths.REPO_ROOT / "tasks/harness-design/Dockerfile",
+                            )
+                        self.assertEqual(result["status"], "LAUNCH_FAILED")
+                        self.assertEqual(result["fixture_http_requests"], 0)
+                        self.assertFalse(result["proposal_recovered"])
+                        saved = json.loads((output / "verification.json").read_bytes())
+                        self.assertEqual(saved["status"], "LAUNCH_FAILED")
+                        self.assertTrue(saved["error"])
 
 
 @unittest.skipUnless(
@@ -85,6 +125,7 @@ class ActualStockPiPreflightTest(unittest.TestCase):
         self.assertEqual(len(requests), 4)
         self.assertEqual(result["successful_stock_tools"], ["read", "edit", "write"])
         self.assertTrue(result["proposal_recovered"])
+        self.assertTrue(result["proposal_metadata_validated"])
         self.assertTrue(result["terminal_usage_reconciled"])
         self.assertEqual(result["source_eligibility"]["changed_knobs"], ["--token-batch-size"])
         self.assertEqual(
@@ -111,6 +152,20 @@ class ActualStockPiPreflightTest(unittest.TestCase):
         self.assertEqual(result["status"], "NO_PATCH")
         self.assertEqual(len(requests), 1)
         self.assertFalse(result["proposal_recovered"])
+
+    def test_valid_edit_without_metadata_write_cannot_pass(self):
+        result, requests = self.execute("metadata-missing")
+        self.assertEqual(result["status"], "INVALID_METADATA")
+        self.assertEqual(len(requests), 3)
+        self.assertFalse(result["proposal_recovered"])
+        self.assertGreater(result["api_usd_known"], 0)
+
+    def test_successful_write_of_malformed_metadata_cannot_pass(self):
+        result, requests = self.execute("metadata-malformed")
+        self.assertEqual(result["status"], "INVALID_METADATA")
+        self.assertEqual(len(requests), 4)
+        self.assertFalse(result["proposal_recovered"])
+        self.assertGreater(result["api_usd_known"], 0)
 
     def test_partial_terminal_after_real_edit_is_not_accepted_or_declared_free(self):
         result, requests = self.execute("partial")

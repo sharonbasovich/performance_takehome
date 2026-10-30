@@ -140,6 +140,8 @@ class FixtureHandler(BaseHTTPRequestHandler):
             delta, finish = {"content": "No change."}, "stop"
         elif self.server.mode == "length":
             delta, finish = {"content": "Incomplete response."}, "length"
+        elif self.server.mode == "metadata-missing" and stage >= 2:
+            delta, finish = {"content": "Finished without metadata."}, "stop"
         elif stage == 0:
             delta, finish = self.tool("read", {"path": DOCKERFILE.as_posix()}), "tool_calls"
         elif stage == 1:
@@ -169,7 +171,9 @@ class FixtureHandler(BaseHTTPRequestHandler):
                     "write",
                     {
                         "path": metadata[1],
-                        "content": json.dumps(
+                        "content": "not valid JSON"
+                        if self.server.mode == "metadata-malformed"
+                        else json.dumps(
                             {
                                 "experiment": "cpu-preflight-token-batch-256",
                                 "hypothesis": "Interface fixture only; no performance conclusion.",
@@ -242,12 +246,15 @@ class FixtureHandler(BaseHTTPRequestHandler):
 
 
 def failed_status(exc):
+    if isinstance(exc, OSError | subprocess.SubprocessError):
+        return "LAUNCH_FAILED"
     if isinstance(exc, ProposerAccountingError):
         return "ACCOUNTING_UNRESOLVED"
     for needle, status in (
         ("output limit", "OUTPUT_LIMIT"),
         ("timed out", "TIMEOUT"),
         ("no patch", "NO_PATCH"),
+        ("metadata", "INVALID_METADATA"),
     ):
         if needle in str(exc):
             return status
@@ -362,7 +369,8 @@ def proposal_preflight(
                 "CPU provider compatibility preflight, NOT an optimization experiment. "
                 "Use read to inspect tasks/harness-design/Dockerfile, then use edit to change "
                 "only --token-batch-size=1024 to --token-batch-size=256. Complete the requested "
-                "proposal metadata and stop. Do not run a build, Docker, benchmark or server.",
+                "proposal metadata using the stock write tool, then stop. "
+                "Do not run a build, Docker, benchmark or server.",
                 {},
                 [],
                 original,
@@ -377,8 +385,9 @@ def proposal_preflight(
             json.loads(line) for line in transcript.read_text().splitlines() if line.startswith("{")
         ]
         starts = {e.get("toolCallId"): e for e in events if e.get("type") == "tool_execution_start"}
-        successes, target_tools = [], []
+        successes, target_tools, metadata_written = [], [], False
         expected_target = transcript.parent / "context" / DOCKERFILE
+        metadata_path = transcript.parent / "proposal.json"
         for event in events:
             if event.get("type") != "tool_execution_end" or event.get("isError") is not False:
                 continue
@@ -389,12 +398,33 @@ def proposal_preflight(
             resolved = path if path.is_absolute() else transcript.parent / "context" / path
             if resolved == expected_target:
                 target_tools.append(name)
+            if name == "write" and resolved == metadata_path:
+                metadata_written = True
         if (
             "read" not in target_tools
             or "edit" not in target_tools
             or target_tools.index("read") > target_tools.index("edit")
         ):
             raise ProposerError("preflight requires successful actual read then edit tools")
+        if not metadata_written:
+            raise ProposerError("preflight requires successful write to expected proposal metadata")
+        if (
+            metadata_path.is_symlink()
+            or not metadata_path.is_file()
+            or metadata_path.stat().st_size > 16384
+        ):
+            raise ProposerError("preflight metadata must be a bounded regular file")
+        try:
+            metadata = json.loads(metadata_path.read_bytes())
+        except (ValueError, UnicodeError) as exc:
+            raise ProposerError("preflight metadata must be valid UTF8 JSON") from exc
+        if not (
+            isinstance(metadata, dict)
+            and all(isinstance(metadata.get(k), str) for k in ("experiment", "hypothesis", "notes"))
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", metadata["experiment"])
+            and metadata["hypothesis"].strip()
+        ):
+            raise ProposerError("preflight metadata needs experiment slug, hypothesis and notes")
         candidate = work / "applied-proposal"
         shutil.copytree(original, candidate)
         ok, message = apply_patch(proposal.patch, candidate)
@@ -413,13 +443,14 @@ def proposal_preflight(
             status="PASS",
             successful_stock_tools=successes,
             proposal_recovered=True,
+            proposal_metadata_validated=True,
             source_eligibility=eligibility,
             terminal_usage_reconciled=True,
             api_usd_known=proposal.api_usd,
             source_context_unchanged=True,
             transcript_sha256=hashlib.sha256(transcript.read_bytes()).hexdigest(),
         )
-    except (ProposerError, ValueError) as exc:
+    except (ProposerError, ValueError, OSError, subprocess.SubprocessError) as exc:
         result.update(
             status=failed_status(exc),
             proposal_recovered=False,
