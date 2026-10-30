@@ -14,7 +14,10 @@ is published with anonymous complete-graph/Docker pull/CPU-help proof. Its seria
 development comparison improved TTFT1.0778 and FTGR1.2654; supplemental checks
 remain descriptive, not an official/unseen-workload grade. Actual stages used
 external orchestration calling canonical guard/measure/decision, not the unattended
-loop. The original main `results.tsv` remains invalid historical CPU stand-in
+loop. [Deferred completed-Pi artifacts](PI-ARTIFACT.md) provide a separately labelled
+CPU/GPU phase boundary with strict private provenance and replay checks; this is a
+software capability, not a claim of a newly completed GPU optimization cycle.
+The original main `results.tsv` remains invalid historical CPU stand-in
 FTGR/keep evidence. [NOTES.md](../NOTES.md) explains the selected image, attribution
 and retained history; the portable hybrid overlay lives in the packet.
 
