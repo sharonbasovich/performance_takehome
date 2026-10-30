@@ -10,9 +10,72 @@ use a small executable wrapper:
 exec /opt/node/bin/node /opt/pi/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js "$@"
 ```
 
-The wrapper must also support `--version`. `pi_protocol_smoke.py` tests the actual
-pinned CLI and production proposer arguments against a local synthetic server;
-it does not establish provider availability, billing or model quality.
+The wrapper must also support `--version`. Before allocating a GPU, require a
+complete **CPU-only proposal preflight**, not just an API greeting or one tool-call
+fragment. `pi_protocol_smoke.py` is inactive by default. Its deterministic fixture
+uses the unmodified official Pi distribution to read and edit a scratch LLMD
+Dockerfile, write metadata, finish the model turn, recover the unified patch and
+apply the existing one-knob source guard. It does not run Docker or a benchmark.
+
+```sh
+python tasks/harness-design/harness/pi_protocol_smoke.py --execute-fixture \
+  --node /opt/node/bin/node \
+  --pi-cli /opt/pi/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js \
+  --pi-package /opt/verified/pi-coding-agent-1.0.0.tgz \
+  --out /tmp/new-pi-proposal-fixture
+```
+
+The archive must match the official integrity in `agent-harness/profiles.json`;
+all 1243 installed distribution files are compared with it. The normal proposal
+deadline is **300 seconds**, including all tool turns and the terminal response.
+The fixture captures actual first and follow-up HTTP bodies. Negative modes
+`--fixture-mode length`, `no-patch` and `partial` retain explicit failure statuses;
+a real scratch edit with missing terminal usage is not an accepted proposal.
+Fixture usage arithmetic is labelled synthetic and incurs no provider spending.
+
+After separately approving and starting a bounded model-budget gateway, run the
+same command with `--execute-live --gateway-url http://127.0.0.1:PORT/v1` in place
+of `--execute-fixture`. Pass only the existing `ABSTRACT_PILOT_GATEWAY_KEY` client
+capability through the environment. The upstream provider key stays in the
+gateway. `--execute-live` is an execution switch, not financial authorization;
+the gateway must enforce the actual shared cash limits and retain raw responses.
+Require `verification.json` status `PASS` before renting a GPU. For the canonical
+CLI, copy that successful **live** preflight's `agent/models.json` and
+`agent/settings.json` into the new `<state-dir>/pi-agent-dir`, and select
+`--pi-provider abstract-preflight --pi-model glm-5.2`. Preserve the same gateway,
+client capability and wire options. Never copy the synthetic fixture provider or
+reuse an expired gateway. A custom deployment launcher must use the same verified
+model configuration rather than overwriting it with `reasoning: false` alone.
+Live transcripts may include private model reasoning: retain the work privately.
+
+The assigned preflight edit (`--token-batch-size=1024` to `256`) checks the
+interface only. It is not an optimization result or an instruction for the real
+optimization run. A passing preflight proves neither a build nor a speedup.
+
+For DigitalOcean's GLM-5.2/vLLM route, `reasoning: false` alone did not disable
+provider thinking, and `thinking.type: disabled` alone was insufficient. Pi1.0
+supports the following model-level configuration without an extension or modified
+distribution:
+
+```json
+{
+  "reasoning": false,
+  "maxTokens": 8192,
+  "compat": {"maxTokensField": "max_tokens"},
+  "samplingParams": {
+    "thinking": {"type": "disabled"},
+    "chat_template_kwargs": {"enable_thinking": false},
+    "tool_choice": "auto"
+  }
+}
+```
+
+The official Pi1.0 `dist/core/model-config.js` accepts `samplingParams`; its
+`openai-completions` provider merges those values into every request. The actual
+stock-CLI fixtures assert these fields and the 8192-token wire cap on the initial
+request and every follow-up. This preserves all assignment isolation flags,
+including `--no-extensions`. Provider compatibility still needs the complete live
+preflight: a synthetic test cannot establish the current endpoint's behavior.
 
 Place `models.json` and `settings.json` in `<state-dir>/pi-agent-dir` before launch.
 For a custom OpenAI-compatible provider, use its documented Pi 1.0 model schema,
