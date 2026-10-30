@@ -19,7 +19,17 @@ measurement-window boundaries because raw lag intervals were not retained.
 Later source fixes and CPU checks do not retroactively certify that missing
 evidence. A separately dated 19:35 quality/calibration reanalysis reproduces all
 original metrics and verdicts; original archives/reports remain unchanged.
-Current recorder 1.1.1 and source `331c467` are CPU-tested for future captures.
+For the original 28 October full capture, recorder 1.1.1 and source `331c467`
+were later CPU-tested changes, not the code used by that historical capture.
+Recorder 1.1.1 now also has the separate actual fixed90 validation below.
+
+A [separate fixed90 real-engine supplement](validation/engine-fixed90-supplemental-20261030/README.md)
+now exercises recorder 1.1.1 with 30 clean A, 30 injected 100 ms, and 30 clean B
+requests. All 90 completed under the current 50 ms lag gate; the recorded delay
+was 100.073 ms (descriptive 95% CI 99.632–100.526 ms). This later work is outside
+the primary three-hour claim. It is not a full-suite rerun or measured-power
+result; the original evaluator remains inconclusive and historical files/clocks
+stay unchanged.
 
 [EXECUTION.md](EXECUTION.md) describes the self-contained candidate recorder,
 calibration/freeze, bounded capture, export and cleanup. The organizer's future

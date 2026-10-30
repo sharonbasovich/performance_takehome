@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "task": "benchmark-design",
-  "status": "REAL_CAPTURES_VALID_UNDER_ORIGINAL_GATES_POST_REVIEW_CPU_VERIFIED",
+  "status": "PRIMARY_HISTORY_PRESERVED_WITH_COMPLETE_SEPARATE_FIXED90_SUPPLEMENT",
   "official_result": false,
   "source": {
     "repository": "https://github.com/sharonbasovich/performance_takehome",
@@ -9,9 +9,11 @@
     "capture_commit": "7d6fd182aa494eff1975e41f3fb67934f30994f6",
     "tested_code_commit": "331c4678af81627a7a6fa2a99e1e63d1b7214b12",
     "provenance": "tasks/benchmark-design/validation/real-run-20261028/provenance.json",
-    "qualification": "Original real captures retain 7d6fd18 plus the disclosed full-run external adapter. Later 556e7b8 quality/calibration reanalysis matches stored metrics; combined 331c467 recorder 1.1.1 is CPU-tested and was not used for historical GPU capture. Final publication changes documentation/evidence only.",
+    "qualification": "The original 28 October real captures retain 7d6fd18 plus the disclosed full-run external adapter. Later 556e7b8 quality/calibration reanalysis matches stored metrics; combined 331c467 recorder 1.1.1 was CPU-tested and was not used for those original GPU captures. Recorder 1.1.1 now also has the separate actual 30 October fixed90 supplemental validation at 96a9fa5. This publication changes documentation/evidence only; it does not replace original capture source or clocks.",
     "original_code_validation_commit": "ea97cb833644aefd48569a805c83269bd0c8eaed",
-    "quality_calibration_reanalysis_commit": "556e7b8255ac342a806237d6ce83fd90f6d7275f"
+    "quality_calibration_reanalysis_commit": "556e7b8255ac342a806237d6ce83fd90f6d7275f",
+    "supplemental_fixed90_capture_commit": "96a9fa5a716d54a9700d14627fe184dec4e7dedc",
+    "supplemental_fixed90_capture_helper_sha256": "eba5fc8b5c8bbb56e617c34f0ea0499475e73d2e01a37605209893e29d3ecbb2"
   },
   "suite": {
     "entrypoint": "tasks/benchmark-design/suite/evaluate.py",
@@ -90,7 +92,10 @@
     "historical_native_validation": "tasks/benchmark-design/validation/real-run-20261028/native-validation.json",
     "post_review_reanalysis": "tasks/benchmark-design/validation/real-run-20261028/post-review/receipt.json",
     "resource_closure": "tasks/benchmark-design/validation/real-run-20261028/resource-closure.json",
-    "historical_pre_review_manifest": "tasks/benchmark-design/submission.pre-review-fixes-20261028.json"
+    "historical_pre_review_manifest": "tasks/benchmark-design/submission.pre-review-fixes-20261028.json",
+    "historical_pre_fixed90_manifest": "tasks/benchmark-design/submission.pre-fixed90-20261030.json",
+    "historical_pre_fixed90_manifest_sha256": "45e76a389cd696b24c992b398685b90374c83def272a0f1c54e354af38451744",
+    "supplemental_fixed90": "tasks/benchmark-design/validation/engine-fixed90-supplemental-20261030/README.md"
   },
   "measurement": {
     "calibration": {
@@ -255,6 +260,42 @@
     "Bootstrap intervals are conditional request-level diagnostics, with no measured power or finite-sample familywise guarantee.",
     "Re-encoded decoded output at delta timing; prompt length remains an approximate covariate.",
     "Brief CPU-only metadata build overlap disclosed in provenance.",
-    "No official harness/release/schema acceptance or organizer grade asserted."
-  ]
+    "No official harness/release/schema acceptance or organizer grade asserted.",
+    "The fixed90 supplemental study is one fixed-order point diagnostic outside the original primary three-hour envelope. Its request-level CIs do not establish measured power, a general false-positive rate or population coverage. The original evaluator remains inconclusive; the post-DELETE identity-poll error and missing second 200 response body are disclosed separately."
+  ],
+  "supplemental_fixed90": {
+    "actual100ms_delays": 30,
+    "additional_startup_probe": 1,
+    "all90_completed": true,
+    "archive_sha256": "fab4f7d0ffb9d1bf5625664f01d32b79a20afee4f1afcbbd454e2bacbb398f23",
+    "delay_CI95_seconds": {
+      "confidence": 0.95,
+      "high": 0.10052627721247943,
+      "low": 0.09963181636251832,
+      "n_a": 60,
+      "n_b": 30,
+      "point": 0.10007321950000403
+    },
+    "directory": "tasks/benchmark-design/validation/engine-fixed90-supplemental-20261030",
+    "healthy_B_minus_A_CI95_seconds": {
+      "confidence": 0.95,
+      "high": 0.0012454669999613088,
+      "low": -0.0005128384624988767,
+      "n_a": 30,
+      "n_b": 30,
+      "point": 3.30234999807999e-05
+    },
+    "lag_limit_seconds": 0.05,
+    "lag_max_seconds": 0.0020629910000218386,
+    "manifest": "tasks/benchmark-design/validation/engine-fixed90-supplemental-20261030/manifest.json",
+    "measured_requests": 90,
+    "original_evaluator_exit_code": 3,
+    "original_evaluator_status": "inconclusive",
+    "outside_original_primary3h": true,
+    "power_official_grade_or_full_suite_revalidation_claimed": false,
+    "primary_capture_files_or_clocks_changed": false,
+    "results": "tasks/benchmark-design/validation/engine-fixed90-supplemental-20261030/results.json",
+    "source_commit": "96a9fa5a716d54a9700d14627fe184dec4e7dedc",
+    "status": "COMPLETE_FIXED90_DESCRIPTIVE_NOT_OFFICIAL_GRADE"
+  }
 }
