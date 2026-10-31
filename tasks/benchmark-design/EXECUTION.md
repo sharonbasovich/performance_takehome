@@ -3,7 +3,10 @@
 The recorder, schema, fixtures, calibration and evaluator are candidate-built replacements
 for the draft interfaces. They are runnable as supplied; no further organizer release is
 needed for engineering execution. They are not an official runner, grader or approval.
-All target hardware/model results remain unmeasured until a real capture is retained.
+Completed target captures are documented in [the 28 October results](REAL-RUN-20261028.md)
+and the [separate 30 October fixed90 supplement](validation/engine-fixed90-supplemental-20261030/README.md).
+The procedure below describes prospective captures; it does not replace those retained
+results, their source identities, or their disclosed validation limits.
 
 ## Freeze and verify generation policy
 
